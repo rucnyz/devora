@@ -92,3 +92,12 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+          body: |
+            ## Quick Start
+
+            1. Download the zip file for your platform
+            2. Extract the zip file
+            3. Run the executable (`manage-note.exe` on Windows, `manage-note` on macOS/Linux)
+            4. Visit http://localhost:3000 in your browser
+
+            ---
