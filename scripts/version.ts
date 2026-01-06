@@ -7,6 +7,7 @@
  *   bun run version major     # 0.1.2 -> 1.0.0
  *   bun run version 1.2.3     # Set specific version
  *   bun run version patch --push  # Also push to remote
+ *   bun run version patch --commit "message" --push  # Commit changes first
  */
 
 import { $ } from 'bun'
@@ -16,8 +17,12 @@ const args = process.argv.slice(2)
 const bumpType = args[0]
 const shouldPush = args.includes('--push')
 
+// Parse --commit option
+const commitIndex = args.indexOf('--commit')
+const commitMessage = commitIndex !== -1 ? args[commitIndex + 1] : null
+
 if (!bumpType) {
-  console.log('Usage: bun run version <patch|minor|major|x.y.z> [--push]')
+  console.log('Usage: bun run version <patch|minor|major|x.y.z> [--commit "message"] [--push]')
   console.log(`Current version: ${pkg.version}`)
   process.exit(1)
 }
@@ -46,6 +51,14 @@ function bumpVersion(current: string, type: string): string {
 
 const currentVersion = pkg.version
 const newVersion = bumpVersion(currentVersion, bumpType)
+
+// Commit current changes first if --commit is provided
+if (commitMessage) {
+  console.log(`Committing current changes: ${commitMessage}`)
+  await $`git add -A`
+  await $`git commit -m ${commitMessage}`
+  console.log('Changes committed')
+}
 
 console.log(`Bumping version: ${currentVersion} -> ${newVersion}`)
 
