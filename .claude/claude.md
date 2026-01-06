@@ -19,6 +19,41 @@ bun run dev          # Development mode, visit http://localhost:5173
 bun run preview      # Production mode, visit http://localhost:3000
 ```
 
+## Distribution
+
+### Download Pre-built Release
+
+Download from [GitHub Releases](../../releases) - available for Windows, macOS, and Linux.
+
+Each release contains:
+- `manage-note` executable (or `.exe` on Windows)
+- `dist/` folder (frontend assets)
+- `data/` folder (database created automatically)
+
+**Usage**: Just run the executable, then visit http://localhost:3000
+
+### Build Release Locally
+
+```bash
+bun run release              # Build for all platforms
+bun run release:windows      # Windows x64 only
+bun run release:macos        # macOS ARM64 only
+bun run release:linux        # Linux x64 only
+```
+
+Output: `release/manage-note-{platform}/`
+
+### Auto Release via GitHub Actions
+
+Push a version tag to trigger automatic release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+GitHub Actions will build for all platforms and create a release with downloadable zip files.
+
 ## Project Structure
 
 ```
@@ -27,8 +62,13 @@ manage-note/
 ├── vite.config.ts          # Vite config + Tailwind plugin
 ├── server/                 # Hono backend
 ├── src/                    # React frontend
-├── data/projects.db        # SQLite database
-└── dist/                   # Build output
+├── scripts/
+│   └── build-release.ts    # Cross-platform build script
+├── .github/workflows/
+│   └── release.yml         # GitHub Actions auto-release
+├── dist/                   # Frontend build output (generated)
+├── data/                   # Database (generated at runtime)
+└── release/                # Release builds (generated)
 ```
 
 ## Core Features

@@ -9,7 +9,11 @@
     "dev:client": "vite",
     "build": "vite build",
     "start": "bun run server/index.ts",
-    "preview": "bun run build && bun run start"
+    "preview": "bun run build && bun run start",
+    "release": "bun run scripts/build-release.ts",
+    "release:windows": "bun run scripts/build-release.ts windows-x64",
+    "release:macos": "bun run scripts/build-release.ts macos-arm64",
+    "release:linux": "bun run scripts/build-release.ts linux-x64"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",

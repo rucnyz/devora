@@ -1,8 +1,22 @@
 import { Database } from 'bun:sqlite'
 import { v4 as uuidv4 } from 'uuid'
+import { dirname, join } from 'path'
+import { mkdirSync, existsSync } from 'fs'
 import type { Project, Item, ProjectMetadata, ItemType, IdeType, RemoteIdeType } from '../src/types'
 
-const db = new Database('data/projects.db', { create: true })
+// Use current working directory as app root
+const APP_DIR = process.cwd()
+const dataDir = join(APP_DIR, 'data')
+
+// Ensure data directory exists
+if (!existsSync(dataDir)) {
+  mkdirSync(dataDir, { recursive: true })
+}
+
+const dbPath = join(dataDir, 'projects.db')
+console.log(`Database path: ${dbPath}`)
+
+const db = new Database(dbPath, { create: true })
 
 // Initialize tables
 db.run(`
