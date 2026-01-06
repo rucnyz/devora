@@ -2,7 +2,7 @@ import { Database } from 'bun:sqlite'
 import { v4 as uuidv4 } from 'uuid'
 import { dirname, join } from 'path'
 import { mkdirSync, existsSync } from 'fs'
-import type { Project, Item, ProjectMetadata, ItemType, IdeType, RemoteIdeType } from '../src/types'
+import type { Project, Item, ProjectMetadata, ItemType, IdeType, RemoteIdeType, CommandMode } from '../src/types'
 
 // Use current working directory as app root
 const APP_DIR = process.cwd()
@@ -48,6 +48,20 @@ db.run(`
 // Migration: add remote_ide_type column if not exists
 try {
   db.run(`ALTER TABLE items ADD COLUMN remote_ide_type TEXT`)
+} catch {
+  // Column already exists
+}
+
+// Migration: add command_mode column if not exists
+try {
+  db.run(`ALTER TABLE items ADD COLUMN command_mode TEXT`)
+} catch {
+  // Column already exists
+}
+
+// Migration: add command_cwd column if not exists
+try {
+  db.run(`ALTER TABLE items ADD COLUMN command_cwd TEXT`)
 } catch {
   // Column already exists
 }
@@ -122,7 +136,9 @@ export function createItem(
   title: string,
   content: string = '',
   ideType?: IdeType,
-  remoteIdeType?: RemoteIdeType
+  remoteIdeType?: RemoteIdeType,
+  commandMode?: CommandMode,
+  commandCwd?: string
 ): Item {
   const id = uuidv4()
   const now = new Date().toISOString()
@@ -132,8 +148,8 @@ export function createItem(
   const order = (maxOrder?.max ?? -1) + 1
 
   db.run(
-    'INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, projectId, type, title, content, ideType || null, remoteIdeType || null, order, now, now]
+    'INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, projectId, type, title, content, ideType || null, remoteIdeType || null, commandMode || null, commandCwd || null, order, now, now]
   )
 
   // Update project's updated_at
@@ -147,13 +163,15 @@ export function createItem(
     content,
     ide_type: ideType,
     remote_ide_type: remoteIdeType,
+    command_mode: commandMode,
+    command_cwd: commandCwd,
     order,
     created_at: now,
     updated_at: now,
   }
 }
 
-export function updateItem(id: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'order'>>): Item | null {
+export function updateItem(id: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'order'>>): Item | null {
   const existing = db.query('SELECT * FROM items WHERE id = ?').get(id) as Item | null
   if (!existing) return null
 
@@ -162,11 +180,13 @@ export function updateItem(id: string, updates: Partial<Pick<Item, 'title' | 'co
   const content = updates.content ?? existing.content
   const ideType = updates.ide_type ?? existing.ide_type
   const remoteIdeType = updates.remote_ide_type ?? existing.remote_ide_type
+  const commandMode = updates.command_mode ?? existing.command_mode
+  const commandCwd = updates.command_cwd ?? existing.command_cwd
   const order = updates.order ?? existing.order
 
   db.run(
-    'UPDATE items SET title = ?, content = ?, ide_type = ?, remote_ide_type = ?, "order" = ?, updated_at = ? WHERE id = ?',
-    [title, content, ideType || null, remoteIdeType || null, order, now, id]
+    'UPDATE items SET title = ?, content = ?, ide_type = ?, remote_ide_type = ?, command_mode = ?, command_cwd = ?, "order" = ?, updated_at = ? WHERE id = ?',
+    [title, content, ideType || null, remoteIdeType || null, commandMode || null, commandCwd || null, order, now, id]
   )
 
   // Update project's updated_at

@@ -160,6 +160,54 @@ app.post('/url-metadata', async (c) => {
   }
 })
 
+// Run custom command
+app.post('/command', async (c) => {
+  const body = await c.req.json()
+  const { command, mode, cwd } = body as { command: string; mode: 'background' | 'output'; cwd?: string }
+
+  if (!command) {
+    return c.json({ error: 'command is required' }, 400)
+  }
+
+  try {
+    const spawnOptions: any = {
+      cwd: cwd || process.cwd(),
+      shell: true,
+    }
+
+    if (mode === 'background') {
+      // Background mode: spawn detached and return immediately
+      const child = Bun.spawn(['cmd', '/c', command], {
+        ...spawnOptions,
+        stdout: 'ignore',
+        stderr: 'ignore',
+      })
+      // Don't wait for the process
+      return c.json({ success: true })
+    } else {
+      // Output mode: wait for completion and return stdout/stderr
+      const proc = Bun.spawn(['cmd', '/c', command], {
+        ...spawnOptions,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      return c.json({
+        success: exitCode === 0,
+        output: stdout,
+        error: stderr || undefined,
+        exitCode,
+      })
+    }
+  } catch (error) {
+    return c.json({ error: `Failed to run command: ${error}` }, 500)
+  }
+})
+
 // List remote directory via SSH
 app.post('/ssh/list-dir', async (c) => {
   const body = await c.req.json()

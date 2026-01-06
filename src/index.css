@@ -530,6 +530,29 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 2px 12px rgba(5, 150, 105, 0.15);
 }
 
+.tag-command {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.tag-command:hover {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
+}
+
+[data-theme="light"] .tag-command {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.25);
+}
+
+[data-theme="light"] .tag-command:hover {
+  background: rgba(217, 119, 6, 0.15);
+  box-shadow: 0 2px 12px rgba(217, 119, 6, 0.2);
+}
+
 .tag-url {
   color: var(--accent-secondary);
   background: rgba(0, 212, 255, 0.1);

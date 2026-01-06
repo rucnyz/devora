@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useProject, openIde, openFile, selectFolder, selectFile, openRemoteIde, fetchSSHHosts, fetchUrlMetadata } from '../hooks/useProjects'
+import { useProject, openIde, openFile, selectFolder, selectFile, openRemoteIde, fetchSSHHosts, fetchUrlMetadata, runCommand } from '../hooks/useProjects'
 import RemoteDirBrowser from './RemoteDirBrowser'
 import HostInput from './HostInput'
-import type { Item, IdeType, RemoteIdeType } from '../types'
+import type { Item, IdeType, RemoteIdeType, CommandMode } from '../types'
 
 const IDE_LABELS: Record<IdeType, string> = {
   pycharm: 'PyCharm',
@@ -97,6 +97,22 @@ export default function ProjectDetail() {
   const editRemoteIdeRef = useRef<HTMLDivElement>(null)
   // SSH hosts from ~/.ssh/config
   const [sshHosts, setSSHHosts] = useState<string[]>([])
+  // Command states
+  const [isCreatingCommand, setIsCreatingCommand] = useState(false)
+  const [newCommandTitle, setNewCommandTitle] = useState('')
+  const [newCommandContent, setNewCommandContent] = useState('')
+  const [newCommandMode, setNewCommandMode] = useState<CommandMode>('background')
+  const [newCommandCwd, setNewCommandCwd] = useState('')
+  const newCommandRef = useRef<HTMLDivElement>(null)
+  // Command edit states
+  const [editingCommandId, setEditingCommandId] = useState<string | null>(null)
+  const [editCommandTitle, setEditCommandTitle] = useState('')
+  const [editCommandContent, setEditCommandContent] = useState('')
+  const [editCommandMode, setEditCommandMode] = useState<CommandMode>('background')
+  const [editCommandCwd, setEditCommandCwd] = useState('')
+  const editCommandRef = useRef<HTMLDivElement>(null)
+  // Command output modal
+  const [commandOutput, setCommandOutput] = useState<{ title: string; output: string; error?: string } | null>(null)
   // Remote directory browser state
   const [showRemoteBrowser, setShowRemoteBrowser] = useState<'create' | 'edit' | null>(null)
   // Meta edit states
@@ -254,6 +270,37 @@ export default function ProjectDetail() {
     }
   }, [editingRemoteIdeId, editRemoteHost, editRemotePath, editRemoteIdeType, updateItem])
 
+  // Save the Command being created
+  const saveCreatingCommand = useCallback(async () => {
+    if (isCreatingCommand && newCommandContent.trim()) {
+      const title = newCommandTitle.trim() || newCommandContent.trim()
+      await addItem('command', title, newCommandContent.trim(), undefined, undefined, newCommandMode, newCommandCwd.trim() || undefined)
+      setIsCreatingCommand(false)
+      setNewCommandTitle('')
+      setNewCommandContent('')
+      setNewCommandMode('background')
+      setNewCommandCwd('')
+    }
+  }, [isCreatingCommand, newCommandTitle, newCommandContent, newCommandMode, newCommandCwd, addItem])
+
+  // Save the Command being edited
+  const saveEditingCommand = useCallback(async () => {
+    if (editingCommandId && editCommandContent.trim()) {
+      const title = editCommandTitle.trim() || editCommandContent.trim()
+      await updateItem(editingCommandId, {
+        title,
+        content: editCommandContent.trim(),
+        command_mode: editCommandMode,
+        command_cwd: editCommandCwd.trim() || undefined,
+      })
+      setEditingCommandId(null)
+      setEditCommandTitle('')
+      setEditCommandContent('')
+      setEditCommandMode('background')
+      setEditCommandCwd('')
+    }
+  }, [editingCommandId, editCommandTitle, editCommandContent, editCommandMode, editCommandCwd, updateItem])
+
   useEffect(() => {
     const handleClickOutside = async (event: MouseEvent) => {
       if (isCreatingNote && newNoteRef.current && !newNoteRef.current.contains(event.target as Node)) {
@@ -307,16 +354,31 @@ export default function ProjectDetail() {
           }
         }
       }
+      // Command
+      if (isCreatingCommand && newCommandRef.current && !newCommandRef.current.contains(event.target as Node)) {
+        if (newCommandContent.trim()) {
+          await saveCreatingCommand()
+        } else {
+          setIsCreatingCommand(false)
+        }
+      }
+      if (editingCommandId && editCommandRef.current && !editCommandRef.current.contains(event.target as Node)) {
+        if (editCommandContent.trim()) {
+          await saveEditingCommand()
+        } else {
+          setEditingCommandId(null)
+        }
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, showRemoteBrowser])
+  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, showRemoteBrowser, isCreatingCommand, newCommandContent, saveCreatingCommand, editingCommandId, editCommandContent, saveEditingCommand])
 
   // Ctrl+S / Cmd+S keyboard shortcut to save all inline editors
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        const hasActiveEditor = editingNoteIdRef.current || isCreatingNote || isCreatingIde || editingIdeId || isCreatingFile || editingFileId || isCreatingRemoteIde || editingRemoteIdeId
+        const hasActiveEditor = editingNoteIdRef.current || isCreatingNote || isCreatingIde || editingIdeId || isCreatingFile || editingFileId || isCreatingRemoteIde || editingRemoteIdeId || isCreatingCommand || editingCommandId
         if (hasActiveEditor) {
           e.preventDefault()
           e.stopPropagation()
@@ -344,12 +406,18 @@ export default function ProjectDetail() {
           } else if (isCreatingRemoteIde && newRemoteHost.trim() && newRemotePath.trim()) {
             await saveCreatingRemoteIde()
           }
+          // Command
+          else if (editingCommandId && editCommandContent.trim()) {
+            await saveEditingCommand()
+          } else if (isCreatingCommand && newCommandContent.trim()) {
+            await saveCreatingCommand()
+          }
         }
       }
     }
     document.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde])
+  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, isCreatingCommand, newCommandContent, saveCreatingCommand, editingCommandId, editCommandContent, saveEditingCommand])
 
   // Global Ctrl+V to quick add URL (only when not editing)
   useEffect(() => {
@@ -393,6 +461,14 @@ export default function ProjectDetail() {
     setIsCreatingFile(true)
     setNewFileTitle('')
     setNewFilePath('')
+  }
+
+  const handleCreateCommand = () => {
+    setIsCreatingCommand(true)
+    setNewCommandTitle('')
+    setNewCommandContent('')
+    setNewCommandMode('background')
+    setNewCommandCwd('')
   }
 
   const handleSelectFolder = async () => {
@@ -534,6 +610,42 @@ export default function ProjectDetail() {
     }
   }
 
+  const handleRunCommand = async (item: Item) => {
+    if (item.content && item.command_mode) {
+      try {
+        const result = await runCommand(item.content, item.command_mode, item.command_cwd)
+        if (item.command_mode === 'output') {
+          setCommandOutput({
+            title: item.title,
+            output: result.output || '',
+            error: result.error,
+          })
+        }
+      } catch (err) {
+        alert(`Failed to run command: ${err}`)
+      }
+    }
+  }
+
+  const handleEditCommand = (item: Item) => {
+    setEditingCommandId(item.id)
+    setEditCommandTitle(item.title)
+    setEditCommandContent(item.content)
+    setEditCommandMode(item.command_mode || 'background')
+    setEditCommandCwd(item.command_cwd || '')
+  }
+
+  const handleSelectFolderForCommand = async (isEdit: boolean) => {
+    const path = await selectFolder()
+    if (path) {
+      if (isEdit) {
+        setEditCommandCwd(path)
+      } else {
+        setNewCommandCwd(path)
+      }
+    }
+  }
+
   const startEditMeta = () => {
     setEditName(project.name)
     setEditDesc(project.description)
@@ -560,6 +672,7 @@ export default function ProjectDetail() {
   const remoteIdeItems = project.items?.filter((i) => i.type === 'remote-ide') || []
   const fileItems = project.items?.filter((i) => i.type === 'file') || []
   const urlItems = project.items?.filter((i) => i.type === 'url') || []
+  const commandItems = project.items?.filter((i) => i.type === 'command') || []
 
   // Scroll to section
   const scrollToSection = (sectionId: string) => {
@@ -574,6 +687,7 @@ export default function ProjectDetail() {
     { id: 'section-apps', label: 'Apps', show: ideItems.length > 0 || isCreatingIde, color: 'var(--accent-primary)' },
     { id: 'section-remote', label: 'Remote', show: remoteIdeItems.length > 0 || isCreatingRemoteIde, color: '#e879f9' },
     { id: 'section-files', label: 'Files', show: fileItems.length > 0 || isCreatingFile, color: 'var(--text-secondary)' },
+    { id: 'section-commands', label: 'Commands', show: commandItems.length > 0 || isCreatingCommand, color: '#fbbf24' },
     { id: 'section-links', label: 'Links', show: true, color: 'var(--accent-secondary)' },
     { id: 'section-notes', label: 'Notes', show: true, color: 'var(--accent-warning)' },
   ].filter(item => item.show)
@@ -724,6 +838,12 @@ export default function ProjectDetail() {
           className="group px-4 py-3 rounded-lg bg-[#e879f9]/10 border border-[#e879f9]/30 hover:border-[#e879f9] transition-all"
         >
           <span className="font-mono text-sm text-[#e879f9]">+ Remote</span>
+        </button>
+        <button
+          onClick={handleCreateCommand}
+          className="group px-4 py-3 rounded-lg bg-[#fbbf24]/10 border border-[#fbbf24]/30 hover:border-[#fbbf24] transition-all"
+        >
+          <span className="font-mono text-sm text-[#fbbf24]">+ Command</span>
         </button>
       </div>
 
@@ -1204,6 +1324,202 @@ export default function ProjectDetail() {
             )}
           </div>
         </section>
+      )}
+
+      {/* Commands */}
+      {(commandItems.length > 0 || isCreatingCommand) && (
+        <section id="section-commands" className="mb-8 scroll-mt-6">
+          <h3 className="section-label">Commands</h3>
+
+          {/* Inline Command Creator */}
+          {isCreatingCommand && (
+            <div
+              ref={newCommandRef}
+              className="mb-4 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-visible)]"
+            >
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <input
+                  type="text"
+                  value={newCommandTitle}
+                  onChange={(e) => setNewCommandTitle(e.target.value)}
+                  placeholder="Title (optional)..."
+                  className="input-terminal w-40"
+                />
+                <input
+                  type="text"
+                  value={newCommandContent}
+                  onChange={(e) => setNewCommandContent(e.target.value)}
+                  placeholder="Command to run..."
+                  className="input-terminal flex-1"
+                  autoFocus
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <div className="flex-1 flex gap-2">
+                  <input
+                    type="text"
+                    value={newCommandCwd}
+                    onChange={(e) => setNewCommandCwd(e.target.value)}
+                    placeholder="Working directory (optional)..."
+                    className="input-terminal flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSelectFolderForCommand(false)}
+                    className="btn-ghost whitespace-nowrap"
+                  >
+                    Browse
+                  </button>
+                </div>
+                <select
+                  value={newCommandMode}
+                  onChange={(e) => setNewCommandMode(e.target.value as CommandMode)}
+                  className="input-terminal w-36"
+                >
+                  <option value="background">Background</option>
+                  <option value="output">Show Output</option>
+                </select>
+              </div>
+              <div className="text-xs font-mono text-[var(--text-muted)]">
+                Click outside to save
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {commandItems.map((item, index) =>
+              editingCommandId === item.id ? (
+                <div
+                  key={item.id}
+                  ref={editCommandRef}
+                  className="w-full p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-visible)] animate-card-enter"
+                >
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                    <input
+                      type="text"
+                      value={editCommandTitle}
+                      onChange={(e) => setEditCommandTitle(e.target.value)}
+                      placeholder="Title (optional)..."
+                      className="input-terminal w-40"
+                      autoFocus
+                    />
+                    <input
+                      type="text"
+                      value={editCommandContent}
+                      onChange={(e) => setEditCommandContent(e.target.value)}
+                      placeholder="Command to run..."
+                      className="input-terminal flex-1"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={editCommandCwd}
+                        onChange={(e) => setEditCommandCwd(e.target.value)}
+                        placeholder="Working directory (optional)..."
+                        className="input-terminal flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSelectFolderForCommand(true)}
+                        className="btn-ghost whitespace-nowrap"
+                      >
+                        Browse
+                      </button>
+                    </div>
+                    <select
+                      value={editCommandMode}
+                      onChange={(e) => setEditCommandMode(e.target.value as CommandMode)}
+                      className="input-terminal w-36"
+                    >
+                      <option value="background">Background</option>
+                      <option value="output">Show Output</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-mono text-[var(--text-muted)]">Click outside to save</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteItem(item.id)
+                        setEditingCommandId(null)
+                      }}
+                      className="btn-delete"
+                    >
+                      delete
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key={item.id}
+                  className="group/command relative animate-card-enter mr-7"
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <div
+                    className="tag tag-command cursor-pointer"
+                    onClick={() => handleRunCommand(item)}
+                  >
+                    <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>{item.title}</span>
+                    {item.command_mode === 'output' && (
+                      <span className="text-xs opacity-50">[out]</span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteItem(item.id)
+                      }}
+                      className="ml-1 opacity-0 group-hover/command:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => handleEditCommand(item)}
+                    className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] opacity-0 group-hover/command:opacity-100 transition-all"
+                  >
+                    Edit
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Command Output Modal */}
+      {commandOutput && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setCommandOutput(null)}>
+          <div className="bg-[var(--bg-elevated)] border border-[var(--border-visible)] rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">{commandOutput.title}</h3>
+              <button
+                onClick={() => setCommandOutput(null)}
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {commandOutput.output && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-mono text-[var(--text-muted)] mb-2">Output:</h4>
+                  <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--text-secondary)] whitespace-pre-wrap overflow-x-auto">{commandOutput.output}</pre>
+                </div>
+              )}
+              {commandOutput.error && (
+                <div>
+                  <h4 className="text-sm font-mono text-[var(--accent-danger)] mb-2">Error:</h4>
+                  <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--accent-danger)] whitespace-pre-wrap overflow-x-auto">{commandOutput.error}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* URLs - always visible with inline input */}

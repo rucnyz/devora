@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Project, Item, ItemType, IdeType, RemoteIdeType, ProjectMetadata } from '../types'
+import type { Project, Item, ItemType, IdeType, RemoteIdeType, CommandMode, ProjectMetadata } from '../types'
 
 const API_BASE = '/api'
 
@@ -84,11 +84,27 @@ export function useProject(id: string) {
     fetchProject()
   }, [fetchProject])
 
-  const addItem = async (type: ItemType, title: string, content?: string, ideType?: IdeType, remoteIdeType?: RemoteIdeType) => {
+  const addItem = async (
+    type: ItemType,
+    title: string,
+    content?: string,
+    ideType?: IdeType,
+    remoteIdeType?: RemoteIdeType,
+    commandMode?: CommandMode,
+    commandCwd?: string
+  ) => {
     const res = await fetch(`${API_BASE}/projects/${id}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, title, content, ide_type: ideType, remote_ide_type: remoteIdeType }),
+      body: JSON.stringify({
+        type,
+        title,
+        content,
+        ide_type: ideType,
+        remote_ide_type: remoteIdeType,
+        command_mode: commandMode,
+        command_cwd: commandCwd,
+      }),
     })
     if (!res.ok) throw new Error('Failed to add item')
     const item = await res.json()
@@ -96,7 +112,7 @@ export function useProject(id: string) {
     return item as Item
   }
 
-  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type'>>) => {
+  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd'>>) => {
     const res = await fetch(`${API_BASE}/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -213,4 +229,24 @@ export async function fetchUrlMetadata(url: string): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+export interface CommandResult {
+  success: boolean
+  output?: string
+  error?: string
+  exitCode?: number
+}
+
+export async function runCommand(command: string, mode: CommandMode, cwd?: string): Promise<CommandResult> {
+  const res = await fetch(`${API_BASE}/open/command`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command, mode, cwd }),
+  })
+  if (!res.ok) {
+    const data = await res.json()
+    throw new Error(data.error || 'Failed to run command')
+  }
+  return res.json()
 }

@@ -57,6 +57,7 @@ jobs:
           mv manage-note${{ matrix.ext }} manage-note-${{ matrix.name }}/
           cp -r dist manage-note-${{ matrix.name }}/
           mkdir manage-note-${{ matrix.name }}/data
+          echo -e "# Server Configuration\nPORT=3000" > manage-note-${{ matrix.name }}/.env
           zip -r manage-note-${{ matrix.name }}.zip manage-note-${{ matrix.name }}
 
       - name: Prepare release package (Windows)
@@ -67,6 +68,7 @@ jobs:
           Move-Item -Path "manage-note${{ matrix.ext }}" -Destination "manage-note-${{ matrix.name }}/"
           Copy-Item -Path "dist" -Destination "manage-note-${{ matrix.name }}/" -Recurse
           New-Item -ItemType Directory -Path "manage-note-${{ matrix.name }}/data" -Force
+          Set-Content -Path "manage-note-${{ matrix.name }}/.env" -Value "# Server Configuration`nPORT=3000"
           Compress-Archive -Path "manage-note-${{ matrix.name }}" -DestinationPath "manage-note-${{ matrix.name }}.zip"
 
       - name: Upload artifact
@@ -99,5 +101,12 @@ jobs:
             2. Extract the zip file
             3. Run the executable (`manage-note.exe` on Windows, `manage-note` on macOS/Linux)
             4. Visit http://localhost:3000 in your browser
+
+            ## Configuration
+
+            Edit `.env` file to change server port:
+            ```
+            PORT=8080
+            ```
 
             ---

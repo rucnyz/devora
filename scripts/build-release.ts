@@ -4,8 +4,12 @@
  */
 
 import { $ } from 'bun'
-import { existsSync, mkdirSync, cpSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
+
+const DEFAULT_ENV = `# Server Configuration
+PORT=3000
+`
 
 const TARGETS = [
   { name: 'windows-x64', target: 'bun-windows-x64', ext: '.exe' },
@@ -56,6 +60,11 @@ async function build() {
     mkdirSync(dataDir)
     console.log(`  Created: data/`)
 
+    // Create default .env file
+    const envFile = join(platformDir, '.env')
+    writeFileSync(envFile, DEFAULT_ENV)
+    console.log(`  Created: .env`)
+
     console.log(`  Done: ${platformDir}`)
   }
 
@@ -97,6 +106,7 @@ async function buildSingle(platform: string) {
 
   cpSync('dist', join(platformDir, 'dist'), { recursive: true })
   mkdirSync(join(platformDir, 'data'))
+  writeFileSync(join(platformDir, '.env'), DEFAULT_ENV)
 
   console.log(`\nDone: ${platformDir}`)
 }

@@ -37,7 +37,7 @@ if (existsSync(distPath)) {
   console.log(`Serving static files from ${distPath}`)
 }
 
-const port = 3000
+const port = process.env.PORT ? parseInt(process.env.PORT) : 3000
 console.log(`Server running at http://localhost:${port}`)
 
 export default {
