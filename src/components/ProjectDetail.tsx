@@ -75,6 +75,11 @@ export default function ProjectDetail() {
   const [newFileTitle, setNewFileTitle] = useState('')
   const [newFilePath, setNewFilePath] = useState('')
   const newFileRef = useRef<HTMLDivElement>(null)
+  // File edit states
+  const [editingFileId, setEditingFileId] = useState<string | null>(null)
+  const [editFileTitle, setEditFileTitle] = useState('')
+  const [editFilePath, setEditFilePath] = useState('')
+  const editFileRef = useRef<HTMLDivElement>(null)
   // URL states - simplified inline input
   const [quickUrlInput, setQuickUrlInput] = useState('')
   const quickUrlInputRef = useRef<HTMLInputElement>(null)
@@ -175,6 +180,18 @@ export default function ProjectDetail() {
     }
   }, [isCreatingFile, newFileTitle, newFilePath, addItem])
 
+  // Save the File being edited
+  const saveEditingFile = useCallback(async () => {
+    if (editingFileId && editFilePath.trim()) {
+      const pathParts = editFilePath.trim().split(/[\\/]/)
+      const title = editFileTitle.trim() || pathParts[pathParts.length - 1] || 'File'
+      await updateItem(editingFileId, { title, content: editFilePath.trim() })
+      setEditingFileId(null)
+      setEditFileTitle('')
+      setEditFilePath('')
+    }
+  }, [editingFileId, editFileTitle, editFilePath, updateItem])
+
   // Quick add URL from inline input (optimistic update)
   const quickAddUrl = useCallback(async (url: string) => {
     const trimmedUrl = url.trim()
@@ -266,6 +283,13 @@ export default function ProjectDetail() {
           setIsCreatingFile(false)
         }
       }
+      if (editingFileId && editFileRef.current && !editFileRef.current.contains(event.target as Node)) {
+        if (editFilePath.trim()) {
+          await saveEditingFile()
+        } else {
+          setEditingFileId(null)
+        }
+      }
       // Don't process click outside for remote IDE when the browser modal is open
       if (!showRemoteBrowser) {
         if (isCreatingRemoteIde && newRemoteIdeRef.current && !newRemoteIdeRef.current.contains(event.target as Node)) {
@@ -286,13 +310,13 @@ export default function ProjectDetail() {
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, showRemoteBrowser])
+  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, showRemoteBrowser])
 
   // Ctrl+S / Cmd+S keyboard shortcut to save all inline editors
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        const hasActiveEditor = editingNoteIdRef.current || isCreatingNote || isCreatingIde || editingIdeId || isCreatingFile || isCreatingRemoteIde || editingRemoteIdeId
+        const hasActiveEditor = editingNoteIdRef.current || isCreatingNote || isCreatingIde || editingIdeId || isCreatingFile || editingFileId || isCreatingRemoteIde || editingRemoteIdeId
         if (hasActiveEditor) {
           e.preventDefault()
           e.stopPropagation()
@@ -309,7 +333,9 @@ export default function ProjectDetail() {
             await saveCreatingIde()
           }
           // File
-          else if (isCreatingFile && newFilePath.trim()) {
+          else if (editingFileId && editFilePath.trim()) {
+            await saveEditingFile()
+          } else if (isCreatingFile && newFilePath.trim()) {
             await saveCreatingFile()
           }
           // Remote IDE
@@ -323,7 +349,7 @@ export default function ProjectDetail() {
     }
     document.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde])
+  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde])
 
   // Global Ctrl+V to quick add URL (only when not editing)
   useEffect(() => {
@@ -394,6 +420,19 @@ export default function ProjectDetail() {
     if (path) {
       setNewFilePath(path)
     }
+  }
+
+  const handleSelectFileForEdit = async () => {
+    const path = await selectFile()
+    if (path) {
+      setEditFilePath(path)
+    }
+  }
+
+  const handleEditFile = (item: Item) => {
+    setEditingFileId(item.id)
+    setEditFileTitle(item.title)
+    setEditFilePath(item.content || '')
   }
 
   const handleEditNote = (note: Item) => {
@@ -889,6 +928,34 @@ export default function ProjectDetail() {
                   </button>
                 </div>
               </div>
+              {/* Existing remote paths suggestions */}
+              {remoteIdeItems.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
+                  <span className="text-xs font-mono text-[var(--text-muted)]">Existing remotes:</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[...new Map(remoteIdeItems.map(i => {
+                      const content = i.content || ''
+                      const colonIndex = content.indexOf(':')
+                      const host = colonIndex > 0 ? content.substring(0, colonIndex) : content
+                      const path = colonIndex > 0 ? content.substring(colonIndex + 1) : ''
+                      return [content, { host, path }]
+                    })).entries()].map(([key, { host, path }]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setNewRemoteHost(host)
+                          setNewRemotePath(path)
+                        }}
+                        className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-secondary)] hover:text-[#e879f9] hover:border-[#e879f9] transition-colors truncate max-w-xs"
+                        title={`${host}:${path}`}
+                      >
+                        {host}:{path.split('/').pop()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="text-xs font-mono text-[var(--text-muted)] mt-3">
                 Click outside to save
               </div>
@@ -1029,6 +1096,25 @@ export default function ProjectDetail() {
                   </button>
                 </div>
               </div>
+              {/* Existing paths suggestions */}
+              {fileItems.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
+                  <span className="text-xs font-mono text-[var(--text-muted)]">Existing files:</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[...new Set(fileItems.map(i => i.content))].map((path) => (
+                      <button
+                        key={path}
+                        type="button"
+                        onClick={() => setNewFilePath(path || '')}
+                        className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border-visible)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors truncate max-w-xs"
+                        title={path}
+                      >
+                        {path?.split(/[\\/]/).pop()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="text-xs font-mono text-[var(--text-muted)] mt-3">
                 Click outside to save
               </div>
@@ -1036,28 +1122,86 @@ export default function ProjectDetail() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            {fileItems.map((item, index) => (
-              <button
-                key={item.id}
-                onClick={() => handleOpenFile(item)}
-                className="tag tag-file animate-card-enter"
-                style={{ animationDelay: `${index * 30}ms` }}
-              >
-                <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <span>{item.title}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deleteItem(item.id)
-                  }}
-                  className="ml-1 opacity-40 hover:opacity-100 hover:text-[var(--accent-danger)] transition-opacity"
+            {fileItems.map((item, index) =>
+              editingFileId === item.id ? (
+                <div
+                  key={item.id}
+                  ref={editFileRef}
+                  className="w-full p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-visible)] animate-card-enter"
                 >
-                  ×
-                </button>
-              </button>
-            ))}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      type="text"
+                      value={editFileTitle}
+                      onChange={(e) => setEditFileTitle(e.target.value)}
+                      placeholder="Title (optional)..."
+                      className="input-terminal w-40"
+                      autoFocus
+                    />
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={editFilePath}
+                        onChange={(e) => setEditFilePath(e.target.value)}
+                        placeholder="File path..."
+                        className="input-terminal flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSelectFileForEdit}
+                        className="btn-ghost whitespace-nowrap"
+                      >
+                        Browse
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="text-xs font-mono text-[var(--text-muted)]">Click outside to save</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteItem(item.id)
+                        setEditingFileId(null)
+                      }}
+                      className="btn-delete"
+                    >
+                      delete
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key={item.id}
+                  className="group/file relative animate-card-enter mr-7"
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <div
+                    className="tag tag-file cursor-pointer"
+                    onClick={() => handleOpenFile(item)}
+                  >
+                    <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span>{item.title}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteItem(item.id)
+                      }}
+                      className="ml-1 opacity-0 group-hover/file:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => handleEditFile(item)}
+                    className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] opacity-0 group-hover/file:opacity-100 transition-all"
+                  >
+                    Edit
+                  </button>
+                </div>
+              )
+            )}
           </div>
         </section>
       )}

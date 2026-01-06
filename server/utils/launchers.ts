@@ -4,6 +4,7 @@ export type IdeType = 'pycharm' | 'cursor' | 'vscode' | 'zed' | 'obsidian'
 export type RemoteIdeType = 'cursor' | 'vscode'
 
 const LOCALAPPDATA = process.env.LOCALAPPDATA || ''
+const isWindows = process.platform === 'win32'
 
 export const launchers: Record<IdeType | 'file', (path: string) => { command: string; args: string[] }> = {
   pycharm: (path: string) => ({
@@ -11,11 +12,11 @@ export const launchers: Record<IdeType | 'file', (path: string) => { command: st
     args: [path],
   }),
   cursor: (path: string) => ({
-    command: 'cursor',
+    command: isWindows ? 'cursor.cmd' : 'cursor',
     args: [path],
   }),
   vscode: (path: string) => ({
-    command: 'code',
+    command: isWindows ? 'code.cmd' : 'code',
     args: [path],
   }),
   zed: (path: string) => ({
@@ -28,7 +29,7 @@ export const launchers: Record<IdeType | 'file', (path: string) => { command: st
   }),
   file: (path: string) => ({
     command: 'cmd',
-    args: ['/c', 'start', '', `"${path}"`],
+    args: ['/c', 'start', '""', `"${path}"`],
   }),
 }
 
@@ -40,12 +41,14 @@ export async function openWithIde(ideType: IdeType, path: string): Promise<void>
 
   const { command, args } = launcher(path)
 
-  // For cmd-based launchers (obsidian, file), we need shell: true
-  // For direct IDE commands, shell: false handles paths with spaces correctly
-  const useShell = command === 'cmd'
+  // On Windows, .cmd files and cmd-based launchers need shell: true
+  const useShell = command === 'cmd' || command.endsWith('.cmd')
+
+  // When using shell, quote args that contain spaces
+  const finalArgs = useShell ? args.map(arg => arg.includes(' ') ? `"${arg}"` : arg) : args
 
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(command, finalArgs, {
       detached: true,
       stdio: 'ignore',
       shell: useShell,
@@ -270,7 +273,6 @@ public class FilePicker {
 // Remote IDE launchers (Cursor and VS Code only)
 // Using --folder-uri format to avoid MSYS/Git Bash path conversion issues on Windows
 // On Windows, use .cmd scripts for proper PATH resolution
-const isWindows = process.platform === 'win32'
 const remoteLaunchers: Record<RemoteIdeType, (host: string, path: string) => { command: string; args: string[] }> = {
   cursor: (host: string, path: string) => ({
     command: isWindows ? 'cursor.cmd' : 'cursor',
