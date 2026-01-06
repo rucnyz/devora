@@ -57,7 +57,7 @@ jobs:
           mv manage-note${{ matrix.ext }} manage-note-${{ matrix.name }}/
           cp -r dist manage-note-${{ matrix.name }}/
           mkdir manage-note-${{ matrix.name }}/data
-          echo -e "# Server Configuration\nPORT=3000" > manage-note-${{ matrix.name }}/.env
+          echo -e "# Server Configuration\nPORT=13000" > manage-note-${{ matrix.name }}/.env
           zip -r manage-note-${{ matrix.name }}.zip manage-note-${{ matrix.name }}
 
       - name: Prepare release package (Windows)
@@ -68,7 +68,7 @@ jobs:
           Move-Item -Path "manage-note${{ matrix.ext }}" -Destination "manage-note-${{ matrix.name }}/"
           Copy-Item -Path "dist" -Destination "manage-note-${{ matrix.name }}/" -Recurse
           New-Item -ItemType Directory -Path "manage-note-${{ matrix.name }}/data" -Force
-          Set-Content -Path "manage-note-${{ matrix.name }}/.env" -Value "# Server Configuration`nPORT=3000"
+          Set-Content -Path "manage-note-${{ matrix.name }}/.env" -Value "# Server Configuration`nPORT=13000"
           Compress-Archive -Path "manage-note-${{ matrix.name }}" -DestinationPath "manage-note-${{ matrix.name }}.zip"
 
       - name: Upload artifact
@@ -100,13 +100,14 @@ jobs:
             1. Download the zip file for your platform
             2. Extract the zip file
             3. Run the executable (`manage-note.exe` on Windows, `manage-note` on macOS/Linux)
-            4. Visit http://localhost:3000 in your browser
+            4. Browser opens automatically!
 
             ## Configuration
 
-            Edit `.env` file to change server port:
+            Edit `.env` file to change settings:
             ```
-            PORT=8080
+            PORT=13000                  # Server port (default: 13000, auto-increments if in use)
+            DISABLE_OPEN_BROWSER=true   # Disable auto-open browser (for server deployment)
             ```
 
             ---
