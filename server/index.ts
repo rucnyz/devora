@@ -5,6 +5,7 @@ import { serveStatic } from 'hono/bun'
 import projectsRoutes from './routes/projects'
 import itemsRoutes from './routes/items'
 import actionsRoutes from './routes/actions'
+import dataRoutes from './routes/data'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
@@ -23,6 +24,7 @@ app.use('*', cors())
 app.route('/api/projects', projectsRoutes)
 app.route('/api/items', itemsRoutes)
 app.route('/api/open', actionsRoutes)
+app.route('/api/data', dataRoutes)
 app.get('/api/health', (c) => c.json({ status: 'ok' }))
 
 // Serve static files in production (when dist folder exists)

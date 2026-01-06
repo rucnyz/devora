@@ -218,3 +218,77 @@ export function reorderItems(projectId: string, itemIds: string[]): void {
 
   db.run('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
 }
+
+// Export data (optionally filter by project IDs)
+export function exportAllData(projectIds?: string[]): { projects: any[], items: any[], exportedAt: string, version: string } {
+  let projects: any[]
+  let items: any[]
+
+  if (projectIds && projectIds.length > 0) {
+    const placeholders = projectIds.map(() => '?').join(',')
+    projects = db.query(`SELECT * FROM projects WHERE id IN (${placeholders}) ORDER BY updated_at DESC`).all(...projectIds)
+    items = db.query(`SELECT * FROM items WHERE project_id IN (${placeholders}) ORDER BY project_id, "order" ASC`).all(...projectIds)
+  } else {
+    projects = db.query('SELECT * FROM projects ORDER BY updated_at DESC').all()
+    items = db.query('SELECT * FROM items ORDER BY project_id, "order" ASC').all()
+  }
+
+  return {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    projects,
+    items,
+  }
+}
+
+// Import data (merge mode: skip existing, add new)
+export function importData(data: { projects: any[], items: any[] }, mode: 'merge' | 'replace' = 'merge'): { projectsImported: number, itemsImported: number, skipped: number } {
+  let projectsImported = 0
+  let itemsImported = 0
+  let skipped = 0
+
+  if (mode === 'replace') {
+    // Clear all existing data
+    db.run('DELETE FROM items')
+    db.run('DELETE FROM projects')
+  }
+
+  // Import projects
+  for (const project of data.projects) {
+    const existing = db.query('SELECT id FROM projects WHERE id = ?').get(project.id)
+    if (existing) {
+      skipped++
+      continue
+    }
+
+    db.run(
+      'INSERT INTO projects (id, name, description, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [project.id, project.name, project.description || '', project.metadata || '{}', project.created_at, project.updated_at]
+    )
+    projectsImported++
+  }
+
+  // Import items
+  for (const item of data.items) {
+    const existing = db.query('SELECT id FROM items WHERE id = ?').get(item.id)
+    if (existing) {
+      skipped++
+      continue
+    }
+
+    // Check if parent project exists
+    const projectExists = db.query('SELECT id FROM projects WHERE id = ?').get(item.project_id)
+    if (!projectExists) {
+      skipped++
+      continue
+    }
+
+    db.run(
+      'INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, app_args, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [item.id, item.project_id, item.type, item.title, item.content || '', item.ide_type || null, item.remote_ide_type || null, item.command_mode || null, item.command_cwd || null, item.app_args || null, item.order || 0, item.created_at, item.updated_at]
+    )
+    itemsImported++
+  }
+
+  return { projectsImported, itemsImported, skipped }
+}

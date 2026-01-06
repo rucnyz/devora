@@ -1,7 +1,10 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { useState, useRef } from 'react'
 import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
+
+const API_BASE = 'http://localhost:13000/api'
 
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
@@ -22,6 +25,220 @@ function ThemeToggle() {
         </svg>
       )}
     </button>
+  )
+}
+
+interface ProjectBasic {
+  id: string
+  name: string
+}
+
+function DataMenu() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [showExportDialog, setShowExportDialog] = useState(false)
+  const [projects, setProjects] = useState<ProjectBasic[]>([])
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set())
+  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const openExportDialog = async () => {
+    setIsOpen(false)
+    try {
+      const res = await fetch(`${API_BASE}/projects`)
+      const data = await res.json()
+      setProjects(data)
+      setSelectedProjects(new Set(data.map((p: ProjectBasic) => p.id))) // Select all by default
+      setShowExportDialog(true)
+    } catch (error) {
+      setStatus({ type: 'error', message: 'Failed to load projects' })
+      setTimeout(() => setStatus(null), 3000)
+    }
+  }
+
+  const toggleProject = (id: string) => {
+    const newSet = new Set(selectedProjects)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedProjects(newSet)
+  }
+
+  const toggleAll = () => {
+    if (selectedProjects.size === projects.length) {
+      setSelectedProjects(new Set())
+    } else {
+      setSelectedProjects(new Set(projects.map(p => p.id)))
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      const projectIds = Array.from(selectedProjects).join(',')
+      const url = projectIds ? `${API_BASE}/data/export?projectIds=${projectIds}` : `${API_BASE}/data/export`
+      const res = await fetch(url)
+      const data = await res.json()
+
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = `devora-backup-${new Date().toISOString().split('T')[0]}.json`
+      a.click()
+      URL.revokeObjectURL(blobUrl)
+
+      setStatus({ type: 'success', message: `Exported ${data.projects.length} projects!` })
+      setTimeout(() => setStatus(null), 3000)
+    } catch (error) {
+      setStatus({ type: 'error', message: 'Export failed' })
+      setTimeout(() => setStatus(null), 3000)
+    }
+    setShowExportDialog(false)
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+
+      const res = await fetch(`${API_BASE}/data/import?mode=merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      const result = await res.json()
+      if (result.success) {
+        setStatus({ type: 'success', message: result.message })
+        // Reload page to show imported data
+        setTimeout(() => window.location.reload(), 1500)
+      } else {
+        setStatus({ type: 'error', message: result.error })
+        setTimeout(() => setStatus(null), 3000)
+      }
+    } catch (error) {
+      setStatus({ type: 'error', message: 'Import failed: Invalid file' })
+      setTimeout(() => setStatus(null), 3000)
+    }
+
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] transition-all"
+        title="Data sync"
+      >
+        <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg shadow-lg z-50 overflow-hidden">
+            <button
+              onClick={openExportDialog}
+              className="w-full px-4 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface)] flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Export Data
+            </button>
+            <label className="w-full px-4 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface)] flex items-center gap-2 cursor-pointer">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Import Data
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </>
+      )}
+
+      {/* Export Dialog */}
+      {showExportDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowExportDialog(false)}>
+          <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[400px] max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Export Projects</h3>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Select projects to export</p>
+            </div>
+
+            <div className="px-5 py-3 border-b border-[var(--border-subtle)]">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedProjects.size === projects.length}
+                  onChange={toggleAll}
+                  className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
+                />
+                <span className="text-sm font-medium text-[var(--text-primary)]">
+                  Select All ({selectedProjects.size}/{projects.length})
+                </span>
+              </label>
+            </div>
+
+            <div className="max-h-[300px] overflow-y-auto px-5 py-3">
+              {projects.map(project => (
+                <label key={project.id} className="flex items-center gap-3 py-2 cursor-pointer hover:bg-[var(--bg-surface)] -mx-2 px-2 rounded">
+                  <input
+                    type="checkbox"
+                    checked={selectedProjects.has(project.id)}
+                    onChange={() => toggleProject(project.id)}
+                    className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
+                  />
+                  <span className="text-sm text-[var(--text-primary)] truncate">{project.name}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3">
+              <button
+                onClick={() => setShowExportDialog(false)}
+                className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={selectedProjects.size === 0}
+                className="px-4 py-2 text-sm bg-[var(--accent-primary)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Export {selectedProjects.size} Project{selectedProjects.size !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {status && (
+        <div className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg text-sm z-50 ${
+          status.type === 'success'
+            ? 'bg-[var(--accent-primary)] text-white'
+            : 'bg-[var(--accent-error)] text-white'
+        }`}>
+          {status.message}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -50,6 +267,7 @@ function Header() {
 
           {/* Right side controls */}
           <div className="flex items-center gap-3">
+            <DataMenu />
             <ThemeToggle />
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
               <span className="relative flex h-2 w-2">

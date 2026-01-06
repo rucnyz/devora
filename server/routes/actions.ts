@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { openWithIde, openFile, selectFolder, selectFile, openRemoteIde, type IdeType, type RemoteIdeType } from '../utils/launchers'
+import { openWithIde, openFile, selectFolder, selectFile, openRemoteIde, openApp, type IdeType, type RemoteIdeType } from '../utils/launchers'
 import { readFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
@@ -72,6 +72,23 @@ app.post('/remote-ide', async (c) => {
     return c.json({ success: true })
   } catch (error) {
     return c.json({ error: `Failed to open remote ${remote_ide_type}: ${error}` }, 500)
+  }
+})
+
+// Open custom application
+app.post('/app', async (c) => {
+  const body = await c.req.json()
+  const { executable, args, cwd } = body as { executable: string; args?: string; cwd?: string }
+
+  if (!executable) {
+    return c.json({ error: 'executable is required' }, 400)
+  }
+
+  try {
+    await openApp(executable, args, cwd)
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: `Failed to open app: ${error}` }, 500)
   }
 })
 

@@ -1,4 +1,4 @@
-export type ItemType = 'note' | 'ide' | 'file' | 'url' | 'remote-ide' | 'command'
+export type ItemType = 'note' | 'ide' | 'file' | 'url' | 'remote-ide' | 'command' | 'app'
 export type IdeType = 'pycharm' | 'cursor' | 'vscode' | 'zed' | 'obsidian'
 export type RemoteIdeType = 'cursor' | 'vscode'
 export type CommandMode = 'background' | 'output'
@@ -13,6 +13,7 @@ export interface Item {
   remote_ide_type?: RemoteIdeType
   command_mode?: CommandMode
   command_cwd?: string
+  app_args?: string
   order: number
   created_at: string
   updated_at: string
