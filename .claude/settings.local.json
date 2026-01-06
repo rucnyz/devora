@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun init:*)",
+      "Bash(bun add:*)",
+      "Bash(curl:*)",
+      "Bash(bunx vite build:*)",
+      "Bash(bun run build:*)",
+      "Bash(bun run dev)",
+      "Skill(example-skills:frontend-design)"
+    ]
+  }
+}

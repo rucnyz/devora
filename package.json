@@ -1,0 +1,38 @@
+{
+  "name": "manage-note",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k \"bun run dev:server\" \"bun run dev:client\"",
+    "dev:server": "bun run --watch server/index.ts",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "bun run server/index.ts",
+    "preview": "bun run build && bun run start"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/bun": "latest",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^11.0.0",
+    "@vitejs/plugin-react": "^5.1.2",
+    "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.3.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@uiw/react-md-editor": "^4.0.11",
+    "hono": "^4.11.3",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^7.11.0",
+    "uuid": "^13.0.0"
+  }
+}
