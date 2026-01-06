@@ -1,5 +1,6 @@
 {
   "name": "devora",
+  "version": "0.1.2",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -13,10 +14,15 @@
     "release": "bun run scripts/build-release.ts",
     "release:windows": "bun run scripts/build-release.ts windows-x64",
     "release:macos": "bun run scripts/build-release.ts macos-arm64",
-    "release:linux": "bun run scripts/build-release.ts linux-x64"
+    "release:linux": "bun run scripts/build-release.ts linux-x64",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "version": "bun run scripts/version.ts"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.0.11",
     "@tailwindcss/vite": "^4.1.18",
+    "@testing-library/react": "^16.3.1",
     "@types/bun": "latest",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
@@ -24,6 +30,7 @@
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.23",
     "concurrently": "^9.2.1",
+    "happy-dom": "^20.0.11",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "vite": "^7.3.0"

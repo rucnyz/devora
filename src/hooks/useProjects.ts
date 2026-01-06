@@ -91,8 +91,7 @@ export function useProject(id: string) {
     ideType?: IdeType,
     remoteIdeType?: RemoteIdeType,
     commandMode?: CommandMode,
-    commandCwd?: string,
-    appArgs?: string
+    commandCwd?: string
   ) => {
     const res = await fetch(`${API_BASE}/projects/${id}/items`, {
       method: 'POST',
@@ -105,7 +104,6 @@ export function useProject(id: string) {
         remote_ide_type: remoteIdeType,
         command_mode: commandMode,
         command_cwd: commandCwd,
-        app_args: appArgs,
       }),
     })
     if (!res.ok) throw new Error('Failed to add item')
@@ -114,7 +112,7 @@ export function useProject(id: string) {
     return item as Item
   }
 
-  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'app_args'>>) => {
+  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd'>>) => {
     const res = await fetch(`${API_BASE}/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -251,13 +249,4 @@ export async function runCommand(command: string, mode: CommandMode, cwd?: strin
     throw new Error(data.error || 'Failed to run command')
   }
   return res.json()
-}
-
-export async function openApp(executable: string, args?: string, cwd?: string) {
-  const res = await fetch(`${API_BASE}/open/app`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ executable, args, cwd }),
-  })
-  if (!res.ok) throw new Error('Failed to open app')
 }

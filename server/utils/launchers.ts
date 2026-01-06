@@ -28,8 +28,8 @@ export const launchers: Record<IdeType | 'file', (path: string) => { command: st
     args: ['/c', 'start', `obsidian://open?vault=${encodeURIComponent(vault)}`],
   }),
   file: (path: string) => ({
-    command: 'cmd',
-    args: ['/c', 'start', '""', `"${path}"`],
+    command: 'explorer.exe',
+    args: [path],
   }),
 }
 
@@ -69,7 +69,7 @@ export async function openFile(path: string): Promise<void> {
     const child = spawn(command, args, {
       detached: true,
       stdio: 'ignore',
-      shell: true,
+      shell: false,
     })
 
     child.on('error', reject)
@@ -324,46 +324,5 @@ export async function openRemoteIde(ideType: RemoteIdeType, host: string, path: 
 
     // Resolve after a short delay - if spawn fails, error event fires quickly
     setTimeout(resolve, 200)
-  })
-}
-
-// Generic app launcher - opens any executable with optional arguments
-export async function openApp(executable: string, args?: string, cwd?: string): Promise<void> {
-  // Parse args string into array (split by spaces, respecting quotes)
-  const argList: string[] = []
-  if (args) {
-    const regex = /[^\s"']+|"([^"]*)"|'([^']*)'/g
-    let match
-    while ((match = regex.exec(args)) !== null) {
-      argList.push(match[1] || match[2] || match[0])
-    }
-  }
-
-  return new Promise((resolve, reject) => {
-    const spawnOptions: any = {
-      detached: true,
-      stdio: 'ignore',
-      shell: false,
-    }
-
-    if (cwd) {
-      spawnOptions.cwd = cwd
-    }
-
-    // On Windows, use shell for better compatibility
-    if (isWindows) {
-      spawnOptions.shell = true
-    }
-
-    const child = spawn(executable, argList, spawnOptions)
-
-    child.on('error', (err) => {
-      reject(new Error(`Failed to launch app: ${err.message}`))
-    })
-
-    child.unref()
-
-    // Resolve immediately since we're launching in background
-    setTimeout(resolve, 100)
   })
 }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useProject, openIde, openFile, selectFolder, selectFile, openRemoteIde, fetchSSHHosts, fetchUrlMetadata, runCommand, openApp } from '../hooks/useProjects'
+import { useProject, openIde, openFile, selectFolder, selectFile, openRemoteIde, fetchSSHHosts, fetchUrlMetadata, runCommand } from '../hooks/useProjects'
 import RemoteDirBrowser from './RemoteDirBrowser'
 import HostInput from './HostInput'
 import type { Item, IdeType, RemoteIdeType, CommandMode } from '../types'
@@ -83,6 +83,10 @@ export default function ProjectDetail() {
   // URL states - simplified inline input
   const [quickUrlInput, setQuickUrlInput] = useState('')
   const quickUrlInputRef = useRef<HTMLInputElement>(null)
+  // URL edit states
+  const [editingUrlId, setEditingUrlId] = useState<string | null>(null)
+  const [editUrlTitle, setEditUrlTitle] = useState('')
+  const editUrlRef = useRef<HTMLDivElement>(null)
   // Remote IDE states
   const [isCreatingRemoteIde, setIsCreatingRemoteIde] = useState(false)
   const [newRemoteIdeType, setNewRemoteIdeType] = useState<RemoteIdeType>('cursor')
@@ -113,21 +117,7 @@ export default function ProjectDetail() {
   const editCommandRef = useRef<HTMLDivElement>(null)
   // Command output modal
   const [commandOutput, setCommandOutput] = useState<{ title: string; output: string; error?: string } | null>(null)
-  // Custom app states
-  const [isCreatingApp, setIsCreatingApp] = useState(false)
-  const [newAppTitle, setNewAppTitle] = useState('')
-  const [newAppPath, setNewAppPath] = useState('')
-  const [newAppArgs, setNewAppArgs] = useState('')
-  const [newAppCwd, setNewAppCwd] = useState('')
-  const newAppRef = useRef<HTMLDivElement>(null)
-  // Custom app edit states
-  const [editingAppId, setEditingAppId] = useState<string | null>(null)
-  const [editAppTitle, setEditAppTitle] = useState('')
-  const [editAppPath, setEditAppPath] = useState('')
-  const [editAppArgs, setEditAppArgs] = useState('')
-  const [editAppCwd, setEditAppCwd] = useState('')
-  const editAppRef = useRef<HTMLDivElement>(null)
-  // Remote directory browser state
+    // Remote directory browser state
   const [showRemoteBrowser, setShowRemoteBrowser] = useState<'create' | 'edit' | null>(null)
   // Meta edit states
   const [editName, setEditName] = useState('')
@@ -222,6 +212,15 @@ export default function ProjectDetail() {
     }
   }, [editingFileId, editFileTitle, editFilePath, updateItem])
 
+  // Save the URL being edited
+  const saveEditingUrl = useCallback(async () => {
+    if (editingUrlId && editUrlTitle.trim()) {
+      await updateItem(editingUrlId, { title: editUrlTitle.trim() })
+      setEditingUrlId(null)
+      setEditUrlTitle('')
+    }
+  }, [editingUrlId, editUrlTitle, updateItem])
+
   // Quick add URL from inline input (optimistic update)
   const quickAddUrl = useCallback(async (url: string) => {
     const trimmedUrl = url.trim()
@@ -231,18 +230,31 @@ export default function ProjectDetail() {
       // Fallback: use last path segment or hostname
       const pathParts = urlObj.pathname.split('/').filter(Boolean)
       const lastSegment = pathParts[pathParts.length - 1]
-      const fallbackTitle = lastSegment ? decodeURIComponent(lastSegment) : urlObj.hostname
+      let fallbackTitle = lastSegment ? decodeURIComponent(lastSegment) : urlObj.hostname
+
+      // Special handling for Notion URLs - extract page title from URL
+      // Format: notion.so/Page-Title-{32-char-hash} or notion.so/workspace/Page-Title-{32-char-hash}
+      if (urlObj.hostname.includes('notion.so') && lastSegment) {
+        // Remove the 32-character hash at the end (with preceding hyphen)
+        const notionMatch = lastSegment.match(/^(.+)-[a-f0-9]{32}$/i)
+        if (notionMatch) {
+          // Replace hyphens with spaces for the title, prefix with "Notion - "
+          fallbackTitle = 'Notion - ' + notionMatch[1].replace(/-/g, ' ')
+        }
+      }
 
       // Immediately add with fallback title (optimistic update)
       const newItem = await addItem('url', fallbackTitle, urlObj.href)
       setQuickUrlInput('')
 
-      // Fetch metadata in background and update if found
-      fetchUrlMetadata(urlObj.href).then(metaTitle => {
-        if (metaTitle && metaTitle !== fallbackTitle) {
-          updateItem(newItem.id, { title: metaTitle })
-        }
-      })
+      // Fetch metadata in background and update if found (skip for Notion - their meta tags aren't useful)
+      if (!urlObj.hostname.includes('notion.so')) {
+        fetchUrlMetadata(urlObj.href).then(metaTitle => {
+          if (metaTitle && metaTitle !== fallbackTitle) {
+            updateItem(newItem.id, { title: metaTitle })
+          }
+        })
+      }
     } catch {
       // Invalid URL, don't add
     }
@@ -315,41 +327,6 @@ export default function ProjectDetail() {
     }
   }, [editingCommandId, editCommandTitle, editCommandContent, editCommandMode, editCommandCwd, updateItem])
 
-  // Save the App being created
-  const saveCreatingApp = useCallback(async () => {
-    if (isCreatingApp && newAppPath.trim()) {
-      const pathParts = newAppPath.trim().split(/[\\/]/)
-      const fileName = pathParts[pathParts.length - 1] || 'App'
-      const title = newAppTitle.trim() || fileName.replace(/\.[^.]+$/, '') // Remove extension
-      await addItem('app', title, newAppPath.trim(), undefined, undefined, undefined, newAppCwd.trim() || undefined, newAppArgs.trim() || undefined)
-      setIsCreatingApp(false)
-      setNewAppTitle('')
-      setNewAppPath('')
-      setNewAppArgs('')
-      setNewAppCwd('')
-    }
-  }, [isCreatingApp, newAppTitle, newAppPath, newAppArgs, newAppCwd, addItem])
-
-  // Save the App being edited
-  const saveEditingApp = useCallback(async () => {
-    if (editingAppId && editAppPath.trim()) {
-      const pathParts = editAppPath.trim().split(/[\\/]/)
-      const fileName = pathParts[pathParts.length - 1] || 'App'
-      const title = editAppTitle.trim() || fileName.replace(/\.[^.]+$/, '')
-      await updateItem(editingAppId, {
-        title,
-        content: editAppPath.trim(),
-        command_cwd: editAppCwd.trim() || undefined,
-        app_args: editAppArgs.trim() || undefined,
-      })
-      setEditingAppId(null)
-      setEditAppTitle('')
-      setEditAppPath('')
-      setEditAppArgs('')
-      setEditAppCwd('')
-    }
-  }, [editingAppId, editAppTitle, editAppPath, editAppArgs, editAppCwd, updateItem])
-
   useEffect(() => {
     const handleClickOutside = async (event: MouseEvent) => {
       if (isCreatingNote && newNoteRef.current && !newNoteRef.current.contains(event.target as Node)) {
@@ -386,6 +363,13 @@ export default function ProjectDetail() {
           setEditingFileId(null)
         }
       }
+      if (editingUrlId && editUrlRef.current && !editUrlRef.current.contains(event.target as Node)) {
+        if (editUrlTitle.trim()) {
+          await saveEditingUrl()
+        } else {
+          setEditingUrlId(null)
+        }
+      }
       // Don't process click outside for remote IDE when the browser modal is open
       if (!showRemoteBrowser) {
         if (isCreatingRemoteIde && newRemoteIdeRef.current && !newRemoteIdeRef.current.contains(event.target as Node)) {
@@ -418,31 +402,16 @@ export default function ProjectDetail() {
           setEditingCommandId(null)
         }
       }
-      // App
-      if (isCreatingApp && newAppRef.current && !newAppRef.current.contains(event.target as Node)) {
-        if (newAppPath.trim()) {
-          await saveCreatingApp()
-        } else {
-          setIsCreatingApp(false)
-        }
-      }
-      if (editingAppId && editAppRef.current && !editAppRef.current.contains(event.target as Node)) {
-        if (editAppPath.trim()) {
-          await saveEditingApp()
-        } else {
-          setEditingAppId(null)
-        }
-      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, showRemoteBrowser, isCreatingCommand, newCommandContent, saveCreatingCommand, editingCommandId, editCommandContent, saveEditingCommand, isCreatingApp, newAppPath, saveCreatingApp, editingAppId, editAppPath, saveEditingApp])
+  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, editingUrlId, editUrlTitle, saveEditingUrl, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, showRemoteBrowser, isCreatingCommand, newCommandContent, saveCreatingCommand, editingCommandId, editCommandContent, saveEditingCommand])
 
   // Ctrl+S / Cmd+S keyboard shortcut to save all inline editors
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        const hasActiveEditor = editingNoteIdRef.current || isCreatingNote || isCreatingIde || editingIdeId || isCreatingFile || editingFileId || isCreatingRemoteIde || editingRemoteIdeId || isCreatingCommand || editingCommandId || isCreatingApp || editingAppId
+        const hasActiveEditor = editingNoteIdRef.current || isCreatingNote || isCreatingIde || editingIdeId || isCreatingFile || editingFileId || editingUrlId || isCreatingRemoteIde || editingRemoteIdeId || isCreatingCommand || editingCommandId
         if (hasActiveEditor) {
           e.preventDefault()
           e.stopPropagation()
@@ -464,6 +433,10 @@ export default function ProjectDetail() {
           } else if (isCreatingFile && newFilePath.trim()) {
             await saveCreatingFile()
           }
+          // URL
+          else if (editingUrlId && editUrlTitle.trim()) {
+            await saveEditingUrl()
+          }
           // Remote IDE
           else if (editingRemoteIdeId && editRemoteHost.trim() && editRemotePath.trim()) {
             await saveEditingRemoteIde()
@@ -476,18 +449,12 @@ export default function ProjectDetail() {
           } else if (isCreatingCommand && newCommandContent.trim()) {
             await saveCreatingCommand()
           }
-          // App
-          else if (editingAppId && editAppPath.trim()) {
-            await saveEditingApp()
-          } else if (isCreatingApp && newAppPath.trim()) {
-            await saveCreatingApp()
-          }
         }
       }
     }
     document.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, isCreatingCommand, newCommandContent, saveCreatingCommand, editingCommandId, editCommandContent, saveEditingCommand, isCreatingApp, newAppPath, saveCreatingApp, editingAppId, editAppPath, saveEditingApp])
+  }, [isCreatingNote, saveCreatingNote, saveEditingNote, isCreatingIde, newIdePath, saveCreatingIde, editingIdeId, editIdePath, saveEditingIde, isCreatingFile, newFilePath, saveCreatingFile, editingFileId, editFilePath, saveEditingFile, editingUrlId, editUrlTitle, saveEditingUrl, isCreatingRemoteIde, newRemoteHost, newRemotePath, saveCreatingRemoteIde, editingRemoteIdeId, editRemoteHost, editRemotePath, saveEditingRemoteIde, isCreatingCommand, newCommandContent, saveCreatingCommand, editingCommandId, editCommandContent, saveEditingCommand])
 
   // Global Ctrl+V to quick add URL (only when not editing)
   useEffect(() => {
@@ -541,14 +508,6 @@ export default function ProjectDetail() {
     setNewCommandCwd('')
   }
 
-  const handleCreateApp = () => {
-    setIsCreatingApp(true)
-    setNewAppTitle('')
-    setNewAppPath('')
-    setNewAppArgs('')
-    setNewAppCwd('')
-  }
-
   const handleSelectFolder = async () => {
     const path = await selectFolder()
     if (path) {
@@ -576,8 +535,22 @@ export default function ProjectDetail() {
     }
   }
 
+  const handleSelectFolderForFile = async () => {
+    const path = await selectFolder()
+    if (path) {
+      setNewFilePath(path)
+    }
+  }
+
   const handleSelectFileForEdit = async () => {
     const path = await selectFile()
+    if (path) {
+      setEditFilePath(path)
+    }
+  }
+
+  const handleSelectFolderForFileEdit = async () => {
+    const path = await selectFolder()
     if (path) {
       setEditFilePath(path)
     }
@@ -724,49 +697,6 @@ export default function ProjectDetail() {
     }
   }
 
-  const handleSelectFileForApp = async () => {
-    const path = await selectFile()
-    if (path) {
-      setNewAppPath(path)
-    }
-  }
-
-  const handleSelectFileForAppEdit = async () => {
-    const path = await selectFile()
-    if (path) {
-      setEditAppPath(path)
-    }
-  }
-
-  const handleSelectFolderForApp = async (isEdit: boolean) => {
-    const path = await selectFolder()
-    if (path) {
-      if (isEdit) {
-        setEditAppCwd(path)
-      } else {
-        setNewAppCwd(path)
-      }
-    }
-  }
-
-  const handleEditApp = (item: Item) => {
-    setEditingAppId(item.id)
-    setEditAppTitle(item.title)
-    setEditAppPath(item.content || '')
-    setEditAppArgs(item.app_args || '')
-    setEditAppCwd(item.command_cwd || '')
-  }
-
-  const handleOpenApp = async (item: Item) => {
-    if (item.content) {
-      try {
-        await openApp(item.content, item.app_args, item.command_cwd)
-      } catch (err) {
-        alert('Failed to open app')
-      }
-    }
-  }
-
   const startEditMeta = () => {
     setEditName(project.name)
     setEditDesc(project.description)
@@ -794,7 +724,6 @@ export default function ProjectDetail() {
   const fileItems = project.items?.filter((i) => i.type === 'file') || []
   const urlItems = project.items?.filter((i) => i.type === 'url') || []
   const commandItems = project.items?.filter((i) => i.type === 'command') || []
-  const appItems = project.items?.filter((i) => i.type === 'app') || []
 
   // Scroll to section
   const scrollToSection = (sectionId: string) => {
@@ -807,9 +736,8 @@ export default function ProjectDetail() {
   // Navigation items - only show sections that have content or are being created
   const navItems = [
     { id: 'section-apps', label: 'IDE', show: ideItems.length > 0 || isCreatingIde, color: 'var(--accent-primary)' },
-    { id: 'section-custom-apps', label: 'Apps', show: appItems.length > 0 || isCreatingApp, color: '#f97316' },
     { id: 'section-remote', label: 'Remote', show: remoteIdeItems.length > 0 || isCreatingRemoteIde, color: '#e879f9' },
-    { id: 'section-files', label: 'Files', show: fileItems.length > 0 || isCreatingFile, color: 'var(--text-secondary)' },
+    { id: 'section-files', label: 'Open', show: fileItems.length > 0 || isCreatingFile, color: 'var(--text-secondary)' },
     { id: 'section-commands', label: 'Commands', show: commandItems.length > 0 || isCreatingCommand, color: '#fbbf24' },
     { id: 'section-links', label: 'Links', show: true, color: 'var(--accent-secondary)' },
     { id: 'section-notes', label: 'Notes', show: true, color: 'var(--accent-warning)' },
@@ -951,28 +879,22 @@ export default function ProjectDetail() {
           <span className="font-mono text-sm text-[var(--accent-primary)]">+ IDE</span>
         </button>
         <button
-          onClick={handleCreateFile}
-          className="group px-4 py-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-visible)] hover:border-[var(--text-muted)] transition-all"
-        >
-          <span className="font-mono text-sm text-[var(--text-secondary)]">+ File</span>
-        </button>
-        <button
           onClick={handleCreateRemoteIde}
           className="group px-4 py-3 rounded-lg bg-[#e879f9]/10 border border-[#e879f9]/30 hover:border-[#e879f9] transition-all"
         >
           <span className="font-mono text-sm text-[#e879f9]">+ Remote IDE</span>
         </button>
         <button
+          onClick={handleCreateFile}
+          className="group px-4 py-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-visible)] hover:border-[var(--text-muted)] transition-all"
+        >
+          <span className="font-mono text-sm text-[var(--text-secondary)]">+ Open</span>
+        </button>
+        <button
           onClick={handleCreateCommand}
           className="group px-4 py-3 rounded-lg bg-[#fbbf24]/10 border border-[#fbbf24]/30 hover:border-[#fbbf24] transition-all"
         >
           <span className="font-mono text-sm text-[#fbbf24]">+ Command</span>
-        </button>
-        <button
-          onClick={handleCreateApp}
-          className="group px-4 py-3 rounded-lg bg-[#f97316]/10 border border-[#f97316]/30 hover:border-[#f97316] transition-all"
-        >
-          <span className="font-mono text-sm text-[#f97316]">+ Custom App</span>
         </button>
       </div>
 
@@ -1119,188 +1041,6 @@ export default function ProjectDetail() {
                   <button
                     onClick={() => handleEditIde(item)}
                     className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] opacity-0 group-hover/ide:opacity-100 transition-all"
-                  >
-                    Edit
-                  </button>
-                </div>
-              )
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Custom Apps */}
-      {(appItems.length > 0 || isCreatingApp) && (
-        <section id="section-custom-apps" className="mb-8 scroll-mt-6">
-          <h3 className="section-label">Custom Apps</h3>
-
-          {/* Inline App Creator */}
-          {isCreatingApp && (
-            <div
-              ref={newAppRef}
-              className="mb-4 p-4 rounded-xl bg-[#f97316]/5 border border-[#f97316]/30"
-            >
-              <div className="flex flex-wrap items-center gap-3 mb-3">
-                <input
-                  type="text"
-                  value={newAppTitle}
-                  onChange={(e) => setNewAppTitle(e.target.value)}
-                  placeholder="Title (optional)..."
-                  className="input-terminal w-40"
-                />
-                <div className="flex-1 flex gap-2">
-                  <input
-                    type="text"
-                    value={newAppPath}
-                    onChange={(e) => setNewAppPath(e.target.value)}
-                    placeholder="Executable path..."
-                    className="input-terminal flex-1"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSelectFileForApp}
-                    className="btn-ghost whitespace-nowrap"
-                  >
-                    Browse
-                  </button>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 mb-3">
-                <input
-                  type="text"
-                  value={newAppArgs}
-                  onChange={(e) => setNewAppArgs(e.target.value)}
-                  placeholder="Arguments (optional)..."
-                  className="input-terminal flex-1"
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex-1 flex gap-2">
-                  <input
-                    type="text"
-                    value={newAppCwd}
-                    onChange={(e) => setNewAppCwd(e.target.value)}
-                    placeholder="Working directory (optional)..."
-                    className="input-terminal flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleSelectFolderForApp(false)}
-                    className="btn-ghost whitespace-nowrap"
-                  >
-                    Browse
-                  </button>
-                </div>
-              </div>
-              <div className="text-xs font-mono text-[var(--text-muted)] mt-3">
-                Click outside to save
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            {appItems.map((item, index) =>
-              editingAppId === item.id ? (
-                <div
-                  key={item.id}
-                  ref={editAppRef}
-                  className="w-full p-4 rounded-xl bg-[#f97316]/5 border border-[#f97316]/30 animate-card-enter"
-                >
-                  <div className="flex flex-wrap items-center gap-3 mb-3">
-                    <input
-                      type="text"
-                      value={editAppTitle}
-                      onChange={(e) => setEditAppTitle(e.target.value)}
-                      placeholder="Title (optional)..."
-                      className="input-terminal w-40"
-                      autoFocus
-                    />
-                    <div className="flex-1 flex gap-2">
-                      <input
-                        type="text"
-                        value={editAppPath}
-                        onChange={(e) => setEditAppPath(e.target.value)}
-                        placeholder="Executable path..."
-                        className="input-terminal flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSelectFileForAppEdit}
-                        className="btn-ghost whitespace-nowrap"
-                      >
-                        Browse
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 mb-3">
-                    <input
-                      type="text"
-                      value={editAppArgs}
-                      onChange={(e) => setEditAppArgs(e.target.value)}
-                      placeholder="Arguments (optional)..."
-                      className="input-terminal flex-1"
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 mb-3">
-                    <div className="flex-1 flex gap-2">
-                      <input
-                        type="text"
-                        value={editAppCwd}
-                        onChange={(e) => setEditAppCwd(e.target.value)}
-                        placeholder="Working directory (optional)..."
-                        className="input-terminal flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleSelectFolderForApp(true)}
-                        className="btn-ghost whitespace-nowrap"
-                      >
-                        Browse
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-mono text-[var(--text-muted)]">Click outside to save</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        deleteItem(item.id)
-                        setEditingAppId(null)
-                      }}
-                      className="btn-delete"
-                    >
-                      delete
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  key={item.id}
-                  className="group/app relative animate-card-enter mr-7"
-                  style={{ animationDelay: `${index * 30}ms` }}
-                >
-                  <div
-                    className="tag tag-app cursor-pointer"
-                    onClick={() => handleOpenApp(item)}
-                  >
-                    <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    <span>{item.title}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        deleteItem(item.id)
-                      }}
-                      className="ml-1 opacity-0 group-hover/app:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-opacity"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => handleEditApp(item)}
-                    className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[#f97316] hover:border-[#f97316] opacity-0 group-hover/app:opacity-100 transition-all"
                   >
                     Edit
                   </button>
@@ -1490,10 +1230,16 @@ export default function ProjectDetail() {
         </section>
       )}
 
-      {/* Files */}
+      {/* Open */}
       {(fileItems.length > 0 || isCreatingFile) && (
         <section id="section-files" className="mb-8 scroll-mt-6">
-          <h3 className="section-label">Files</h3>
+          <h3 className="section-label">
+            Open
+            <span
+              className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--text-muted)]/20 text-[var(--text-muted)] text-xs cursor-help"
+              title="Quick open files, folders, or executables with system default handler"
+            >?</span>
+          </h3>
 
           {/* Inline File Creator */}
           {isCreatingFile && (
@@ -1514,7 +1260,7 @@ export default function ProjectDetail() {
                     type="text"
                     value={newFilePath}
                     onChange={(e) => setNewFilePath(e.target.value)}
-                    placeholder="File path..."
+                    placeholder="File or folder path..."
                     className="input-terminal flex-1"
                     autoFocus
                   />
@@ -1523,7 +1269,14 @@ export default function ProjectDetail() {
                     onClick={handleSelectFile}
                     className="btn-ghost whitespace-nowrap"
                   >
-                    Browse
+                    File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSelectFolderForFile}
+                    className="btn-ghost whitespace-nowrap"
+                  >
+                    Folder
                   </button>
                 </div>
               </div>
@@ -1574,7 +1327,7 @@ export default function ProjectDetail() {
                         type="text"
                         value={editFilePath}
                         onChange={(e) => setEditFilePath(e.target.value)}
-                        placeholder="File path..."
+                        placeholder="File or folder path..."
                         className="input-terminal flex-1"
                       />
                       <button
@@ -1582,7 +1335,14 @@ export default function ProjectDetail() {
                         onClick={handleSelectFileForEdit}
                         className="btn-ghost whitespace-nowrap"
                       >
-                        Browse
+                        File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSelectFolderForFileEdit}
+                        className="btn-ghost whitespace-nowrap"
+                      >
+                        Folder
                       </button>
                     </div>
                   </div>
@@ -1838,31 +1598,73 @@ export default function ProjectDetail() {
         <h3 className="section-label">Links</h3>
 
         <div className="flex flex-wrap items-center gap-2">
-          {urlItems.map((item, index) => (
-            <a
-              key={item.id}
-              href={item.content}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="tag tag-url animate-card-enter"
-              style={{ animationDelay: `${index * 30}ms` }}
-            >
-              <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              <span>{item.title}</span>
-              <button
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  deleteItem(item.id)
-                }}
-                className="ml-1 opacity-40 hover:opacity-100 hover:text-[var(--accent-danger)] transition-opacity"
+          {urlItems.map((item, index) =>
+            editingUrlId === item.id ? (
+              <div
+                key={item.id}
+                ref={editUrlRef}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--accent-secondary)]/10 border border-[var(--accent-secondary)]"
               >
-                ×
-              </button>
-            </a>
-          ))}
+                <input
+                  type="text"
+                  value={editUrlTitle}
+                  onChange={(e) => setEditUrlTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editUrlTitle.trim()) {
+                      e.preventDefault()
+                      saveEditingUrl()
+                    } else if (e.key === 'Escape') {
+                      setEditingUrlId(null)
+                    }
+                  }}
+                  className="w-40 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)]"
+                  autoFocus
+                />
+                <button
+                  onClick={() => setEditingUrlId(null)}
+                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <a
+                key={item.id}
+                href={item.content}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tag tag-url animate-card-enter group"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                <span>{item.title}</span>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setEditingUrlId(item.id)
+                    setEditUrlTitle(item.title)
+                  }}
+                  className="ml-1 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-[var(--accent-secondary)] transition-opacity"
+                  title="Rename"
+                >
+                  ✎
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    deleteItem(item.id)
+                  }}
+                  className="ml-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-[var(--accent-danger)] transition-opacity"
+                >
+                  ×
+                </button>
+              </a>
+            )
+          )}
           {/* Quick URL input */}
           <div className="inline-flex items-center">
             <input
