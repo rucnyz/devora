@@ -299,6 +299,19 @@ export default function FileSection({
             </div>
           )
         )}
+
+        {/* Add button */}
+        {!isCreating && (
+          <button
+            onClick={() => onCreatingChange(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--text-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="font-mono text-sm">Add</span>
+          </button>
+        )}
       </div>
     </section>
   )

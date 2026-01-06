@@ -213,6 +213,27 @@ describe('Projects Routes', () => {
 
       expect(createProjectSpy).toHaveBeenCalledWith('Test', 'Desc', { github_url: 'https://github.com/test' })
     })
+
+    test('creates project with working_dirs in metadata', async () => {
+      const workingDirs = [
+        { name: 'main', path: '/home/user/project' },
+        { name: 'remote', path: '/var/www', host: 'server1' },
+      ]
+      const createProjectSpy = spyOn(db, 'createProject').mockReturnValue({
+        id: '1', name: 'Test', description: '', metadata: { working_dirs: workingDirs }, created_at: '', updated_at: ''
+      })
+
+      await app.request('/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Test',
+          metadata: { working_dirs: workingDirs }
+        }),
+      })
+
+      expect(createProjectSpy).toHaveBeenCalledWith('Test', undefined, { working_dirs: workingDirs })
+    })
   })
 
   describe('PUT /:id', () => {
@@ -248,6 +269,83 @@ describe('Projects Routes', () => {
       expect(res.status).toBe(200)
       const data = await res.json()
       expect(data.name).toBe('Updated Project')
+    })
+
+    test('updates project metadata with working_dirs', async () => {
+      const workingDirs = [
+        { name: 'local-project', path: 'C:\\Users\\test\\project' },
+        { name: 'remote-server', path: '/home/user/project', host: 'myserver' },
+      ]
+      const mockProject = {
+        id: '1',
+        name: 'Project',
+        description: '',
+        metadata: { working_dirs: workingDirs },
+        created_at: '',
+        updated_at: '',
+      }
+      const updateSpy = spyOn(db, 'updateProject').mockReturnValue(mockProject)
+
+      const res = await app.request('/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: { working_dirs: workingDirs } }),
+      })
+
+      expect(res.status).toBe(200)
+      expect(updateSpy).toHaveBeenCalledWith('1', { metadata: { working_dirs: workingDirs } })
+      const data = await res.json()
+      expect(data.metadata.working_dirs).toEqual(workingDirs)
+    })
+
+    test('working_dirs supports local dirs without host', async () => {
+      const workingDirs = [
+        { name: 'main', path: '/home/user/project' },
+      ]
+      const mockProject = {
+        id: '1',
+        name: 'Project',
+        description: '',
+        metadata: { working_dirs: workingDirs },
+        created_at: '',
+        updated_at: '',
+      }
+      spyOn(db, 'updateProject').mockReturnValue(mockProject)
+
+      const res = await app.request('/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: { working_dirs: workingDirs } }),
+      })
+
+      const data = await res.json()
+      expect(data.metadata.working_dirs[0].host).toBeUndefined()
+    })
+
+    test('working_dirs supports remote dirs with host', async () => {
+      const workingDirs = [
+        { name: 'remote', path: '/var/www/app', host: 'production-server' },
+      ]
+      const mockProject = {
+        id: '1',
+        name: 'Project',
+        description: '',
+        metadata: { working_dirs: workingDirs },
+        created_at: '',
+        updated_at: '',
+      }
+      spyOn(db, 'updateProject').mockReturnValue(mockProject)
+
+      const res = await app.request('/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: { working_dirs: workingDirs } }),
+      })
+
+      const data = await res.json()
+      expect(data.metadata.working_dirs[0].name).toBe('remote')
+      expect(data.metadata.working_dirs[0].path).toBe('/var/www/app')
+      expect(data.metadata.working_dirs[0].host).toBe('production-server')
     })
   })
 

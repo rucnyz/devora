@@ -3,12 +3,13 @@ import { openRemoteIde } from '../../hooks/useProjects'
 import { REMOTE_IDE_LABELS, REMOTE_IDE_TAG_CLASSES, REMOTE_IDE_TYPES } from '../../constants/itemTypes'
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
-import type { Item, RemoteIdeType } from '../../types'
+import type { Item, RemoteIdeType, WorkingDir } from '../../types'
 
 interface RemoteIDESectionProps {
   items: Item[]
   isCreating: boolean
   sshHosts: string[]
+  workingDirs: WorkingDir[]
   onAdd: (title: string, content: string, remoteIdeType: RemoteIdeType) => Promise<void>
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -19,6 +20,7 @@ export default function RemoteIDESection({
   items,
   isCreating,
   sshHosts,
+  workingDirs,
   onAdd,
   onUpdate,
   onDelete,
@@ -157,7 +159,7 @@ export default function RemoteIDESection({
         {isCreating && (
           <div
             ref={newRemoteIdeRef}
-            className="mb-4 p-4 rounded-xl bg-[#e879f9]/5 border border-[#e879f9]/30"
+            className="mb-4 p-4 rounded-xl bg-[var(--accent-remote)]/5 border border-[var(--accent-remote)]/30"
           >
             <div className="flex flex-wrap items-center gap-3">
               <select
@@ -196,29 +198,23 @@ export default function RemoteIDESection({
                 </button>
               </div>
             </div>
-            {/* Existing remote paths suggestions */}
-            {items.length > 0 && (
+            {/* Working dirs suggestions (remote only) */}
+            {workingDirs.filter(d => d.host).length > 0 && (
               <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
-                <span className="text-xs font-mono text-[var(--text-muted)]">Existing remotes:</span>
+                <span className="text-xs font-mono text-[var(--text-muted)]">Working dirs:</span>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {[...new Map(items.map(i => {
-                    const content = i.content || ''
-                    const colonIndex = content.indexOf(':')
-                    const host = colonIndex > 0 ? content.substring(0, colonIndex) : content
-                    const path = colonIndex > 0 ? content.substring(colonIndex + 1) : ''
-                    return [content, { host, path }]
-                  })).entries()].map(([key, { host, path }]) => (
+                  {workingDirs.filter(d => d.host).map((dir) => (
                     <button
-                      key={key}
+                      key={`${dir.host}:${dir.path}`}
                       type="button"
                       onClick={() => {
-                        setNewHost(host)
-                        setNewPath(path)
+                        setNewHost(dir.host!)
+                        setNewPath(dir.path)
                       }}
-                      className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-secondary)] hover:text-[#e879f9] hover:border-[#e879f9] transition-colors truncate max-w-xs"
-                      title={`${host}:${path}`}
+                      className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-secondary)] hover:text-[var(--accent-remote)] hover:border-[var(--accent-remote)] transition-colors"
+                      title={`${dir.host}:${dir.path}`}
                     >
-                      {host}:{path.split('/').pop()}
+                      {dir.name} <span className="opacity-50">@{dir.host}</span>
                     </button>
                   ))}
                 </div>
@@ -236,7 +232,7 @@ export default function RemoteIDESection({
               <div
                 key={item.id}
                 ref={editRemoteIdeRef}
-                className="w-full p-4 rounded-xl bg-[#e879f9]/5 border border-[#e879f9]/30 animate-card-enter"
+                className="w-full p-4 rounded-xl bg-[var(--accent-remote)]/5 border border-[var(--accent-remote)]/30 animate-card-enter"
               >
                 <div className="flex flex-wrap items-center gap-3">
                   <select
@@ -316,12 +312,25 @@ export default function RemoteIDESection({
                 </div>
                 <button
                   onClick={() => handleEdit(item)}
-                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[#e879f9] hover:border-[#e879f9] opacity-0 group-hover/remote-ide:opacity-100 transition-all"
+                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--accent-remote)] hover:border-[var(--accent-remote)] opacity-0 group-hover/remote-ide:opacity-100 transition-all"
                 >
                   Edit
                 </button>
               </div>
             )
+          )}
+
+          {/* Add button */}
+          {!isCreating && (
+            <button
+              onClick={() => onCreatingChange(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--accent-remote)] text-[var(--text-muted)] hover:text-[var(--accent-remote)] transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="font-mono text-sm">Add</span>
+            </button>
           )}
         </div>
       </section>

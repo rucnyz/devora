@@ -4,19 +4,46 @@ import { join } from 'path'
 import { mkdirSync, existsSync } from 'fs'
 import type { Project, Item, ProjectMetadata, ItemType, IdeType, RemoteIdeType, CommandMode } from '../src/types'
 
+// Database row types (metadata is JSON string in DB)
+interface ProjectRow {
+  id: string
+  name: string
+  description: string
+  metadata: string
+  created_at: string
+  updated_at: string
+}
+
+interface MaxOrderRow {
+  max: number | null
+}
+
+// Export/Import data types
+interface ExportData {
+  version: string
+  exportedAt: string
+  projects: ProjectRow[]
+  items: Item[]
+}
+
+interface ImportData {
+  projects: ProjectRow[]
+  items: Item[]
+}
+
 // Database function factory for dependency injection (used in tests)
 export function createDbFunctions(db: Database) {
   // Projects CRUD
   function getAllProjects(): Project[] {
-    const rows = db.query('SELECT * FROM projects ORDER BY updated_at DESC').all() as any[]
+    const rows = db.query('SELECT * FROM projects ORDER BY updated_at DESC').all() as ProjectRow[]
     return rows.map(row => ({
       ...row,
-      metadata: JSON.parse(row.metadata || '{}'),
+      metadata: JSON.parse(row.metadata || '{}') as ProjectMetadata,
     }))
   }
 
   function getProjectById(id: string): Project | null {
-    const row = db.query('SELECT * FROM projects WHERE id = ?').get(id) as any
+    const row = db.query('SELECT * FROM projects WHERE id = ?').get(id) as ProjectRow | null
     if (!row) return null
 
     const items = db.query('SELECT * FROM items WHERE project_id = ? ORDER BY "order" ASC').all(id) as Item[]
@@ -78,18 +105,19 @@ export function createDbFunctions(db: Database) {
     ideType?: IdeType,
     remoteIdeType?: RemoteIdeType,
     commandMode?: CommandMode,
-    commandCwd?: string
+    commandCwd?: string,
+    commandHost?: string
   ): Item {
     const id = uuidv4()
     const now = new Date().toISOString()
 
     // Get max order
-    const maxOrder = db.query('SELECT MAX("order") as max FROM items WHERE project_id = ?').get(projectId) as any
+    const maxOrder = db.query('SELECT MAX("order") as max FROM items WHERE project_id = ?').get(projectId) as MaxOrderRow | null
     const order = (maxOrder?.max ?? -1) + 1
 
     db.run(
-      'INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, projectId, type, title, content, ideType || null, remoteIdeType || null, commandMode || null, commandCwd || null, order, now, now]
+      'INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, command_host, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, projectId, type, title, content, ideType || null, remoteIdeType || null, commandMode || null, commandCwd || null, commandHost || null, order, now, now]
     )
 
     // Update project's updated_at
@@ -105,13 +133,14 @@ export function createDbFunctions(db: Database) {
       remote_ide_type: remoteIdeType,
       command_mode: commandMode,
       command_cwd: commandCwd,
+      command_host: commandHost,
       order,
       created_at: now,
       updated_at: now,
     }
   }
 
-  function updateItem(id: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'order'>>): Item | null {
+  function updateItem(id: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'command_host' | 'order'>>): Item | null {
     const existing = db.query('SELECT * FROM items WHERE id = ?').get(id) as Item | null
     if (!existing) return null
 
@@ -122,11 +151,12 @@ export function createDbFunctions(db: Database) {
     const remoteIdeType = updates.remote_ide_type ?? existing.remote_ide_type
     const commandMode = updates.command_mode ?? existing.command_mode
     const commandCwd = updates.command_cwd ?? existing.command_cwd
+    const commandHost = updates.command_host ?? existing.command_host
     const order = updates.order ?? existing.order
 
     db.run(
-      'UPDATE items SET title = ?, content = ?, ide_type = ?, remote_ide_type = ?, command_mode = ?, command_cwd = ?, "order" = ?, updated_at = ? WHERE id = ?',
-      [title, content, ideType || null, remoteIdeType || null, commandMode || null, commandCwd || null, order, now, id]
+      'UPDATE items SET title = ?, content = ?, ide_type = ?, remote_ide_type = ?, command_mode = ?, command_cwd = ?, command_host = ?, "order" = ?, updated_at = ? WHERE id = ?',
+      [title, content, ideType || null, remoteIdeType || null, commandMode || null, commandCwd || null, commandHost || null, order, now, id]
     )
 
     // Update project's updated_at
@@ -160,17 +190,17 @@ export function createDbFunctions(db: Database) {
   }
 
   // Export data (optionally filter by project IDs)
-  function exportAllData(projectIds?: string[]): { projects: any[], items: any[], exportedAt: string, version: string } {
-    let projects: any[]
-    let items: any[]
+  function exportAllData(projectIds?: string[]): ExportData {
+    let projects: ProjectRow[]
+    let items: Item[]
 
     if (projectIds && projectIds.length > 0) {
       const placeholders = projectIds.map(() => '?').join(',')
-      projects = db.query(`SELECT * FROM projects WHERE id IN (${placeholders}) ORDER BY updated_at DESC`).all(...projectIds)
-      items = db.query(`SELECT * FROM items WHERE project_id IN (${placeholders}) ORDER BY project_id, "order" ASC`).all(...projectIds)
+      projects = db.query(`SELECT * FROM projects WHERE id IN (${placeholders}) ORDER BY updated_at DESC`).all(...projectIds) as ProjectRow[]
+      items = db.query(`SELECT * FROM items WHERE project_id IN (${placeholders}) ORDER BY project_id, "order" ASC`).all(...projectIds) as Item[]
     } else {
-      projects = db.query('SELECT * FROM projects ORDER BY updated_at DESC').all()
-      items = db.query('SELECT * FROM items ORDER BY project_id, "order" ASC').all()
+      projects = db.query('SELECT * FROM projects ORDER BY updated_at DESC').all() as ProjectRow[]
+      items = db.query('SELECT * FROM items ORDER BY project_id, "order" ASC').all() as Item[]
     }
 
     return {
@@ -182,7 +212,7 @@ export function createDbFunctions(db: Database) {
   }
 
   // Import data (merge mode: skip existing, add new)
-  function importData(data: { projects: any[], items: any[] }, mode: 'merge' | 'replace' = 'merge'): { projectsImported: number, itemsImported: number, skipped: number } {
+  function importData(data: ImportData, mode: 'merge' | 'replace' = 'merge'): { projectsImported: number, itemsImported: number, skipped: number } {
     let projectsImported = 0
     let itemsImported = 0
     let skipped = 0
@@ -224,8 +254,8 @@ export function createDbFunctions(db: Database) {
       }
 
       db.run(
-        'INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [item.id, item.project_id, item.type, item.title, item.content || '', item.ide_type || null, item.remote_ide_type || null, item.command_mode || null, item.command_cwd || null, item.order || 0, item.created_at, item.updated_at]
+        'INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, command_host, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [item.id, item.project_id, item.type, item.title, item.content || '', item.ide_type || null, item.remote_ide_type || null, item.command_mode || null, item.command_cwd || null, item.command_host || null, item.order || 0, item.created_at, item.updated_at]
       )
       itemsImported++
     }
@@ -293,6 +323,13 @@ export function initializeDatabase(db: Database) {
   // Migration: add command_cwd column if not exists
   try {
     db.run(`ALTER TABLE items ADD COLUMN command_cwd TEXT`)
+  } catch {
+    // Column already exists
+  }
+
+  // Migration: add command_host column if not exists (for remote commands via SSH)
+  try {
+    db.run(`ALTER TABLE items ADD COLUMN command_host TEXT`)
   } catch {
     // Column already exists
   }

@@ -35,7 +35,7 @@ app.get('/ssh-hosts', async (c) => {
     const content = await readFile(sshConfigPath, 'utf-8')
     const hosts = parseSSHConfig(content)
     return c.json({ hosts })
-  } catch (error) {
+  } catch {
     // If file doesn't exist or can't be read, return empty array
     return c.json({ hosts: [] })
   }
@@ -154,35 +154,67 @@ app.post('/url-metadata', async (c) => {
     }
 
     return c.json({ title: null })
-  } catch (error) {
+  } catch {
     // On error (timeout, network, etc.), return null
     return c.json({ title: null })
   }
 })
 
-// Run custom command
+// Run custom command (local or remote via SSH)
 app.post('/command', async (c) => {
   const body = await c.req.json()
-  const { command, mode, cwd } = body as { command: string; mode: 'background' | 'output'; cwd?: string }
+  const { command, mode, cwd, host } = body as { command: string; mode: 'background' | 'output'; cwd?: string; host?: string }
 
   if (!command) {
     return c.json({ error: 'command is required' }, 400)
   }
 
   try {
-    const spawnOptions: any = {
+    // Remote command via SSH
+    if (host) {
+      const cdCommand = cwd ? `cd "${cwd}" && ` : ''
+      const fullCommand = `${cdCommand}${command}`
+
+      if (mode === 'background') {
+        // Background mode: run via SSH and return immediately (nohup to detach)
+        Bun.spawn(['ssh', host, `nohup sh -c '${fullCommand.replace(/'/g, "'\\''")}' > /dev/null 2>&1 &`], {
+          stdout: 'ignore',
+          stderr: 'ignore',
+        })
+        return c.json({ success: true })
+      } else {
+        // Output mode: wait for SSH command completion
+        const proc = Bun.spawn(['ssh', host, fullCommand], {
+          stdout: 'pipe',
+          stderr: 'pipe',
+        })
+
+        const stdout = await new Response(proc.stdout).text()
+        const stderr = await new Response(proc.stderr).text()
+        const exitCode = await proc.exited
+
+        return c.json({
+          success: exitCode === 0,
+          output: stdout,
+          error: stderr || undefined,
+          exitCode,
+        })
+      }
+    }
+
+    // Local command
+    const spawnOptions = {
       cwd: cwd || process.cwd(),
-      shell: true,
+      shell: true as const,
     }
 
     if (mode === 'background') {
       // Background mode: spawn detached and return immediately
-      const child = Bun.spawn(['cmd', '/c', command], {
+      Bun.spawn(['cmd', '/c', command], {
         ...spawnOptions,
         stdout: 'ignore',
         stderr: 'ignore',
       })
-      // Don't wait for the process
       return c.json({ success: true })
     } else {
       // Output mode: wait for completion and return stdout/stderr

@@ -31,25 +31,34 @@
   --text-secondary: #9898a6;
   --text-muted: #5a5a6e;
 
-  /* Accent colors */
-  --accent-primary: #00ff88;
+  /* Accent colors - 4 semantic colors */
+  --accent-primary: #00ff88;        /* IDE, primary actions */
   --accent-primary-dim: #00cc6a;
-  --accent-secondary: #00d4ff;
-  --accent-warning: #ffaa00;
+  --accent-primary-rgb: 0, 255, 136;
+  --accent-secondary: #00d4ff;      /* Links */
+  --accent-secondary-rgb: 0, 212, 255;
+  --accent-warning: #ffaa00;        /* Notes, commands */
+  --accent-warning-rgb: 255, 170, 0;
+  --accent-remote: #e879f9;         /* Remote IDE */
+  --accent-remote-dim: #d946ef;
+  --accent-remote-rgb: 232, 121, 249;
   --accent-danger: #ff4757;
 
   /* Glow effects */
   --glow-primary: 0 0 20px rgba(0, 255, 136, 0.3);
   --glow-secondary: 0 0 20px rgba(0, 212, 255, 0.3);
   --glow-warning: 0 0 20px rgba(255, 170, 0, 0.3);
+  --glow-remote: 0 0 20px rgba(232, 121, 249, 0.3);
   --glow-soft: 0 0 40px rgba(0, 255, 136, 0.1);
   --glow-warning-soft: 0 0 40px rgba(255, 170, 0, 0.15);
+  --glow-remote-soft: 0 0 40px rgba(232, 121, 249, 0.15);
 
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-visible: rgba(255, 255, 255, 0.12);
   --border-accent: rgba(0, 255, 136, 0.3);
   --border-warning: rgba(255, 170, 0, 0.4);
+  --border-remote: rgba(232, 121, 249, 0.4);
 
   /* Grid background */
   --grid-color: rgba(0, 255, 136, 0.02);
@@ -73,25 +82,34 @@
   --text-secondary: #475569;
   --text-muted: #94a3b8;
 
-  /* Accent colors - more saturated for light mode */
-  --accent-primary: #059669;
+  /* Accent colors - 4 semantic colors */
+  --accent-primary: #059669;        /* IDE, primary actions */
   --accent-primary-dim: #047857;
-  --accent-secondary: #0891b2;
-  --accent-warning: #d97706;
+  --accent-primary-rgb: 5, 150, 105;
+  --accent-secondary: #0891b2;      /* Links */
+  --accent-secondary-rgb: 8, 145, 178;
+  --accent-warning: #d97706;        /* Notes, commands */
+  --accent-warning-rgb: 217, 119, 6;
+  --accent-remote: #c026d3;         /* Remote IDE */
+  --accent-remote-dim: #a21caf;
+  --accent-remote-rgb: 192, 38, 211;
   --accent-danger: #dc2626;
 
   /* Shadow effects instead of glow */
   --glow-primary: 0 4px 14px rgba(5, 150, 105, 0.15);
   --glow-secondary: 0 4px 14px rgba(8, 145, 178, 0.15);
   --glow-warning: 0 4px 14px rgba(217, 119, 6, 0.2);
+  --glow-remote: 0 4px 14px rgba(192, 38, 211, 0.2);
   --glow-soft: 0 8px 30px rgba(5, 150, 105, 0.08);
   --glow-warning-soft: 0 8px 30px rgba(217, 119, 6, 0.12);
+  --glow-remote-soft: 0 8px 30px rgba(192, 38, 211, 0.12);
 
   /* Borders */
   --border-subtle: rgba(0, 0, 0, 0.04);
   --border-visible: rgba(0, 0, 0, 0.08);
   --border-accent: rgba(5, 150, 105, 0.3);
   --border-warning: rgba(217, 119, 6, 0.4);
+  --border-remote: rgba(192, 38, 211, 0.4);
 
   /* Grid background */
   --grid-color: rgba(5, 150, 105, 0.03);
@@ -372,148 +390,53 @@ h1, h2, h3, h4, h5, h6 {
   transition: all var(--transition-fast);
 }
 
-.tag-ide-pycharm {
-  color: #4ec97d;
-  background: rgba(78, 201, 125, 0.1);
-  border: 1px solid rgba(78, 201, 125, 0.3);
+/* ===========================================
+   UNIFIED IDE TAG - Uses primary color (green)
+   All IDE types share this style for consistency
+   =========================================== */
+.tag-ide {
+  color: var(--accent-primary);
+  background: rgba(var(--accent-primary-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.3);
 }
 
-.tag-ide-pycharm:hover {
-  background: rgba(78, 201, 125, 0.2);
-  box-shadow: 0 0 15px rgba(78, 201, 125, 0.2);
+.tag-ide:hover {
+  background: rgba(var(--accent-primary-rgb), 0.2);
+  box-shadow: var(--glow-primary);
 }
 
-.tag-ide-cursor {
-  color: #a78bfa;
-  background: rgba(167, 139, 250, 0.1);
-  border: 1px solid rgba(167, 139, 250, 0.3);
+/* ===========================================
+   UNIFIED REMOTE IDE TAG - Uses remote color (magenta)
+   All remote IDE types share this style
+   =========================================== */
+.tag-remote-ide {
+  color: var(--accent-remote);
+  background: rgba(var(--accent-remote-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-remote-rgb), 0.3);
 }
 
-.tag-ide-cursor:hover {
-  background: rgba(167, 139, 250, 0.2);
-  box-shadow: 0 0 15px rgba(167, 139, 250, 0.2);
+.tag-remote-ide:hover {
+  background: rgba(var(--accent-remote-rgb), 0.2);
+  box-shadow: var(--glow-remote);
 }
 
-.tag-ide-vscode {
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.1);
-  border: 1px solid rgba(96, 165, 250, 0.3);
+/* ===========================================
+   URL TAG - Uses secondary color (cyan/teal)
+   =========================================== */
+.tag-url {
+  color: var(--accent-secondary);
+  background: rgba(var(--accent-secondary-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-secondary-rgb), 0.3);
 }
 
-.tag-ide-vscode:hover {
-  background: rgba(96, 165, 250, 0.2);
-  box-shadow: 0 0 15px rgba(96, 165, 250, 0.2);
+.tag-url:hover {
+  background: rgba(var(--accent-secondary-rgb), 0.2);
+  box-shadow: var(--glow-secondary);
 }
 
-.tag-ide-zed {
-  color: #fb923c;
-  background: rgba(251, 146, 60, 0.1);
-  border: 1px solid rgba(251, 146, 60, 0.3);
-}
-
-.tag-ide-zed:hover {
-  background: rgba(251, 146, 60, 0.2);
-  box-shadow: 0 0 15px rgba(251, 146, 60, 0.2);
-}
-
-.tag-ide-obsidian {
-  color: #c084fc;
-  background: rgba(192, 132, 252, 0.1);
-  border: 1px solid rgba(192, 132, 252, 0.3);
-}
-
-.tag-ide-obsidian:hover {
-  background: rgba(192, 132, 252, 0.2);
-  box-shadow: 0 0 15px rgba(192, 132, 252, 0.2);
-}
-
-/* Remote IDE tags */
-.tag-remote-ide-cursor {
-  color: #e879f9;
-  background: rgba(232, 121, 249, 0.1);
-  border: 1px solid rgba(232, 121, 249, 0.3);
-}
-
-.tag-remote-ide-cursor:hover {
-  background: rgba(232, 121, 249, 0.2);
-  box-shadow: 0 0 15px rgba(232, 121, 249, 0.2);
-}
-
-.tag-remote-ide-vscode {
-  color: #f0abfc;
-  background: rgba(240, 171, 252, 0.1);
-  border: 1px solid rgba(240, 171, 252, 0.3);
-}
-
-.tag-remote-ide-vscode:hover {
-  background: rgba(240, 171, 252, 0.2);
-  box-shadow: 0 0 15px rgba(240, 171, 252, 0.2);
-}
-
-/* Light theme tag overrides */
-[data-theme="light"] .tag-ide-pycharm {
-  color: #047857;
-  background: rgba(4, 120, 87, 0.08);
-  border-color: rgba(4, 120, 87, 0.25);
-}
-
-[data-theme="light"] .tag-ide-cursor {
-  color: #7c3aed;
-  background: rgba(124, 58, 237, 0.08);
-  border-color: rgba(124, 58, 237, 0.25);
-}
-
-[data-theme="light"] .tag-ide-vscode {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.08);
-  border-color: rgba(37, 99, 235, 0.25);
-}
-
-[data-theme="light"] .tag-ide-zed {
-  color: #ea580c;
-  background: rgba(234, 88, 12, 0.08);
-  border-color: rgba(234, 88, 12, 0.25);
-}
-
-[data-theme="light"] .tag-ide-obsidian {
-  color: #9333ea;
-  background: rgba(147, 51, 234, 0.08);
-  border-color: rgba(147, 51, 234, 0.25);
-}
-
-[data-theme="light"] .tag-remote-ide-cursor {
-  color: #c026d3;
-  background: rgba(192, 38, 211, 0.08);
-  border-color: rgba(192, 38, 211, 0.25);
-}
-
-[data-theme="light"] .tag-remote-ide-cursor:hover {
-  background: rgba(192, 38, 211, 0.15);
-  box-shadow: 0 2px 12px rgba(192, 38, 211, 0.2);
-}
-
-[data-theme="light"] .tag-remote-ide-vscode {
-  color: #a21caf;
-  background: rgba(162, 28, 175, 0.08);
-  border-color: rgba(162, 28, 175, 0.25);
-}
-
-[data-theme="light"] .tag-remote-ide-vscode:hover {
-  background: rgba(162, 28, 175, 0.15);
-  box-shadow: 0 2px 12px rgba(162, 28, 175, 0.2);
-}
-
-[data-theme="light"] .tag-url {
-  color: #0891b2;
-  background: rgba(8, 145, 178, 0.08);
-  border-color: rgba(8, 145, 178, 0.25);
-}
-
-[data-theme="light"] .tag-url:hover {
-  background: rgba(8, 145, 178, 0.15);
-  box-shadow: 0 2px 12px rgba(8, 145, 178, 0.2);
-}
-
+/* ===========================================
+   FILE TAG - Uses neutral/secondary text color
+   =========================================== */
 .tag-file {
   color: var(--text-secondary);
   background: var(--bg-elevated);
@@ -523,68 +446,49 @@ h1, h2, h3, h4, h5, h6 {
 .tag-file:hover {
   color: var(--text-primary);
   border-color: var(--accent-primary);
-  box-shadow: 0 0 15px rgba(0, 255, 136, 0.1);
+  box-shadow: var(--glow-soft);
 }
 
-[data-theme="light"] .tag-file:hover {
-  box-shadow: 0 2px 12px rgba(5, 150, 105, 0.15);
-}
-
+/* ===========================================
+   COMMAND TAG - Uses warning/tertiary color (amber)
+   =========================================== */
 .tag-command {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: var(--accent-warning);
+  background: rgba(var(--accent-warning-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-warning-rgb), 0.3);
 }
 
 .tag-command:hover {
-  background: rgba(251, 191, 36, 0.2);
-  border-color: #fbbf24;
-  box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
+  background: rgba(var(--accent-warning-rgb), 0.2);
+  box-shadow: var(--glow-warning);
 }
 
-[data-theme="light"] .tag-command {
-  color: #d97706;
-  background: rgba(217, 119, 6, 0.08);
-  border-color: rgba(217, 119, 6, 0.25);
+/* ===========================================
+   REMOTE COMMAND TAG - Uses fuchsia for SSH commands
+   =========================================== */
+.tag-remote-command {
+  color: #e879f9;
+  background: rgba(232, 121, 249, 0.1);
+  border: 1px solid rgba(232, 121, 249, 0.3);
 }
 
-[data-theme="light"] .tag-command:hover {
-  background: rgba(217, 119, 6, 0.15);
-  box-shadow: 0 2px 12px rgba(217, 119, 6, 0.2);
+.tag-remote-command:hover {
+  background: rgba(232, 121, 249, 0.2);
+  box-shadow: 0 0 12px rgba(232, 121, 249, 0.3);
 }
 
+/* ===========================================
+   APP TAG - Uses warning color for custom apps
+   =========================================== */
 .tag-app {
-  color: #f97316;
-  background: rgba(249, 115, 22, 0.1);
-  border: 1px solid rgba(249, 115, 22, 0.3);
+  color: var(--accent-warning);
+  background: rgba(var(--accent-warning-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-warning-rgb), 0.3);
 }
 
 .tag-app:hover {
-  background: rgba(249, 115, 22, 0.2);
-  border-color: #f97316;
-  box-shadow: 0 0 15px rgba(249, 115, 22, 0.2);
-}
-
-[data-theme="light"] .tag-app {
-  color: #ea580c;
-  background: rgba(234, 88, 12, 0.08);
-  border-color: rgba(234, 88, 12, 0.25);
-}
-
-[data-theme="light"] .tag-app:hover {
-  background: rgba(234, 88, 12, 0.15);
-  box-shadow: 0 2px 12px rgba(234, 88, 12, 0.2);
-}
-
-.tag-url {
-  color: var(--accent-secondary);
-  background: rgba(0, 212, 255, 0.1);
-  border: 1px solid rgba(0, 212, 255, 0.3);
-}
-
-.tag-url:hover {
-  background: rgba(0, 212, 255, 0.2);
-  box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+  background: rgba(var(--accent-warning-rgb), 0.2);
+  box-shadow: var(--glow-warning);
 }
 
 /* Note card */

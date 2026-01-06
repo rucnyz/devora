@@ -75,29 +75,6 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [editingId, editTitle, saveEditing])
 
-  // Global Ctrl+V to quick add URL (only when not editing)
-  useEffect(() => {
-    const handlePaste = async (e: ClipboardEvent) => {
-      const activeEl = document.activeElement
-      const isEditing = activeEl instanceof HTMLInputElement ||
-                        activeEl instanceof HTMLTextAreaElement ||
-                        activeEl?.getAttribute('contenteditable') === 'true'
-
-      if (isEditing) return
-
-      const text = e.clipboardData?.getData('text')?.trim()
-      if (!text) return
-
-      const urlPattern = /^(https?:\/\/|www\.)/i
-      if (urlPattern.test(text)) {
-        e.preventDefault()
-        await quickAddUrl(text)
-      }
-    }
-
-    document.addEventListener('paste', handlePaste)
-    return () => document.removeEventListener('paste', handlePaste)
-  }, [quickAddUrl])
 
   // Ctrl+S handler
   useEffect(() => {

@@ -91,7 +91,7 @@ export default function HostInput({
               onClick={() => handleSelect(host)}
               className={`w-full px-3 py-1.5 text-left text-sm font-mono whitespace-nowrap transition-colors ${
                 index === highlightIndex
-                  ? 'bg-[#e879f9]/20 text-[#e879f9]'
+                  ? 'bg-[var(--accent-remote)]/20 text-[var(--accent-remote)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
               }`}
             >

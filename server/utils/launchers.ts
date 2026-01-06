@@ -1,6 +1,6 @@
 import { spawn } from 'child_process'
 
-export type IdeType = 'pycharm' | 'cursor' | 'vscode' | 'zed' | 'obsidian'
+export type IdeType = 'pycharm' | 'cursor' | 'vscode' | 'zed' | 'antigravity'
 export type RemoteIdeType = 'cursor' | 'vscode'
 
 const LOCALAPPDATA = process.env.LOCALAPPDATA || ''
@@ -23,9 +23,9 @@ export const launchers: Record<IdeType | 'file', (path: string) => { command: st
     command: 'zed',
     args: [path],
   }),
-  obsidian: (vault: string) => ({
-    command: 'cmd',
-    args: ['/c', 'start', `obsidian://open?vault=${encodeURIComponent(vault)}`],
+  antigravity: (path: string) => ({
+    command: 'antigravity',
+    args: [path],
   }),
   file: (path: string) => ({
     command: 'explorer.exe',

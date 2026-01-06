@@ -75,7 +75,7 @@ async function startServer(port: number, attempt: number = 1): Promise<void> {
         console.log(`Opened browser at ${url}`)
       }, 300)
     }
-  } catch (error) {
+  } catch {
     if (attempt < MAX_PORT_ATTEMPTS) {
       const nextPort = port + 1
       console.log(`Port ${port} is in use, trying ${nextPort}...`)

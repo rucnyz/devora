@@ -174,6 +174,19 @@ describe('POST /actions/ide', () => {
     expect(mockOpenWithIde).toHaveBeenCalledWith('vscode', '/test/path')
   })
 
+  test('opens antigravity IDE', async () => {
+    const res = await app.request('/actions/ide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ide_type: 'antigravity', path: '/test/project' }),
+    })
+
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data).toEqual({ success: true })
+    expect(mockOpenWithIde).toHaveBeenCalledWith('antigravity', '/test/project')
+  })
+
   test('returns 400 when ide_type is missing', async () => {
     const res = await app.request('/actions/ide', {
       method: 'POST',

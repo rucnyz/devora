@@ -4,7 +4,6 @@ import type { Item } from '../../types'
 interface NotesSectionProps {
   notes: Item[]
   isCreating: boolean
-  onStartCreate: () => void
   onAdd: (title: string, content?: string) => Promise<void>
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -14,7 +13,6 @@ interface NotesSectionProps {
 export default function NotesSection({
   notes,
   isCreating,
-  onStartCreate,
   onAdd,
   onUpdate,
   onDelete,
@@ -149,11 +147,8 @@ export default function NotesSection({
         </div>
       )}
 
-      {notes.length === 0 && !isCreating ? (
-        <p className="text-[var(--text-muted)] font-mono text-sm">No notes yet. Add a note to get started.</p>
-      ) : (
-        <div className="space-y-4">
-          {notes.map((note, index) =>
+      <div className="space-y-4">
+        {notes.map((note, index) =>
             editingId === note.id ? (
               <div
                 key={note.id}
@@ -233,8 +228,20 @@ export default function NotesSection({
               </div>
             )
           )}
-        </div>
-      )}
+
+        {/* Add button */}
+        {!isCreating && (
+          <button
+            onClick={() => onCreatingChange(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--accent-warning)] text-[var(--text-muted)] hover:text-[var(--accent-warning)] transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="font-mono text-sm">Add</span>
+          </button>
+        )}
+      </div>
     </section>
   )
 }

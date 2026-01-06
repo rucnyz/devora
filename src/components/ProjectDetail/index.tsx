@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useProject, fetchSSHHosts } from '../../hooks/useProjects'
+import { useProject, fetchSSHHosts, fetchUrlMetadata } from '../../hooks/useProjects'
 import SectionNavigation from './SectionNavigation'
 import ProjectHeader from './ProjectHeader'
-import QuickActions from './QuickActions'
+import WorkingDirsSection from './WorkingDirsSection'
 import IDESection from './IDESection'
 import RemoteIDESection from './RemoteIDESection'
 import FileSection from './FileSection'
 import CommandSection from './CommandSection'
 import LinksSection from './LinksSection'
 import NotesSection from './NotesSection'
-import type { IdeType, RemoteIdeType, CommandMode } from '../../types'
+import type { IdeType, RemoteIdeType, CommandMode, WorkingDir } from '../../types'
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
@@ -30,6 +30,99 @@ export default function ProjectDetail() {
   useEffect(() => {
     fetchSSHHosts().then(setSSHHosts)
   }, [])
+
+  // Helper: detect if text is a file path
+  const isFilePath = useCallback((text: string): boolean => {
+    // Windows absolute path: C:\, D:\, etc.
+    if (/^[A-Za-z]:[/\\]/.test(text)) return true
+    // Unix absolute path: /home/..., /Users/...
+    if (/^\/[^/]/.test(text)) return true
+    // Home directory: ~/...
+    if (/^~[/\\]/.test(text)) return true
+    return false
+  }, [])
+
+  // Helper: quick add URL with metadata fetch
+  const quickAddUrl = useCallback(async (url: string) => {
+    const trimmedUrl = url.trim()
+    if (!trimmedUrl) return
+    try {
+      const urlObj = new URL(trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl}`)
+      const pathParts = urlObj.pathname.split('/').filter(Boolean)
+      const lastSegment = pathParts[pathParts.length - 1]
+      let fallbackTitle = lastSegment ? decodeURIComponent(lastSegment) : urlObj.hostname
+
+      // Special handling for Notion URLs
+      if (urlObj.hostname.includes('notion.so') && lastSegment) {
+        const notionMatch = lastSegment.match(/^(.+)-[a-f0-9]{32}$/i)
+        if (notionMatch) {
+          fallbackTitle = 'Notion - ' + notionMatch[1].replace(/-/g, ' ')
+        }
+      }
+
+      const newItem = await addItem('url', fallbackTitle, urlObj.href)
+
+      // Fetch metadata in background (skip for Notion)
+      if (!urlObj.hostname.includes('notion.so')) {
+        fetchUrlMetadata(urlObj.href).then(metaTitle => {
+          if (metaTitle && metaTitle !== fallbackTitle) {
+            updateItem(newItem.id, { title: metaTitle })
+          }
+        })
+      }
+    } catch {
+      // Invalid URL, ignore
+    }
+  }, [addItem, updateItem])
+
+  // Helper: quick add working directory from path
+  const quickAddWorkingDir = useCallback(async (path: string) => {
+    if (!project) return
+    const trimmedPath = path.trim()
+    if (!trimmedPath) return
+
+    const existingDirs = project.metadata.working_dirs || []
+    // Check if path already exists
+    if (existingDirs.some(d => d.path === trimmedPath)) return
+
+    // Extract folder name from path
+    const name = trimmedPath.split(/[/\\]/).filter(Boolean).pop() || trimmedPath
+
+    const newDirs: WorkingDir[] = [...existingDirs, { name, path: trimmedPath }]
+    await updateProject({
+      metadata: {
+        ...project.metadata,
+        working_dirs: newDirs,
+      },
+    })
+  }, [project, updateProject])
+
+  // Global paste handler: URL -> Links, File path -> Working Dirs
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      const activeEl = document.activeElement
+      const isEditing = activeEl instanceof HTMLInputElement ||
+                        activeEl instanceof HTMLTextAreaElement ||
+                        activeEl?.getAttribute('contenteditable') === 'true'
+
+      if (isEditing) return
+
+      const text = e.clipboardData?.getData('text')?.trim()
+      if (!text) return
+
+      const urlPattern = /^(https?:\/\/|www\.)/i
+      if (urlPattern.test(text)) {
+        e.preventDefault()
+        await quickAddUrl(text)
+      } else if (isFilePath(text)) {
+        e.preventDefault()
+        await quickAddWorkingDir(text)
+      }
+    }
+
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [isFilePath, quickAddUrl, quickAddWorkingDir])
 
   if (loading) {
     return (
@@ -69,11 +162,12 @@ export default function ProjectDetail() {
   const commandItems = project.items?.filter((i) => i.type === 'command') || []
 
   // Navigation items - only show sections that have content or are being created
+  // Colors use CSS variables for consistency with the color system
   const navItems = [
     { id: 'section-apps', label: 'IDE', show: ideItems.length > 0 || isCreatingIde, color: 'var(--accent-primary)' },
-    { id: 'section-remote', label: 'Remote', show: remoteIdeItems.length > 0 || isCreatingRemoteIde, color: '#e879f9' },
+    { id: 'section-remote', label: 'Remote', show: remoteIdeItems.length > 0 || isCreatingRemoteIde, color: 'var(--accent-remote)' },
     { id: 'section-files', label: 'Open', show: fileItems.length > 0 || isCreatingFile, color: 'var(--text-secondary)' },
-    { id: 'section-commands', label: 'Commands', show: commandItems.length > 0 || isCreatingCommand, color: '#fbbf24' },
+    { id: 'section-commands', label: 'Commands', show: commandItems.length > 0 || isCreatingCommand, color: 'var(--accent-warning)' },
     { id: 'section-links', label: 'Links', show: true, color: 'var(--accent-secondary)' },
     { id: 'section-notes', label: 'Notes', show: true, color: 'var(--accent-warning)' },
   ].filter(item => item.show)
@@ -99,8 +193,17 @@ export default function ProjectDetail() {
     return await addItem('url', title, url)
   }
 
-  const handleAddCommand = async (title: string, command: string, mode: CommandMode, cwd?: string) => {
-    await addItem('command', title, command, undefined, undefined, mode, cwd)
+  const handleAddCommand = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string) => {
+    await addItem('command', title, command, undefined, undefined, mode, cwd, host)
+  }
+
+  const handleUpdateWorkingDirs = async (dirs: WorkingDir[]) => {
+    await updateProject({
+      metadata: {
+        ...project.metadata,
+        working_dirs: dirs,
+      },
+    })
   }
 
   return (
@@ -120,10 +223,9 @@ export default function ProjectDetail() {
       </Link>
 
       {/* Project Header */}
-      <ProjectHeader project={project} onUpdate={updateProject} />
-
-      {/* Quick Actions */}
-      <QuickActions
+      <ProjectHeader
+        project={project}
+        onUpdate={updateProject}
         onCreateNote={() => setIsCreatingNote(true)}
         onCreateIde={() => setIsCreatingIde(true)}
         onCreateRemoteIde={() => setIsCreatingRemoteIde(true)}
@@ -131,10 +233,22 @@ export default function ProjectDetail() {
         onCreateCommand={() => setIsCreatingCommand(true)}
       />
 
+      {/* Working Dirs Section */}
+      <WorkingDirsSection
+        workingDirs={project.metadata.working_dirs || []}
+        sshHosts={sshHosts}
+        ideItems={ideItems}
+        remoteIdeItems={remoteIdeItems}
+        fileItems={fileItems}
+        commandItems={commandItems}
+        onUpdate={handleUpdateWorkingDirs}
+      />
+
       {/* IDE Section */}
       <IDESection
         items={ideItems}
         isCreating={isCreatingIde}
+        workingDirs={project.metadata.working_dirs || []}
         onAdd={handleAddIde}
         onUpdate={updateItem}
         onDelete={deleteItem}
@@ -146,6 +260,7 @@ export default function ProjectDetail() {
         items={remoteIdeItems}
         isCreating={isCreatingRemoteIde}
         sshHosts={sshHosts}
+        workingDirs={project.metadata.working_dirs || []}
         onAdd={handleAddRemoteIde}
         onUpdate={updateItem}
         onDelete={deleteItem}
@@ -166,6 +281,8 @@ export default function ProjectDetail() {
       <CommandSection
         items={commandItems}
         isCreating={isCreatingCommand}
+        workingDirs={project.metadata.working_dirs || []}
+        sshHosts={sshHosts}
         onAdd={handleAddCommand}
         onUpdate={updateItem}
         onDelete={deleteItem}
@@ -184,7 +301,6 @@ export default function ProjectDetail() {
       <NotesSection
         notes={notes}
         isCreating={isCreatingNote}
-        onStartCreate={() => setIsCreatingNote(true)}
         onAdd={handleAddNote}
         onUpdate={updateItem}
         onDelete={deleteItem}

@@ -49,7 +49,7 @@ function DataMenu() {
       setProjects(data)
       setSelectedProjects(new Set(data.map((p: ProjectBasic) => p.id))) // Select all by default
       setShowExportDialog(true)
-    } catch (error) {
+    } catch {
       setStatus({ type: 'error', message: 'Failed to load projects' })
       setTimeout(() => setStatus(null), 3000)
     }
@@ -91,7 +91,7 @@ function DataMenu() {
 
       setStatus({ type: 'success', message: `Exported ${data.projects.length} projects!` })
       setTimeout(() => setStatus(null), 3000)
-    } catch (error) {
+    } catch {
       setStatus({ type: 'error', message: 'Export failed' })
       setTimeout(() => setStatus(null), 3000)
     }
@@ -121,7 +121,7 @@ function DataMenu() {
         setStatus({ type: 'error', message: result.error })
         setTimeout(() => setStatus(null), 3000)
       }
-    } catch (error) {
+    } catch {
       setStatus({ type: 'error', message: 'Import failed: Invalid file' })
       setTimeout(() => setStatus(null), 3000)
     }

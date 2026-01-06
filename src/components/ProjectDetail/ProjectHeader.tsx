@@ -1,12 +1,26 @@
 import { useState } from 'react'
 import type { Project } from '../../types'
+import AddDropdown from './AddDropdown'
 
 interface ProjectHeaderProps {
   project: Project
   onUpdate: (data: Partial<Project>) => Promise<void>
+  onCreateNote?: () => void
+  onCreateIde?: () => void
+  onCreateRemoteIde?: () => void
+  onCreateFile?: () => void
+  onCreateCommand?: () => void
 }
 
-export default function ProjectHeader({ project, onUpdate }: ProjectHeaderProps) {
+export default function ProjectHeader({
+  project,
+  onUpdate,
+  onCreateNote,
+  onCreateIde,
+  onCreateRemoteIde,
+  onCreateFile,
+  onCreateCommand,
+}: ProjectHeaderProps) {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
@@ -113,12 +127,23 @@ export default function ProjectHeader({ project, onUpdate }: ProjectHeaderProps)
             )}
           </div>
         </div>
-        <button
-          onClick={startEdit}
-          className="btn-ghost text-sm"
-        >
-          Edit
-        </button>
+        <div className="flex items-center gap-2">
+          {onCreateNote && onCreateIde && onCreateRemoteIde && onCreateFile && onCreateCommand && (
+            <AddDropdown
+              onCreateNote={onCreateNote}
+              onCreateIde={onCreateIde}
+              onCreateRemoteIde={onCreateRemoteIde}
+              onCreateFile={onCreateFile}
+              onCreateCommand={onCreateCommand}
+            />
+          )}
+          <button
+            onClick={startEdit}
+            className="btn-ghost text-sm"
+          >
+            Edit
+          </button>
+        </div>
       </div>
     </div>
   )

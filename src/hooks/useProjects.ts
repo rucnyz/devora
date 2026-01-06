@@ -91,7 +91,8 @@ export function useProject(id: string) {
     ideType?: IdeType,
     remoteIdeType?: RemoteIdeType,
     commandMode?: CommandMode,
-    commandCwd?: string
+    commandCwd?: string,
+    commandHost?: string
   ) => {
     const res = await fetch(`${API_BASE}/projects/${id}/items`, {
       method: 'POST',
@@ -104,6 +105,7 @@ export function useProject(id: string) {
         remote_ide_type: remoteIdeType,
         command_mode: commandMode,
         command_cwd: commandCwd,
+        command_host: commandHost,
       }),
     })
     if (!res.ok) throw new Error('Failed to add item')
@@ -112,7 +114,7 @@ export function useProject(id: string) {
     return item as Item
   }
 
-  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd'>>) => {
+  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'command_host'>>) => {
     const res = await fetch(`${API_BASE}/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -238,11 +240,11 @@ export interface CommandResult {
   exitCode?: number
 }
 
-export async function runCommand(command: string, mode: CommandMode, cwd?: string): Promise<CommandResult> {
+export async function runCommand(command: string, mode: CommandMode, cwd?: string, host?: string): Promise<CommandResult> {
   const res = await fetch(`${API_BASE}/open/command`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ command, mode, cwd }),
+    body: JSON.stringify({ command, mode, cwd, host }),
   })
   if (!res.ok) {
     const data = await res.json()

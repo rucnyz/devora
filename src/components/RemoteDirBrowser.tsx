@@ -77,7 +77,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-            Browse Remote: <span className="text-[#e879f9]">{host}</span>
+            Browse Remote: <span className="text-[var(--accent-remote)]">{host}</span>
           </h3>
           <button
             onClick={onClose}
@@ -106,7 +106,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
           {inputPath.trim() !== currentPath && (
             <button
               onClick={handleGoToPath}
-              className="px-2 py-1 text-sm font-mono rounded bg-[var(--bg-surface)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[#e879f9] hover:border-[#e879f9] transition-colors"
+              className="px-2 py-1 text-sm font-mono rounded bg-[var(--bg-surface)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--accent-remote)] hover:border-[var(--accent-remote)] transition-colors"
             >
               Go
             </button>
@@ -118,7 +118,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-[#e879f9] border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-[var(--accent-remote)] border-t-transparent rounded-full animate-spin" />
                 <span className="text-sm font-mono text-[var(--text-muted)]">Loading...</span>
               </div>
             </div>
@@ -138,7 +138,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
                   onClick={() => handleNavigate(entry)}
                   className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-[var(--bg-elevated)] transition-colors"
                 >
-                  <svg className="w-4 h-4 text-[#e879f9]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 text-[var(--accent-remote)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                   </svg>
                   <span className="font-mono text-sm text-[var(--text-primary)]">{entry.name}</span>
@@ -155,7 +155,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
           </button>
           <button
             onClick={handleSelectCurrent}
-            className="px-4 py-2 rounded-lg bg-[#e879f9] text-white font-medium hover:bg-[#d946ef] transition-colors"
+            className="px-4 py-2 rounded-lg bg-[var(--accent-remote)] text-white font-medium hover:bg-[var(--accent-remote-dim)] transition-colors"
           >
             Select This Folder
           </button>
