@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-Download from [GitHub Releases—](https://github.com/rucnyz/devora/releases) available for Windows, macOS, and Linux.
+Download from [GitHub Releases](https://github.com/rucnyz/devora/releases) - available for Windows, macOS, and Linux.
 
 ## Development
 
