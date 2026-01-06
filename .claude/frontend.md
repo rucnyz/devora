@@ -1,147 +1,195 @@
-# 前端设计文档
+# Frontend Design Documentation
 
-## 设计系统：Neo-Terminal
+## Design System: Neo-Terminal
 
-一个工业风格的开发者美学设计，带有霓虹强调色，支持深色和浅色主题。
+An industrial-style developer aesthetic with neon accent colors, supporting dark and light themes.
 
-### 设计理念
+### Design Philosophy
 
-- **深色主题**：深邃的黑色背景 + 荧光绿/青色强调 + 网格纹理
-- **浅色主题**：干净的白色背景 + 翡翠绿/青蓝色强调 + 微妙网格
-- **字体**：Outfit (显示字体) + JetBrains Mono (等宽字体)
-- **交互**：流畅的过渡动画、发光效果、卡片入场动画
+- **Dark Theme**: Deep black background + fluorescent green/cyan accents + grid texture
+- **Light Theme**: Clean white background + emerald green/teal accents + subtle grid
+- **Typography**: Outfit (display font) + JetBrains Mono (monospace font)
+- **Interactions**: Smooth transition animations, glow effects, card entrance animations
 
-### 颜色系统
+### Color System
 
-#### 深色主题
+#### Dark Theme
 ```css
---bg-void: #050508;      /* 最深背景 */
---bg-deep: #0a0a0f;      /* 深背景 */
---bg-surface: #12121a;   /* 卡片背景 */
---bg-elevated: #1a1a24;  /* 悬浮元素 */
---accent-primary: #00ff88;   /* 荧光绿 */
---accent-secondary: #00d4ff; /* 青色 */
---accent-warning: #ffaa00;   /* 琥珀色 */
+--bg-void: #050508;      /* Deepest background */
+--bg-deep: #0a0a0f;      /* Deep background */
+--bg-surface: #12121a;   /* Card background */
+--bg-elevated: #1a1a24;  /* Elevated elements */
+--accent-primary: #00ff88;   /* Fluorescent green */
+--accent-secondary: #00d4ff; /* Cyan */
+--accent-warning: #ffaa00;   /* Amber */
+--glow-warning: 0 0 20px rgba(255, 170, 0, 0.3);
+--glow-warning-soft: 0 0 40px rgba(255, 170, 0, 0.15);
+--border-warning: rgba(255, 170, 0, 0.4);
 ```
 
-#### 浅色主题
+#### Light Theme
 ```css
---bg-void: #f8fafb;      /* 页面背景 */
---bg-deep: #ffffff;      /* 白色 */
---bg-surface: #ffffff;   /* 卡片背景 */
---bg-elevated: #f1f5f9;  /* 悬浮元素 */
---accent-primary: #059669;   /* 翡翠绿 */
---accent-secondary: #0891b2; /* 青蓝色 */
---accent-warning: #d97706;   /* 琥珀色 */
+--bg-void: #f8fafb;      /* Page background */
+--bg-deep: #ffffff;      /* White */
+--bg-surface: #ffffff;   /* Card background */
+--bg-elevated: #f1f5f9;  /* Elevated elements */
+--accent-primary: #059669;   /* Emerald green */
+--accent-secondary: #0891b2; /* Teal */
+--accent-warning: #d97706;   /* Amber */
+--glow-warning: 0 4px 14px rgba(217, 119, 6, 0.2);
+--glow-warning-soft: 0 8px 30px rgba(217, 119, 6, 0.12);
+--border-warning: rgba(217, 119, 6, 0.4);
 ```
 
-## 技术栈
+#### Light Theme Style Overrides
+Light theme has specific style overrides for the following components:
+- `.glass-card` - White gradient background + soft shadows
+- `.modal-overlay` - More transparent overlay `rgba(15, 23, 42, 0.4)`
+- `.input-terminal:focus` / `.textarea-terminal:focus` - Emerald green focus ring
+- `.tag-*:hover` - Hover effects adapted for light background
+- `.note-card:hover` - Lighter shadows
+- `::selection` - Emerald green selection highlight
+- `.glow-text` - Emerald green glow effect
 
-- **框架**: React 19 + Vite 7
-- **样式**: Tailwind CSS 4 + CSS 变量主题系统
-- **路由**: react-router-dom 7
-- **笔记编辑器**: @uiw/react-md-editor
-- **字体**: Google Fonts (Outfit, JetBrains Mono)
+## Tech Stack
 
-## 组件结构
+- **Framework**: React 19 + Vite 7
+- **Styling**: Tailwind CSS 4 + CSS variables theme system
+- **Routing**: react-router-dom 7
+- **Note Editor**: @uiw/react-md-editor
+- **Fonts**: Google Fonts (Outfit, JetBrains Mono)
+
+## Component Structure
 
 ```
 src/
-├── main.tsx              # React 入口
-├── index.css             # 全局样式 + 主题变量 + 组件类
-├── App.tsx               # 主应用 + 路由 + 主题 Provider
+├── main.tsx              # React entry
+├── index.css             # Global styles + theme variables + component classes
+├── App.tsx               # Main app + routing + theme Provider
 ├── components/
-│   ├── ProjectList.tsx   # 项目列表页（卡片网格）
-│   ├── ProjectDetail.tsx # 项目详情页（标签系统 + 内联笔记）
-│   ├── NoteEditor.tsx    # Markdown 编辑器弹窗
-│   └── AddItemModal.tsx  # 添加 IDE/File/URL 弹窗
+│   ├── ProjectList.tsx      # Project list page (card grid)
+│   ├── ProjectDetail.tsx    # Project detail page (tag system + inline editing)
+│   ├── NoteEditor.tsx       # Markdown editor modal
+│   └── RemoteDirBrowser.tsx # Remote directory browser modal (SSH)
 ├── hooks/
-│   ├── useProjects.ts    # 数据获取 hooks
-│   └── useTheme.tsx      # 主题切换 Context
+│   ├── useProjects.ts    # Data fetching hooks + IDE/file operations
+│   └── useTheme.tsx      # Theme toggle Context
 └── types/
-    └── index.ts          # TypeScript 类型定义
+    └── index.ts          # TypeScript type definitions
 ```
 
-## 核心样式类
+## Core Style Classes
 
-### 按钮
-- `.btn-neon` - 霓虹边框按钮，hover 时填充
-- `.btn-solid` - 实心主色按钮
-- `.btn-ghost` - 幽灵按钮
-- `.btn-delete` - 删除按钮（红色 hover）
+### Buttons
+- `.btn-neon` - Neon border button, fills on hover
+- `.btn-solid` - Solid primary color button
+- `.btn-ghost` - Ghost button
+- `.btn-delete` - Delete button (red on hover)
 
-### 输入
-- `.input-terminal` - 终端风格输入框
-- `.textarea-terminal` - 终端风格文本域
+### Inputs
+- `.input-terminal` - Terminal-style input
+- `.textarea-terminal` - Terminal-style textarea
 
-### 卡片
-- `.glass-card` - 玻璃态卡片，带 hover 发光效果
-- `.note-card` - 笔记卡片，带左侧边框
-- `.note-card-editing` - 编辑状态的笔记卡片
+### Cards
+- `.glass-card` - Glass-morphism card with hover glow effect
+- `.note-card` - Note card with left border
+- `.note-card-editing` - Note card in editing state
 
-### 标签
-- `.tag` - 基础标签样式
-- `.tag-ide-pycharm` - PyCharm 绿色
-- `.tag-ide-cursor` - Cursor 紫色
-- `.tag-ide-vscode` - VS Code 蓝色
-- `.tag-ide-zed` - Zed 橙色
-- `.tag-ide-obsidian` - Obsidian 紫罗兰
-- `.tag-file` - 文件灰色
-- `.tag-url` - URL 青色
+### Tags
+- `.tag` - Base tag style
+- `.tag-ide-pycharm` - PyCharm green
+- `.tag-ide-cursor` - Cursor purple
+- `.tag-ide-vscode` - VS Code blue
+- `.tag-ide-zed` - Zed orange
+- `.tag-ide-obsidian` - Obsidian violet
+- `.tag-remote-ide-cursor` - Remote Cursor pink
+- `.tag-remote-ide-vscode` - Remote VS Code lavender
+- `.tag-file` - File gray
+- `.tag-url` - URL cyan
 
-### 弹窗
-- `.modal-overlay` - 弹窗遮罩（背景模糊）
-- `.modal-content` - 弹窗内容（动画入场）
+### Modals
+- `.modal-overlay` - Modal overlay (background blur)
+- `.modal-content` - Modal content (animated entrance)
 
-### 动画
-- `.animate-card-enter` - 卡片入场动画（淡入 + 上滑）
+### Animations
+- `.animate-card-enter` - Card entrance animation (fade in + slide up)
 
-### 布局
-- `.section-label` - 区块标题（带渐变线条）
+### Layout
+- `.section-label` - Section title (with gradient line)
 
-## 主题切换
+## Theme Toggle
 
-使用 React Context + localStorage 实现：
+Implemented using React Context + localStorage:
 
 ```tsx
-// 使用主题
+// Using theme
 const { theme, toggleTheme } = useTheme()
 
 // theme: 'dark' | 'light'
 // toggleTheme: () => void
 ```
 
-主题状态存储在 localStorage，支持系统偏好检测。
+Theme state is stored in localStorage with system preference detection support.
 
-## UI 交互
+## UI Interactions
 
-### 项目列表
-- 卡片网格布局，带交错入场动画
-- hover 时显示删除按钮
-- GitHub 链接图标
+### Project List
+- Card grid layout with staggered entrance animations
+- Delete button shows on hover
+- GitHub link icon (GitHub repository)
+- Custom URL link icon (GitLab, Bitbucket, and other platforms)
 
-### 项目详情
-- 快捷操作按钮区（Note/IDE/File/URL）
-- IDE 标签点击打开对应 IDE
-- 文件标签点击打开文件
-- URL 标签点击新窗口打开
-- 笔记点击进入内联编辑模式
-- 点击外部自动保存
+### Project Detail
+- **Side Navigation**: Fixed sidebar on left for quick section navigation
+  - md screens (768px+): Shows colored dots only (compact mode)
+  - lg screens (1024px+): Shows dots + text labels
+  - Semi-transparent background with backdrop blur
+  - Only displays sections that have content (Apps/Remote/Files) or are always visible (Links/Notes)
+  - Smooth scroll to section on click
+- Quick action button area (Note/App/File/Remote) - URL removed, see Links section below
+- All add operations are inline - clicking a button shows the editor directly in the corresponding section
+- **Applications Section** (formerly IDE Shortcuts, since Obsidian is not an IDE)
+  - App add: Dropdown to select app type + input/browse to select folder path (supports paths with spaces)
+  - **Path Suggestions**: When adding a new App, shows a list of existing paths for quick selection
+  - App tag click opens the corresponding application, shows Edit button on hover, click to enter inline edit mode
+  - App edit mode: Can modify app type and path, click outside to save
+  - App tag shows Edit button on hover (attached to the right)
+- **Remote Applications Section** (Remote IDE shortcuts)
+  - Only supports Cursor and VS Code (via SSH Remote)
+  - Remote add: Dropdown to select IDE type + SSH host selection + input remote path (e.g., `/home/user/project`)
+  - **SSH hosts dropdown**: Reads `~/.ssh/config` to show available hosts as dropdown options
+  - Can also manually enter host (dropdown + text input side by side)
+  - **Remote directory browser**: Click "Browse" button to open modal and navigate remote directories via SSH
+  - Data storage format: `content = "host:path"`
+  - Remote tag click opens remote IDE, shows Edit button on hover
+  - Remote edit mode: Can modify IDE type, host, and path
+  - Uses pink (fuchsia) theme color to distinguish from local Apps
+- File add: Optional title + input/browse to select file path
+- **Links Section** (always visible)
+  - Inline URL input: Small text input next to URL tags, press Enter to add
+  - **Global Ctrl+V shortcut**: Paste URL anywhere on page (when not editing) to auto-add
+  - Auto-detects URLs starting with `http://`, `https://`, or `www.`
+  - **Optimistic update**: URL appears immediately with fallback title (path segment or hostname), then auto-updates when metadata is fetched
+  - **Smart title extraction**: Fetches page metadata (og:title or `<title>`) from server in background
+- File tag click opens file
+- URL tag click opens in new window
+- Note click enters inline edit mode
+- All cards show × delete button on hover
+- Click outside to auto-save
+- **Ctrl+S / Cmd+S keyboard shortcut to save** (applies to all inline editors: Note/App/File/URL, prevents browser default save page behavior)
+- **Note title Enter to save**: Press Enter in title input to save, press Tab to jump to content editor
+- Note editing uses amber (warning) theme color to distinguish from other elements (green App, cyan URL)
+- Silent data refresh after save/add/delete operations (no loading state shown)
 
-### 添加弹窗
-- 类型选择按钮（颜色区分）
-- 终端风格输入框
-- 动画入场效果
+## Dependencies
 
-## 依赖
+### Production Dependencies
+- react, react-dom - UI framework
+- react-router-dom - Routing
+- @uiw/react-md-editor - Markdown editor
+- uuid - Generate UUID
 
-### 生产依赖
-- react, react-dom - UI 框架
-- react-router-dom - 路由
-- @uiw/react-md-editor - Markdown 编辑器
-- uuid - 生成 UUID
-
-### 开发依赖
-- vite, @vitejs/plugin-react - 构建工具
-- tailwindcss, @tailwindcss/vite - 样式
-- typescript, @types/* - 类型支持
+### Development Dependencies
+- vite, @vitejs/plugin-react - Build tools
+- tailwindcss, @tailwindcss/vite - Styling
+- typescript, @types/* - Type support

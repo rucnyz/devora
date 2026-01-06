@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite'
 import { v4 as uuidv4 } from 'uuid'
-import type { Project, Item, ProjectMetadata, ItemType, IdeType } from '../src/types'
+import type { Project, Item, ProjectMetadata, ItemType, IdeType, RemoteIdeType } from '../src/types'
 
 const db = new Database('data/projects.db', { create: true })
 
@@ -30,6 +30,13 @@ db.run(`
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
   )
 `)
+
+// Migration: add remote_ide_type column if not exists
+try {
+  db.run(`ALTER TABLE items ADD COLUMN remote_ide_type TEXT`)
+} catch {
+  // Column already exists
+}
 
 // Projects CRUD
 export function getAllProjects(): Project[] {
@@ -100,7 +107,8 @@ export function createItem(
   type: ItemType,
   title: string,
   content: string = '',
-  ideType?: IdeType
+  ideType?: IdeType,
+  remoteIdeType?: RemoteIdeType
 ): Item {
   const id = uuidv4()
   const now = new Date().toISOString()
@@ -110,8 +118,8 @@ export function createItem(
   const order = (maxOrder?.max ?? -1) + 1
 
   db.run(
-    'INSERT INTO items (id, project_id, type, title, content, ide_type, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, projectId, type, title, content, ideType || null, order, now, now]
+    'INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, "order", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, projectId, type, title, content, ideType || null, remoteIdeType || null, order, now, now]
   )
 
   // Update project's updated_at
@@ -124,13 +132,14 @@ export function createItem(
     title,
     content,
     ide_type: ideType,
+    remote_ide_type: remoteIdeType,
     order,
     created_at: now,
     updated_at: now,
   }
 }
 
-export function updateItem(id: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'order'>>): Item | null {
+export function updateItem(id: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'order'>>): Item | null {
   const existing = db.query('SELECT * FROM items WHERE id = ?').get(id) as Item | null
   if (!existing) return null
 
@@ -138,11 +147,12 @@ export function updateItem(id: string, updates: Partial<Pick<Item, 'title' | 'co
   const title = updates.title ?? existing.title
   const content = updates.content ?? existing.content
   const ideType = updates.ide_type ?? existing.ide_type
+  const remoteIdeType = updates.remote_ide_type ?? existing.remote_ide_type
   const order = updates.order ?? existing.order
 
   db.run(
-    'UPDATE items SET title = ?, content = ?, ide_type = ?, "order" = ?, updated_at = ? WHERE id = ?',
-    [title, content, ideType || null, order, now, id]
+    'UPDATE items SET title = ?, content = ?, ide_type = ?, remote_ide_type = ?, "order" = ?, updated_at = ? WHERE id = ?',
+    [title, content, ideType || null, remoteIdeType || null, order, now, id]
   )
 
   // Update project's updated_at

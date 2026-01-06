@@ -7,7 +7,12 @@
       "Bash(bunx vite build:*)",
       "Bash(bun run build:*)",
       "Bash(bun run dev)",
-      "Skill(example-skills:frontend-design)"
+      "Skill(example-skills:frontend-design)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 19344)",
+      "Bash(powershell -Command \"Stop-Process -Id 19344 -Force\")",
+      "Bash(cat:*)"
     ]
   }
 }

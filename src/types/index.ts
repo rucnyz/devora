@@ -1,5 +1,6 @@
-export type ItemType = 'note' | 'ide' | 'file' | 'url'
+export type ItemType = 'note' | 'ide' | 'file' | 'url' | 'remote-ide'
 export type IdeType = 'pycharm' | 'cursor' | 'vscode' | 'zed' | 'obsidian'
+export type RemoteIdeType = 'cursor' | 'vscode'
 
 export interface Item {
   id: string
@@ -8,6 +9,7 @@ export interface Item {
   title: string
   content: string
   ide_type?: IdeType
+  remote_ide_type?: RemoteIdeType
   order: number
   created_at: string
   updated_at: string
@@ -15,6 +17,7 @@ export interface Item {
 
 export interface ProjectMetadata {
   github_url?: string
+  custom_url?: string
   other_links?: { label: string; url: string }[]
 }
 

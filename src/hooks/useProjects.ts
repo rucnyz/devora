@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Project, Item, ItemType, IdeType, ProjectMetadata } from '../types'
+import type { Project, Item, ItemType, IdeType, RemoteIdeType, ProjectMetadata } from '../types'
 
 const API_BASE = '/api'
 
@@ -65,9 +65,9 @@ export function useProject(id: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchProject = useCallback(async () => {
+  const fetchProject = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true)
+      if (showLoading) setLoading(true)
       const res = await fetch(`${API_BASE}/projects/${id}`)
       if (!res.ok) throw new Error('Failed to fetch project')
       const data = await res.json()
@@ -76,7 +76,7 @@ export function useProject(id: string) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }, [id])
 
@@ -84,30 +84,32 @@ export function useProject(id: string) {
     fetchProject()
   }, [fetchProject])
 
-  const addItem = async (type: ItemType, title: string, content?: string, ideType?: IdeType) => {
+  const addItem = async (type: ItemType, title: string, content?: string, ideType?: IdeType, remoteIdeType?: RemoteIdeType) => {
     const res = await fetch(`${API_BASE}/projects/${id}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, title, content, ide_type: ideType }),
+      body: JSON.stringify({ type, title, content, ide_type: ideType, remote_ide_type: remoteIdeType }),
     })
     if (!res.ok) throw new Error('Failed to add item')
-    await fetchProject()
+    const item = await res.json()
+    await fetchProject(false)
+    return item as Item
   }
 
-  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type'>>) => {
+  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type'>>) => {
     const res = await fetch(`${API_BASE}/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     })
     if (!res.ok) throw new Error('Failed to update item')
-    await fetchProject()
+    await fetchProject(false)
   }
 
   const deleteItem = async (itemId: string) => {
     const res = await fetch(`${API_BASE}/items/${itemId}`, { method: 'DELETE' })
     if (!res.ok) throw new Error('Failed to delete item')
-    await fetchProject()
+    await fetchProject(false)
   }
 
   const updateProject = async (updates: Partial<Pick<Project, 'name' | 'description' | 'metadata'>>) => {
@@ -117,7 +119,7 @@ export function useProject(id: string) {
       body: JSON.stringify(updates),
     })
     if (!res.ok) throw new Error('Failed to update project')
-    await fetchProject()
+    await fetchProject(false)
   }
 
   return { project, loading, error, fetchProject, addItem, updateItem, deleteItem, updateProject }
@@ -139,4 +141,76 @@ export async function openFile(path: string) {
     body: JSON.stringify({ path }),
   })
   if (!res.ok) throw new Error('Failed to open file')
+}
+
+export async function selectFolder(): Promise<string | null> {
+  const res = await fetch(`${API_BASE}/open/select-folder`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw new Error('Failed to open folder picker')
+  const data = await res.json()
+  return data.path || null
+}
+
+export async function selectFile(): Promise<string | null> {
+  const res = await fetch(`${API_BASE}/open/select-file`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw new Error('Failed to open file picker')
+  const data = await res.json()
+  return data.path || null
+}
+
+export async function openRemoteIde(remoteIdeType: RemoteIdeType, host: string, path: string) {
+  const res = await fetch(`${API_BASE}/open/remote-ide`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ remote_ide_type: remoteIdeType, host, path }),
+  })
+  if (!res.ok) throw new Error('Failed to open remote IDE')
+}
+
+export async function fetchSSHHosts(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/open/ssh-hosts`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.hosts || []
+}
+
+export interface RemoteDirEntry {
+  name: string
+  isDir: boolean
+}
+
+export interface RemoteDirResult {
+  path: string
+  entries: RemoteDirEntry[]
+}
+
+export async function listRemoteDir(host: string, path: string = '~'): Promise<RemoteDirResult> {
+  const res = await fetch(`${API_BASE}/open/ssh/list-dir`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ host, path }),
+  })
+  if (!res.ok) {
+    const data = await res.json()
+    throw new Error(data.error || 'Failed to list remote directory')
+  }
+  return res.json()
+}
+
+export async function fetchUrlMetadata(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/open/url-metadata`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.title || null
+  } catch {
+    return null
+  }
 }

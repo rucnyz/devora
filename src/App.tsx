@@ -43,7 +43,7 @@ function Header() {
                 Project Manager
               </h1>
               <p className="text-xs font-mono text-[var(--text-muted)] -mt-0.5">
-                v1.0 // local workspace
+                v0.1.0 // local workspace
               </p>
             </div>
           </Link>

@@ -1,55 +1,159 @@
-# API 文档
+# API Documentation
 
-## 技术栈
+## Tech Stack
 
-- **运行时**: Bun
-- **框架**: Hono (轻量级 web 框架)
+- **Runtime**: Bun
+- **Framework**: Hono (lightweight web framework)
 
-## 服务器结构
+## Server Structure
 
 ```
 server/
-├── index.ts            # Hono 服务器入口
-├── db.ts               # SQLite 数据库操作 (CRUD)
+├── index.ts            # Hono server entry
+├── db.ts               # SQLite database operations (CRUD)
 ├── routes/
-│   ├── projects.ts     # 项目 CRUD API
-│   ├── items.ts        # 区块 CRUD API
-│   └── actions.ts      # 打开 IDE/文件 API
+│   ├── projects.ts     # Project CRUD API
+│   ├── items.ts        # Item CRUD API
+│   └── actions.ts      # Open IDE/file API
 └── utils/
-    └── launchers.ts    # IDE/文件启动器
+    └── launchers.ts    # IDE/file launchers
 ```
 
-## API 端点
+## API Endpoints
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | /api/projects | 获取所有项目 |
-| POST | /api/projects | 创建项目 |
-| GET | /api/projects/:id | 获取单个项目（含 items） |
-| PUT | /api/projects/:id | 更新项目 |
-| DELETE | /api/projects/:id | 删除项目 |
-| POST | /api/projects/:id/items | 添加区块 |
-| PUT | /api/projects/:id/items/reorder | 重排序区块 |
-| PUT | /api/items/:id | 更新区块 |
-| DELETE | /api/items/:id | 删除区块 |
-| POST | /api/open/ide | 打开 IDE |
-| POST | /api/open/file | 打开文件 |
-| GET | /api/health | 健康检查 |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/projects | Get all projects |
+| POST | /api/projects | Create project |
+| GET | /api/projects/:id | Get single project (with items) |
+| PUT | /api/projects/:id | Update project |
+| DELETE | /api/projects/:id | Delete project |
+| POST | /api/projects/:id/items | Add item |
+| PUT | /api/projects/:id/items/reorder | Reorder items |
+| PUT | /api/items/:id | Update item |
+| DELETE | /api/items/:id | Delete item |
+| POST | /api/open/ide | Open IDE |
+| POST | /api/open/remote-ide | Open remote IDE (SSH) |
+| POST | /api/open/file | Open file |
+| POST | /api/open/select-folder | Open folder selection dialog |
+| POST | /api/open/select-file | Open file selection dialog |
+| GET | /api/open/ssh-hosts | Get SSH hosts from ~/.ssh/config |
+| POST | /api/open/ssh/list-dir | List remote directory via SSH |
+| POST | /api/open/url-metadata | Fetch URL metadata (title) |
+| GET | /api/health | Health check |
 
-## IDE 启动器
+## Application Launchers
 
-支持的 IDE（通过 `server/utils/launchers.ts`）：
+Supported applications (via `server/utils/launchers.ts`):
 
-| IDE | 命令 |
-|-----|------|
+| Application | Command |
+|-------------|---------|
 | PyCharm | JetBrains Toolbox scripts/pycharm.cmd |
 | Cursor | cursor |
 | VS Code | code |
 | Zed | zed |
 | Obsidian | obsidian:// URI scheme |
-| 文件 | Windows `start` 命令 |
+| File | Windows `start` command |
 
-## 依赖
+### Remote IDE Launchers
 
-- hono - Web 框架
-- concurrently - 并行运行命令
+Support opening remote projects via SSH (Cursor and VS Code only):
+
+| Application | Command |
+|-------------|---------|
+| Cursor | `cursor --remote ssh-remote+{host} {path}` |
+| VS Code | `code --remote ssh-remote+{host} {path}` |
+
+**Request Parameters**:
+```json
+{
+  "remote_ide_type": "cursor" | "vscode",
+  "host": "user@server",
+  "path": "/home/user/project"
+}
+```
+
+### Path Handling
+- Supports paths with spaces (e.g., OneDrive paths)
+- IDE commands use `shell: false` to properly handle spaces
+- File opening wraps paths in quotes
+
+### SSH Config Integration
+
+The `/api/open/ssh-hosts` endpoint parses `~/.ssh/config` and returns all Host entries:
+- Skips wildcard patterns (`Host *`, `Host ?`)
+- Handles multiple hosts on same line (`Host server1 server2`)
+- Returns empty array if config file doesn't exist
+
+**Response**:
+```json
+{
+  "hosts": ["myserver", "devbox", "production"]
+}
+```
+
+Frontend shows a dropdown to select from configured SSH hosts when adding Remote IDE items.
+
+### Remote Directory Browser
+
+The `/api/open/ssh/list-dir` endpoint lists directories on remote SSH hosts:
+- Uses `ssh host "cd path && pwd && ls -1F"` to list directories
+- Returns current absolute path and directory entries
+- Filters hidden files (starting with `.`)
+
+**Request**:
+```json
+{
+  "host": "myserver",
+  "path": "~"
+}
+```
+
+**Response**:
+```json
+{
+  "path": "/home/user",
+  "entries": [
+    { "name": "projects", "isDir": true },
+    { "name": "documents", "isDir": true }
+  ]
+}
+```
+
+Frontend shows a modal browser to navigate and select remote directories.
+
+### URL Metadata Extraction
+
+The `/api/open/url-metadata` endpoint fetches page title from a URL:
+- Tries `og:title` meta tag first (Open Graph)
+- Falls back to `<title>` tag
+- 5 second timeout to prevent hanging
+- Returns `null` if fetch fails or no title found
+
+**Request**:
+```json
+{
+  "url": "https://github.com/user/repo"
+}
+```
+
+**Response**:
+```json
+{
+  "title": "user/repo: Repository description"
+}
+```
+
+Frontend uses this to auto-populate link titles when adding URLs.
+
+## File Selector
+
+Uses Windows 11 native IFileOpenDialog COM interface:
+- `selectFolder()` - Select folder (FOS_PICKFOLDERS)
+- `selectFile()` - Select file
+- Invoked via PowerShell calling C# COM interop
+
+## Dependencies
+
+- hono - Web framework
+- concurrently - Run commands in parallel

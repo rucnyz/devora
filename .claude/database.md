@@ -1,40 +1,41 @@
-# 数据库文档
+# Database Documentation
 
-## 技术栈
+## Tech Stack
 
-- **数据库**: SQLite (bun:sqlite 内置)
-- **存储位置**: `data/projects.db`（自动创建）
+- **Database**: SQLite (bun:sqlite built-in)
+- **Storage Location**: `data/projects.db` (auto-created)
 
-## 数据模型
+## Data Model
 
-### projects 表
+### projects Table
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | TEXT | UUID 主键 |
-| name | TEXT | 项目名称 |
-| description | TEXT | 项目描述 |
-| metadata | TEXT | JSON: { github_url?, other_links? } |
-| created_at | TEXT | 创建时间 |
-| updated_at | TEXT | 更新时间 |
+| Field | Type | Description |
+|-------|------|-------------|
+| id | TEXT | UUID primary key |
+| name | TEXT | Project name |
+| description | TEXT | Project description |
+| metadata | TEXT | JSON: { github_url?, custom_url?, other_links? } |
+| created_at | TEXT | Creation time |
+| updated_at | TEXT | Update time |
 
-### items 表
+### items Table
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | TEXT | UUID 主键 |
-| project_id | TEXT | 外键 -> projects.id |
-| type | TEXT | 'note' \| 'ide' \| 'file' \| 'url' |
-| title | TEXT | 标题 |
-| content | TEXT | 内容/路径/URL |
+| Field | Type | Description |
+|-------|------|-------------|
+| id | TEXT | UUID primary key |
+| project_id | TEXT | Foreign key -> projects.id |
+| type | TEXT | 'note' \| 'ide' \| 'file' \| 'url' \| 'remote-ide' |
+| title | TEXT | Title |
+| content | TEXT | Content/path/URL, remote IDE format: `host:path` |
 | ide_type | TEXT | 'pycharm' \| 'cursor' \| 'vscode' \| 'zed' \| 'obsidian' |
-| order | INTEGER | 排序顺序 |
-| created_at | TEXT | 创建时间 |
-| updated_at | TEXT | 更新时间 |
+| remote_ide_type | TEXT | 'cursor' \| 'vscode' (only for remote-ide type) |
+| order | INTEGER | Sort order |
+| created_at | TEXT | Creation time |
+| updated_at | TEXT | Update time |
 
-## 数据库操作
+## Database Operations
 
-所有 CRUD 操作在 `server/db.ts` 中实现：
+All CRUD operations are implemented in `server/db.ts`:
 - `createProject()` / `updateProject()` / `deleteProject()`
 - `createItem()` / `updateItem()` / `deleteItem()`
-- `getProjectWithItems()` - 获取项目及其所有区块
+- `getProjectWithItems()` - Get project with all its items

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import MDEditor from '@uiw/react-md-editor'
 import type { Item } from '../types'
 import { useTheme } from '../hooks/useTheme'
@@ -14,14 +14,27 @@ export default function NoteEditor({ note, onSave, onClose }: Props) {
   const [saving, setSaving] = useState(false)
   const { theme } = useTheme()
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setSaving(true)
     try {
       await onSave(content)
     } finally {
       setSaving(false)
     }
-  }
+  }, [content, onSave])
+
+  // Ctrl+S / Cmd+S keyboard shortcut to save (using capture phase to intercept)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        e.stopPropagation()
+        handleSave()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown, { capture: true })
+    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
+  }, [handleSave])
 
   return (
     <div className="modal-overlay" onClick={onClose}>

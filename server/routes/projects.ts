@@ -64,13 +64,13 @@ app.delete('/:id', (c) => {
 app.post('/:id/items', async (c) => {
   const projectId = c.req.param('id')
   const body = await c.req.json()
-  const { type, title, content, ide_type } = body
+  const { type, title, content, ide_type, remote_ide_type } = body
 
   if (!type || !title) {
     return c.json({ error: 'Type and title are required' }, 400)
   }
 
-  const item = db.createItem(projectId, type, title, content, ide_type)
+  const item = db.createItem(projectId, type, title, content, ide_type, remote_ide_type)
   return c.json(item, 201)
 })
 

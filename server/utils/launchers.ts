@@ -1,6 +1,7 @@
 import { spawn } from 'child_process'
 
 export type IdeType = 'pycharm' | 'cursor' | 'vscode' | 'zed' | 'obsidian'
+export type RemoteIdeType = 'cursor' | 'vscode'
 
 const LOCALAPPDATA = process.env.LOCALAPPDATA || ''
 
@@ -27,7 +28,7 @@ export const launchers: Record<IdeType | 'file', (path: string) => { command: st
   }),
   file: (path: string) => ({
     command: 'cmd',
-    args: ['/c', 'start', '', path],
+    args: ['/c', 'start', '', `"${path}"`],
   }),
 }
 
@@ -39,11 +40,15 @@ export async function openWithIde(ideType: IdeType, path: string): Promise<void>
 
   const { command, args } = launcher(path)
 
+  // For cmd-based launchers (obsidian, file), we need shell: true
+  // For direct IDE commands, shell: false handles paths with spaces correctly
+  const useShell = command === 'cmd'
+
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       detached: true,
       stdio: 'ignore',
-      shell: true,
+      shell: useShell,
     })
 
     child.on('error', reject)
@@ -68,5 +73,254 @@ export async function openFile(path: string): Promise<void> {
     child.unref()
 
     setTimeout(resolve, 100)
+  })
+}
+
+export async function selectFolder(): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    // Use modern IFileOpenDialog (Windows Vista+) for native Windows 11 file picker
+    const psScript = `
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+[ComImport, Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
+internal class FileOpenDialog { }
+
+[ComImport, Guid("42f85136-db7e-439c-85f1-e4075d135fc8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IFileOpenDialog {
+    [PreserveSig] int Show([In] IntPtr parent);
+    void SetFileTypes();
+    void SetFileTypeIndex([In] uint iFileType);
+    void GetFileTypeIndex(out uint piFileType);
+    void Advise();
+    void Unadvise();
+    void SetOptions([In] uint fos);
+    void GetOptions(out uint pfos);
+    void SetDefaultFolder(IShellItem psi);
+    void SetFolder(IShellItem psi);
+    void GetFolder(out IShellItem ppsi);
+    void GetCurrentSelection(out IShellItem ppsi);
+    void SetFileName([In, MarshalAs(UnmanagedType.LPWStr)] string pszName);
+    void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string pszName);
+    void SetTitle([In, MarshalAs(UnmanagedType.LPWStr)] string pszTitle);
+    void SetOkButtonLabel([In, MarshalAs(UnmanagedType.LPWStr)] string pszText);
+    void SetFileNameLabel([In, MarshalAs(UnmanagedType.LPWStr)] string pszLabel);
+    void GetResult(out IShellItem ppsi);
+    void AddPlace(IShellItem psi, int alignment);
+    void SetDefaultExtension([In, MarshalAs(UnmanagedType.LPWStr)] string pszDefaultExtension);
+    void Close(int hr);
+    void SetClientGuid();
+    void ClearClientData();
+    void SetFilter([MarshalAs(UnmanagedType.Interface)] IntPtr pFilter);
+    void GetResults();
+    void GetSelectedItems();
+}
+
+[ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IShellItem {
+    void BindToHandler();
+    void GetParent();
+    void GetDisplayName([In] uint sigdnName, [MarshalAs(UnmanagedType.LPWStr)] out string ppszName);
+    void GetAttributes();
+    void Compare();
+}
+
+public class FolderPicker {
+    public static string Show() {
+        var dialog = (IFileOpenDialog)new FileOpenDialog();
+        dialog.SetOptions(0x20); // FOS_PICKFOLDERS
+        dialog.SetTitle("Select folder");
+        int hr = dialog.Show(IntPtr.Zero);
+        if (hr != 0) return "";
+        IShellItem item;
+        dialog.GetResult(out item);
+        string path;
+        item.GetDisplayName(0x80058000, out path); // SIGDN_FILESYSPATH
+        return path ?? "";
+    }
+}
+"@
+[FolderPicker]::Show()
+`
+    const child = spawn('powershell', ['-Command', psScript], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout?.on('data', (data) => {
+      stdout += data.toString()
+    })
+
+    child.stderr?.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`PowerShell exited with code ${code}: ${stderr}`))
+        return
+      }
+      const path = stdout.trim()
+      resolve(path || null)
+    })
+
+    child.on('error', reject)
+  })
+}
+
+export async function selectFile(): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    // Use modern IFileOpenDialog for native Windows 11 file picker
+    const psScript = `
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+[ComImport, Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
+internal class FileOpenDialog { }
+
+[ComImport, Guid("42f85136-db7e-439c-85f1-e4075d135fc8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IFileOpenDialog {
+    [PreserveSig] int Show([In] IntPtr parent);
+    void SetFileTypes();
+    void SetFileTypeIndex([In] uint iFileType);
+    void GetFileTypeIndex(out uint piFileType);
+    void Advise();
+    void Unadvise();
+    void SetOptions([In] uint fos);
+    void GetOptions(out uint pfos);
+    void SetDefaultFolder(IShellItem psi);
+    void SetFolder(IShellItem psi);
+    void GetFolder(out IShellItem ppsi);
+    void GetCurrentSelection(out IShellItem ppsi);
+    void SetFileName([In, MarshalAs(UnmanagedType.LPWStr)] string pszName);
+    void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string pszName);
+    void SetTitle([In, MarshalAs(UnmanagedType.LPWStr)] string pszTitle);
+    void SetOkButtonLabel([In, MarshalAs(UnmanagedType.LPWStr)] string pszText);
+    void SetFileNameLabel([In, MarshalAs(UnmanagedType.LPWStr)] string pszLabel);
+    void GetResult(out IShellItem ppsi);
+    void AddPlace(IShellItem psi, int alignment);
+    void SetDefaultExtension([In, MarshalAs(UnmanagedType.LPWStr)] string pszDefaultExtension);
+    void Close(int hr);
+    void SetClientGuid();
+    void ClearClientData();
+    void SetFilter([MarshalAs(UnmanagedType.Interface)] IntPtr pFilter);
+    void GetResults();
+    void GetSelectedItems();
+}
+
+[ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IShellItem {
+    void BindToHandler();
+    void GetParent();
+    void GetDisplayName([In] uint sigdnName, [MarshalAs(UnmanagedType.LPWStr)] out string ppszName);
+    void GetAttributes();
+    void Compare();
+}
+
+public class FilePicker {
+    public static string Show() {
+        var dialog = (IFileOpenDialog)new FileOpenDialog();
+        dialog.SetTitle("Select file");
+        int hr = dialog.Show(IntPtr.Zero);
+        if (hr != 0) return "";
+        IShellItem item;
+        dialog.GetResult(out item);
+        string path;
+        item.GetDisplayName(0x80058000, out path); // SIGDN_FILESYSPATH
+        return path ?? "";
+    }
+}
+"@
+[FilePicker]::Show()
+`
+    const child = spawn('powershell', ['-Command', psScript], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout?.on('data', (data) => {
+      stdout += data.toString()
+    })
+
+    child.stderr?.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`PowerShell exited with code ${code}: ${stderr}`))
+        return
+      }
+      const path = stdout.trim()
+      resolve(path || null)
+    })
+
+    child.on('error', reject)
+  })
+}
+
+// Remote IDE launchers (Cursor and VS Code only)
+// Using --folder-uri format to avoid MSYS/Git Bash path conversion issues on Windows
+// On Windows, use .cmd scripts for proper PATH resolution
+const isWindows = process.platform === 'win32'
+const remoteLaunchers: Record<RemoteIdeType, (host: string, path: string) => { command: string; args: string[] }> = {
+  cursor: (host: string, path: string) => ({
+    command: isWindows ? 'cursor.cmd' : 'cursor',
+    args: ['--folder-uri', `vscode-remote://ssh-remote+${host}${path}`],
+  }),
+  vscode: (host: string, path: string) => ({
+    command: isWindows ? 'code.cmd' : 'code',
+    args: ['--folder-uri', `vscode-remote://ssh-remote+${host}${path}`],
+  }),
+}
+
+export async function openRemoteIde(ideType: RemoteIdeType, host: string, path: string): Promise<void> {
+  const launcher = remoteLaunchers[ideType]
+  if (!launcher) {
+    throw new Error(`Unknown remote IDE type: ${ideType}`)
+  }
+
+  const { command, args } = launcher(host, path)
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: isWindows, // Need shell on Windows to run .cmd files
+      env: {
+        ...process.env,
+        // Prevent MSYS/Git Bash from converting Unix paths to Windows paths
+        MSYS_NO_PATHCONV: '1',
+        MSYS2_ARG_CONV_EXCL: '*',
+      },
+    })
+
+    let stderr = ''
+    child.stderr?.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    child.on('error', (err) => {
+      reject(new Error(`Failed to spawn ${command}: ${err.message}`))
+    })
+
+    child.on('close', (code) => {
+      if (code !== 0 && stderr) {
+        console.error(`${command} exited with code ${code}: ${stderr}`)
+      }
+    })
+
+    child.unref()
+
+    // Resolve after a short delay - if spawn fails, error event fires quickly
+    setTimeout(resolve, 200)
   })
 }

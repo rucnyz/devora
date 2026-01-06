@@ -1,36 +1,42 @@
-# Project Manager - 本地项目管理网站
+# Project Manager - Local Project Management Website
 
-用 Bun 启动的本地网站，用于管理个人项目。每个项目包含笔记、IDE 快捷入口、文件链接和 URL 链接。
+A local website powered by Bun for managing personal projects. Each project contains notes, application shortcuts, file links, and URL links.
 
-## 详细文档
+**Remember: Every time you edit something, please update the documentation here accordingly. and always use English.**
 
-- [前端文档](frontend.md) - React 组件、UI 交互、样式
-- [API 文档](api.md) - 后端路由、IDE 启动器
-- [数据库文档](database.md) - 数据模型、表结构
 
-## 快速启动
+
+## Detailed Documentation
+
+- [Frontend Documentation](frontend.md) - React components, UI interactions, styles
+- [API Documentation](api.md) - Backend routes, IDE launchers
+- [Database Documentation](database.md) - Data models, table structures
+
+## Quick Start
 
 ```bash
-bun run dev          # 开发模式，访问 http://localhost:5173
-bun run preview      # 生产模式，访问 http://localhost:3000
+bun run dev          # Development mode, visit http://localhost:5173
+bun run preview      # Production mode, visit http://localhost:3000
 ```
 
-## 项目结构
+## Project Structure
 
 ```
 manage-note/
 ├── package.json
-├── vite.config.ts          # Vite 配置 + Tailwind 插件
-├── server/                 # Hono 后端
-├── src/                    # React 前端
-├── data/projects.db        # SQLite 数据库
-└── dist/                   # 构建输出
+├── vite.config.ts          # Vite config + Tailwind plugin
+├── server/                 # Hono backend
+├── src/                    # React frontend
+├── data/projects.db        # SQLite database
+└── dist/                   # Build output
 ```
 
-## 核心功能
+## Core Features
 
-1. **项目管理** - 创建/编辑/删除项目
-2. **IDE 快捷入口** - 一键打开 PyCharm/Cursor/VS Code/Zed/Obsidian
-3. **文件链接** - 点击打开本地文件
-4. **URL 链接** - 外部链接
-5. **内联笔记** - 点击创建，点击编辑，点击外部保存
+1. **Project Management** - Create/edit/delete projects
+2. **Project Links** - Support GitHub URL and custom URLs (GitLab, Bitbucket, etc.)
+3. **Application Shortcuts** - One-click to open PyCharm/Cursor/VS Code/Zed/Obsidian (with path suggestions)
+4. **Remote Application Shortcuts** - Open Cursor/VS Code on remote servers via SSH Remote
+5. **File Links** - Click to open local files
+6. **URL Links** - External links
+7. **Inline Notes** - Click to create, click to edit, click outside to save
