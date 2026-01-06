@@ -1,5 +1,5 @@
 {
-  "name": "manage-note",
+  "name": "devora",
   "module": "index.ts",
   "type": "module",
   "private": true,

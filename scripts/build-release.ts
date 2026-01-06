@@ -4,8 +4,12 @@
  */
 
 import { $ } from 'bun'
-import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync } from 'fs'
 import { join } from 'path'
+
+// Read app name from package.json (single source of truth)
+const pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
+const appName = pkg.name as string
 
 const DEFAULT_ENV = `# Server Configuration
 PORT=3000
@@ -19,7 +23,6 @@ const TARGETS = [
 ] as const
 
 const releaseDir = 'release'
-const appName = 'manage-note'
 
 async function build() {
   console.log('Building frontend...')
@@ -71,7 +74,7 @@ async function build() {
   console.log('\n=== Build Complete ===')
   console.log(`Output: ${releaseDir}/`)
   console.log('\nEach platform folder contains:')
-  console.log('  - manage-note executable')
+  console.log(`  - ${appName} executable`)
   console.log('  - dist/ (frontend assets)')
   console.log('  - data/ (database will be created here)')
 }

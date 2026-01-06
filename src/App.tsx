@@ -35,15 +35,15 @@ function Header() {
             <div className="relative w-9 h-9 flex items-center justify-center">
               <div className="absolute inset-0 bg-[var(--accent-primary)] rounded-lg opacity-20 group-hover:opacity-30 transition-opacity" />
               <div className="absolute inset-0.5 bg-[var(--bg-deep)] rounded-[6px]" />
-              <span className="relative font-mono font-semibold text-[var(--accent-primary)] text-sm">PM</span>
+              <span className="relative font-mono font-semibold text-[var(--accent-primary)] text-sm">DV</span>
             </div>
             {/* Title */}
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
-                Project Manager
+                Devora
               </h1>
               <p className="text-xs font-mono text-[var(--text-muted)] -mt-0.5">
-                v0.1.0 // local workspace
+                v0.1.2 // local workspace
               </p>
             </div>
           </Link>
