@@ -2,9 +2,10 @@
 
 ## Quick Start
 
-Download from [GitHub Releases](../../releases) - available for Windows, macOS, and Linux.
+Download from [GitHub Releases—](https://github.com/rucnyz/devora/releases) available for Windows, macOS, and Linux.
 
 ## Development
+
 Go to https://bun.sh/docs/installation to install Bun.
 
 ```shell
@@ -13,6 +14,7 @@ bun run dev
 ```
 
 or production mode
+
 ```shell
 bun run preview
 ```
