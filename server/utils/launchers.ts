@@ -5,6 +5,8 @@ export type RemoteIdeType = 'cursor' | 'vscode'
 
 const LOCALAPPDATA = process.env.LOCALAPPDATA || ''
 const isWindows = process.platform === 'win32'
+const isMac = process.platform === 'darwin'
+const isLinux = process.platform === 'linux'
 
 export const launchers: Record<IdeType | 'file', (path: string) => { command: string; args: string[] }> = {
   pycharm: (path: string) => ({
@@ -27,10 +29,16 @@ export const launchers: Record<IdeType | 'file', (path: string) => { command: st
     command: 'antigravity',
     args: [path],
   }),
-  file: (path: string) => ({
-    command: 'explorer.exe',
-    args: [path],
-  }),
+  file: (path: string) => {
+    if (isWindows) {
+      return { command: 'explorer.exe', args: [path] }
+    } else if (isMac) {
+      return { command: 'open', args: [path] }
+    } else {
+      // Linux
+      return { command: 'xdg-open', args: [path] }
+    }
+  },
 }
 
 export async function openWithIde(ideType: IdeType, path: string): Promise<void> {
@@ -97,7 +105,7 @@ export async function openFile(path: string): Promise<void> {
     })
   }
 
-  // Non-Windows: use direct spawn
+  // Mac and Linux: use direct spawn with platform-specific command
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       detached: true,
@@ -111,9 +119,92 @@ export async function openFile(path: string): Promise<void> {
 }
 
 export async function selectFolder(): Promise<string | null> {
+  if (isMac) {
+    // macOS: Use AppleScript via osascript
+    return new Promise((resolve, reject) => {
+      const child = spawn('osascript', ['-e', 'POSIX path of (choose folder with prompt "Select folder")'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+
+      let stdout = ''
+      let stderr = ''
+
+      child.stdout?.on('data', (data) => {
+        stdout += data.toString()
+      })
+
+      child.stderr?.on('data', (data) => {
+        stderr += data.toString()
+      })
+
+      child.on('close', (code) => {
+        // osascript returns non-zero if user cancels
+        if (code !== 0) {
+          resolve(null)
+          return
+        }
+        const path = stdout.trim().replace(/\/$/, '') // Remove trailing slash
+        resolve(path || null)
+      })
+
+      child.on('error', reject)
+    })
+  }
+
+  if (isLinux) {
+    // Linux: Use zenity (GTK) or kdialog (KDE) for native file picker
+    return new Promise((resolve, reject) => {
+      // Try zenity first (most common on GTK-based desktops)
+      const child = spawn('zenity', ['--file-selection', '--directory', '--title=Select folder'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+
+      let stdout = ''
+
+      child.stdout?.on('data', (data) => {
+        stdout += data.toString()
+      })
+
+      child.on('close', (code) => {
+        // zenity returns non-zero if user cancels
+        if (code !== 0) {
+          resolve(null)
+          return
+        }
+        const path = stdout.trim()
+        resolve(path || null)
+      })
+
+      child.on('error', () => {
+        // If zenity fails, try kdialog as fallback
+        const kdialogChild = spawn('kdialog', ['--getexistingdirectory', process.env.HOME || '/'], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+
+        let kdialogStdout = ''
+
+        kdialogChild.stdout?.on('data', (data) => {
+          kdialogStdout += data.toString()
+        })
+
+        kdialogChild.on('close', (kdialogCode) => {
+          if (kdialogCode !== 0) {
+            resolve(null)
+            return
+          }
+          const kdialogPath = kdialogStdout.trim()
+          resolve(kdialogPath || null)
+        })
+
+        kdialogChild.on('error', () => {
+          reject(new Error('No file picker available. Please install zenity or kdialog.'))
+        })
+      })
+    })
+  }
+
+  // Windows: Use modern IFileOpenDialog (Windows Vista+) for native Windows 11 file picker
   return new Promise((resolve, reject) => {
-    // Use modern IFileOpenDialog (Windows Vista+) for native Windows 11 file picker
-    // With DPI awareness and foreground window support for proper display
     const psScript = `
 Add-Type -TypeDefinition @"
 using System;
@@ -224,9 +315,87 @@ public class FolderPicker {
 }
 
 export async function selectFile(): Promise<string | null> {
+  if (isMac) {
+    // macOS: Use AppleScript via osascript
+    return new Promise((resolve, reject) => {
+      const child = spawn('osascript', ['-e', 'POSIX path of (choose file with prompt "Select file")'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+
+      let stdout = ''
+
+      child.stdout?.on('data', (data) => {
+        stdout += data.toString()
+      })
+
+      child.on('close', (code) => {
+        // osascript returns non-zero if user cancels
+        if (code !== 0) {
+          resolve(null)
+          return
+        }
+        const path = stdout.trim()
+        resolve(path || null)
+      })
+
+      child.on('error', reject)
+    })
+  }
+
+  if (isLinux) {
+    // Linux: Use zenity (GTK) or kdialog (KDE) for native file picker
+    return new Promise((resolve, reject) => {
+      // Try zenity first (most common on GTK-based desktops)
+      const child = spawn('zenity', ['--file-selection', '--title=Select file'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+
+      let stdout = ''
+
+      child.stdout?.on('data', (data) => {
+        stdout += data.toString()
+      })
+
+      child.on('close', (code) => {
+        // zenity returns non-zero if user cancels
+        if (code !== 0) {
+          resolve(null)
+          return
+        }
+        const path = stdout.trim()
+        resolve(path || null)
+      })
+
+      child.on('error', () => {
+        // If zenity fails, try kdialog as fallback
+        const kdialogChild = spawn('kdialog', ['--getopenfilename', process.env.HOME || '/'], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+
+        let kdialogStdout = ''
+
+        kdialogChild.stdout?.on('data', (data) => {
+          kdialogStdout += data.toString()
+        })
+
+        kdialogChild.on('close', (kdialogCode) => {
+          if (kdialogCode !== 0) {
+            resolve(null)
+            return
+          }
+          const kdialogPath = kdialogStdout.trim()
+          resolve(kdialogPath || null)
+        })
+
+        kdialogChild.on('error', () => {
+          reject(new Error('No file picker available. Please install zenity or kdialog.'))
+        })
+      })
+    })
+  }
+
+  // Windows: Use modern IFileOpenDialog for native Windows 11 file picker
   return new Promise((resolve, reject) => {
-    // Use modern IFileOpenDialog for native Windows 11 file picker
-    // With DPI awareness and foreground window support for proper display
     const psScript = `
 Add-Type -TypeDefinition @"
 using System;
@@ -404,5 +573,127 @@ export async function openRemoteIde(ideType: RemoteIdeType, host: string, path: 
 
     child.unref()
     setTimeout(resolve, 200)
+  })
+}
+
+/**
+ * Open any application with optional arguments
+ * Cross-platform support for Windows, macOS, and Linux
+ *
+ * @param app - Application name or path
+ * @param args - Optional arguments to pass to the application
+ */
+export async function openApp(app: string, args: string[] = []): Promise<void> {
+  if (isWindows) {
+    // Windows: Use PowerShell Start-Process
+    return new Promise((resolve, reject) => {
+      const escapedApp = app.replace(/'/g, "''")
+      const quotedArgs = args.length > 0 ? args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',') : ''
+      const psCommand = quotedArgs
+        ? `Start-Process -FilePath '${escapedApp}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
+        : `Start-Process -FilePath '${escapedApp}' -WindowStyle Normal`
+
+      const child = spawn('powershell', ['-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      })
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to open ${app}: ${err.message}`))
+      })
+      child.unref()
+      setTimeout(resolve, 100)
+    })
+  }
+
+  if (isMac) {
+    // macOS: Use 'open' command
+    // If app looks like an application name (not a path), use -a flag
+    return new Promise((resolve, reject) => {
+      const isAppPath = app.includes('/') || app.endsWith('.app')
+      const openArgs = isAppPath ? [app, ...args] : ['-a', app, ...args]
+
+      const child = spawn('open', openArgs, {
+        detached: true,
+        stdio: 'ignore',
+      })
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to open ${app}: ${err.message}`))
+      })
+      child.unref()
+      setTimeout(resolve, 100)
+    })
+  }
+
+  // Linux: Try to execute directly or use xdg-open for files/URLs
+  return new Promise((resolve, reject) => {
+    const child = spawn(app, args, {
+      detached: true,
+      stdio: 'ignore',
+    })
+
+    child.on('error', (err) => {
+      reject(new Error(`Failed to open ${app}: ${err.message}`))
+    })
+    child.unref()
+    setTimeout(resolve, 100)
+  })
+}
+
+/**
+ * Open a URL in the default browser
+ * Cross-platform support for Windows, macOS, and Linux
+ *
+ * @param url - URL to open
+ */
+export async function openUrl(url: string): Promise<void> {
+  if (isWindows) {
+    return new Promise((resolve, reject) => {
+      const escapedUrl = url.replace(/'/g, "''")
+      const psCommand = `Start-Process '${escapedUrl}'`
+
+      const child = spawn('powershell', ['-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      })
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to open URL: ${err.message}`))
+      })
+      child.unref()
+      setTimeout(resolve, 100)
+    })
+  }
+
+  if (isMac) {
+    return new Promise((resolve, reject) => {
+      const child = spawn('open', [url], {
+        detached: true,
+        stdio: 'ignore',
+      })
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to open URL: ${err.message}`))
+      })
+      child.unref()
+      setTimeout(resolve, 100)
+    })
+  }
+
+  // Linux: Use xdg-open
+  return new Promise((resolve, reject) => {
+    const child = spawn('xdg-open', [url], {
+      detached: true,
+      stdio: 'ignore',
+    })
+
+    child.on('error', (err) => {
+      reject(new Error(`Failed to open URL: ${err.message}`))
+    })
+    child.unref()
+    setTimeout(resolve, 100)
   })
 }

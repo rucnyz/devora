@@ -5,6 +5,8 @@ import {
   selectFolder,
   selectFile,
   openRemoteIde,
+  openApp,
+  openUrl,
   type IdeType,
   type RemoteIdeType,
 } from '../utils/launchers'
@@ -13,6 +15,7 @@ import { homedir } from 'os'
 import { join } from 'path'
 
 const app = new Hono()
+const isWindows = process.platform === 'win32'
 
 // Parse SSH config to extract Host entries
 export function parseSSHConfig(content: string): string[] {
@@ -120,6 +123,40 @@ app.post('/select-file', async (c) => {
   }
 })
 
+// Open any application (cross-platform)
+app.post('/app', async (c) => {
+  const body = await c.req.json()
+  const { app: appName, args } = body as { app: string; args?: string[] }
+
+  if (!appName) {
+    return c.json({ error: 'app is required' }, 400)
+  }
+
+  try {
+    await openApp(appName, args || [])
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: `Failed to open app: ${error}` }, 500)
+  }
+})
+
+// Open URL in default browser (cross-platform)
+app.post('/url', async (c) => {
+  const body = await c.req.json()
+  const { url } = body as { url: string }
+
+  if (!url) {
+    return c.json({ error: 'url is required' }, 400)
+  }
+
+  try {
+    await openUrl(url)
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: `Failed to open URL: ${error}` }, 500)
+  }
+})
+
 // Fetch URL metadata (title)
 app.post('/url-metadata', async (c) => {
   const body = await c.req.json()
@@ -216,15 +253,18 @@ app.post('/command', async (c) => {
       }
     }
 
-    // Local command
+    // Local command - use platform-specific shell
     const spawnOptions = {
       cwd: cwd || process.cwd(),
       shell: true as const,
     }
 
+    // Build command args based on platform
+    const shellArgs = isWindows ? ['cmd', '/c', command] : ['/bin/sh', '-c', command]
+
     if (mode === 'background') {
       // Background mode: spawn detached and return immediately
-      Bun.spawn(['cmd', '/c', command], {
+      Bun.spawn(shellArgs, {
         ...spawnOptions,
         stdout: 'ignore',
         stderr: 'ignore',
@@ -232,7 +272,7 @@ app.post('/command', async (c) => {
       return c.json({ success: true })
     } else {
       // Output mode: wait for completion and return stdout/stderr
-      const proc = Bun.spawn(['cmd', '/c', command], {
+      const proc = Bun.spawn(shellArgs, {
         ...spawnOptions,
         stdout: 'pipe',
         stderr: 'pipe',
