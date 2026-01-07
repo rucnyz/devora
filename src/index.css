@@ -1,0 +1,709 @@
+@import "tailwindcss";
+
+/* ============================================
+   NEO-TERMINAL DESIGN SYSTEM
+   Industrial developer aesthetic with neon accents
+   Supports dark and light themes
+   ============================================ */
+
+/* Typography (shared) */
+:root {
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   DARK THEME (Default)
+   ============================================ */
+:root,
+[data-theme="dark"] {
+  /* Core palette */
+  --bg-void: #050508;
+  --bg-deep: #0a0a0f;
+  --bg-surface: #12121a;
+  --bg-elevated: #1a1a24;
+  --bg-hover: #22222e;
+
+  /* Text hierarchy */
+  --text-primary: #e8e8ed;
+  --text-secondary: #9898a6;
+  --text-muted: #5a5a6e;
+
+  /* Accent colors - 4 semantic colors */
+  --accent-primary: #00ff88;        /* IDE, primary actions */
+  --accent-primary-dim: #00cc6a;
+  --accent-primary-rgb: 0, 255, 136;
+  --accent-secondary: #00d4ff;      /* Links */
+  --accent-secondary-rgb: 0, 212, 255;
+  --accent-warning: #ffaa00;        /* Notes, commands */
+  --accent-warning-rgb: 255, 170, 0;
+  --accent-remote: #e879f9;         /* Remote IDE */
+  --accent-remote-dim: #d946ef;
+  --accent-remote-rgb: 232, 121, 249;
+  --accent-danger: #ff4757;
+
+  /* Glow effects */
+  --glow-primary: 0 0 20px rgba(0, 255, 136, 0.3);
+  --glow-secondary: 0 0 20px rgba(0, 212, 255, 0.3);
+  --glow-warning: 0 0 20px rgba(255, 170, 0, 0.3);
+  --glow-remote: 0 0 20px rgba(232, 121, 249, 0.3);
+  --glow-soft: 0 0 40px rgba(0, 255, 136, 0.1);
+  --glow-warning-soft: 0 0 40px rgba(255, 170, 0, 0.15);
+  --glow-remote-soft: 0 0 40px rgba(232, 121, 249, 0.15);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-visible: rgba(255, 255, 255, 0.12);
+  --border-accent: rgba(0, 255, 136, 0.3);
+  --border-warning: rgba(255, 170, 0, 0.4);
+  --border-remote: rgba(232, 121, 249, 0.4);
+
+  /* Grid background */
+  --grid-color: rgba(0, 255, 136, 0.02);
+  --color-mode: dark;
+}
+
+/* ============================================
+   LIGHT THEME
+   Clean, minimal aesthetic with teal accents
+   ============================================ */
+[data-theme="light"] {
+  /* Core palette */
+  --bg-void: #f8fafb;
+  --bg-deep: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f1f5f9;
+  --bg-hover: #e2e8f0;
+
+  /* Text hierarchy */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  /* Accent colors - 4 semantic colors */
+  --accent-primary: #059669;        /* IDE, primary actions */
+  --accent-primary-dim: #047857;
+  --accent-primary-rgb: 5, 150, 105;
+  --accent-secondary: #0891b2;      /* Links */
+  --accent-secondary-rgb: 8, 145, 178;
+  --accent-warning: #d97706;        /* Notes, commands */
+  --accent-warning-rgb: 217, 119, 6;
+  --accent-remote: #c026d3;         /* Remote IDE */
+  --accent-remote-dim: #a21caf;
+  --accent-remote-rgb: 192, 38, 211;
+  --accent-danger: #dc2626;
+
+  /* Shadow effects instead of glow */
+  --glow-primary: 0 4px 14px rgba(5, 150, 105, 0.15);
+  --glow-secondary: 0 4px 14px rgba(8, 145, 178, 0.15);
+  --glow-warning: 0 4px 14px rgba(217, 119, 6, 0.2);
+  --glow-remote: 0 4px 14px rgba(192, 38, 211, 0.2);
+  --glow-soft: 0 8px 30px rgba(5, 150, 105, 0.08);
+  --glow-warning-soft: 0 8px 30px rgba(217, 119, 6, 0.12);
+  --glow-remote-soft: 0 8px 30px rgba(192, 38, 211, 0.12);
+
+  /* Borders */
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-visible: rgba(0, 0, 0, 0.08);
+  --border-accent: rgba(5, 150, 105, 0.3);
+  --border-warning: rgba(217, 119, 6, 0.4);
+  --border-remote: rgba(192, 38, 211, 0.4);
+
+  /* Grid background */
+  --grid-color: rgba(5, 150, 105, 0.03);
+  --color-mode: light;
+}
+
+/* Global styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-display);
+  background-color: var(--bg-void);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Animated grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle vignette */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 0%, var(--bg-void) 100%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ============================================
+   CUSTOM COMPONENT STYLES
+   ============================================ */
+
+/* Glass card effect */
+.glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 26, 36, 0.8) 0%,
+    rgba(18, 18, 26, 0.9) 100%
+  );
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  transition: all var(--transition-smooth);
+}
+
+.glass-card:hover {
+  border-color: var(--border-accent);
+  box-shadow: var(--glow-soft);
+  transform: translateY(-2px);
+}
+
+/* Light theme glass card */
+[data-theme="light"] .glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 251, 0.95) 100%
+  );
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .glass-card:hover {
+  box-shadow: 0 8px 30px rgba(5, 150, 105, 0.1);
+}
+
+/* Neon button styles */
+.btn-neon {
+  position: relative;
+  padding: 0.625rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--accent-primary);
+  background: transparent;
+  border: 1px solid var(--accent-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  overflow: hidden;
+}
+
+.btn-neon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-primary);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.btn-neon:hover {
+  color: var(--bg-deep);
+  box-shadow: var(--glow-primary);
+}
+
+.btn-neon:hover::before {
+  opacity: 1;
+}
+
+.btn-neon span {
+  position: relative;
+  z-index: 1;
+}
+
+/* Solid primary button */
+.btn-solid {
+  padding: 0.625rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--bg-deep);
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-solid:hover {
+  background: var(--accent-primary-dim);
+  box-shadow: var(--glow-primary);
+  transform: translateY(-1px);
+}
+
+.btn-solid:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Ghost button */
+.btn-ghost {
+  padding: 0.625rem 1.25rem;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-visible);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+}
+
+/* Input styles */
+.input-terminal {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-visible);
+  border-radius: 8px;
+  transition: all var(--transition-fast);
+}
+
+.input-terminal::placeholder {
+  color: var(--text-muted);
+}
+
+.input-terminal:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
+}
+
+/* Textarea styles */
+.textarea-terminal {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-visible);
+  border-radius: 8px;
+  resize: vertical;
+  min-height: 100px;
+  transition: all var(--transition-fast);
+}
+
+.textarea-terminal:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
+}
+
+/* Light theme input focus */
+[data-theme="light"] .input-terminal:focus {
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+[data-theme="light"] .textarea-terminal:focus {
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+/* Section label */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-visible), transparent);
+}
+
+/* Tag/chip styles */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+/* ===========================================
+   UNIFIED IDE TAG - Uses primary color (green)
+   All IDE types share this style for consistency
+   =========================================== */
+.tag-ide {
+  color: var(--accent-primary);
+  background: rgba(var(--accent-primary-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.3);
+}
+
+.tag-ide:hover {
+  background: rgba(var(--accent-primary-rgb), 0.2);
+  box-shadow: var(--glow-primary);
+}
+
+/* ===========================================
+   UNIFIED REMOTE IDE TAG - Uses remote color (magenta)
+   All remote IDE types share this style
+   =========================================== */
+.tag-remote-ide {
+  color: var(--accent-remote);
+  background: rgba(var(--accent-remote-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-remote-rgb), 0.3);
+}
+
+.tag-remote-ide:hover {
+  background: rgba(var(--accent-remote-rgb), 0.2);
+  box-shadow: var(--glow-remote);
+}
+
+/* ===========================================
+   URL TAG - Uses secondary color (cyan/teal)
+   =========================================== */
+.tag-url {
+  color: var(--accent-secondary);
+  background: rgba(var(--accent-secondary-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-secondary-rgb), 0.3);
+}
+
+.tag-url:hover {
+  background: rgba(var(--accent-secondary-rgb), 0.2);
+  box-shadow: var(--glow-secondary);
+}
+
+/* ===========================================
+   FILE TAG - Uses neutral/secondary text color
+   =========================================== */
+.tag-file {
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-visible);
+}
+
+.tag-file:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+  box-shadow: var(--glow-soft);
+}
+
+/* ===========================================
+   COMMAND TAG - Uses warning/tertiary color (amber)
+   =========================================== */
+.tag-command {
+  color: var(--accent-warning);
+  background: rgba(var(--accent-warning-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-warning-rgb), 0.3);
+}
+
+.tag-command:hover {
+  background: rgba(var(--accent-warning-rgb), 0.2);
+  box-shadow: var(--glow-warning);
+}
+
+/* ===========================================
+   REMOTE COMMAND TAG - Uses fuchsia for SSH commands
+   =========================================== */
+.tag-remote-command {
+  color: #e879f9;
+  background: rgba(232, 121, 249, 0.1);
+  border: 1px solid rgba(232, 121, 249, 0.3);
+}
+
+.tag-remote-command:hover {
+  background: rgba(232, 121, 249, 0.2);
+  box-shadow: 0 0 12px rgba(232, 121, 249, 0.3);
+}
+
+/* ===========================================
+   APP TAG - Uses warning color for custom apps
+   =========================================== */
+.tag-app {
+  color: var(--accent-warning);
+  background: rgba(var(--accent-warning-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-warning-rgb), 0.3);
+}
+
+.tag-app:hover {
+  background: rgba(var(--accent-warning-rgb), 0.2);
+  box-shadow: var(--glow-warning);
+}
+
+/* Note card */
+.note-card {
+  position: relative;
+  padding: 1.25rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent-warning);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+}
+
+.note-card:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-visible);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] .note-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.note-card-editing {
+  border-color: var(--border-warning);
+  border-left-color: var(--accent-warning);
+  box-shadow: var(--glow-warning-soft);
+}
+
+/* Note card editing inputs - use warning color */
+.note-card-editing input:focus-visible,
+.note-card-editing textarea:focus-visible {
+  outline: none;
+}
+
+.note-card-editing .textarea-terminal:focus {
+  border-color: var(--accent-warning);
+  box-shadow: 0 0 0 3px rgba(255, 170, 0, 0.1);
+}
+
+[data-theme="light"] .note-card-editing .textarea-terminal:focus {
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 8, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  animation: fadeIn 200ms ease-out;
+}
+
+.modal-content {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-visible);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: slideUp 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Light theme modal */
+[data-theme="light"] .modal-overlay {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+[data-theme="light"] .modal-content {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Staggered card animations */
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-card-enter {
+  animation: cardEnter 400ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Delete button */
+.btn-delete {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.btn-delete:hover {
+  color: var(--accent-danger);
+}
+
+/* Markdown editor overrides */
+.wmde-markdown-var {
+  --color-canvas-default: var(--bg-surface) !important;
+  --color-fg-default: var(--text-primary) !important;
+  --color-border-default: var(--border-visible) !important;
+}
+
+.w-md-editor {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-visible) !important;
+  border-radius: 8px !important;
+}
+
+.w-md-editor-toolbar {
+  background: var(--bg-elevated) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+.w-md-editor-content {
+  background: var(--bg-surface) !important;
+}
+
+.w-md-editor-text-pre > code,
+.w-md-editor-text-input {
+  font-family: var(--font-mono) !important;
+  font-size: 0.9rem !important;
+  color: var(--text-primary) !important;
+}
+
+.wmde-markdown {
+  font-family: var(--font-display) !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+.wmde-markdown code {
+  font-family: var(--font-mono) !important;
+  background: var(--bg-elevated) !important;
+  color: var(--accent-primary) !important;
+}
+
+.wmde-markdown pre {
+  background: var(--bg-deep) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(0, 255, 136, 0.3);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(5, 150, 105, 0.25);
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Utility classes */
+.text-gradient {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glow-text {
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+[data-theme="light"] .glow-text {
+  text-shadow: 0 0 10px rgba(5, 150, 105, 0.4);
+}
