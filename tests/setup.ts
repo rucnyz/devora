@@ -1,9 +1,14 @@
 import { afterEach } from 'bun:test'
 import { mock } from 'bun:test'
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
 
-// Register happy-dom globally for React testing
-GlobalRegistrator.register()
+// Try to register happy-dom globally for React testing
+// This may fail in environments where happy-dom is not installed
+try {
+  const { GlobalRegistrator } = await import('@happy-dom/global-registrator')
+  GlobalRegistrator.register()
+} catch {
+  // happy-dom not available, skip DOM setup (server-only tests don't need it)
+}
 
 // Mock localStorage
 const localStorageMock = {
