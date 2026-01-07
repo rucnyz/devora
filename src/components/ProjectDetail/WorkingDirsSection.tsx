@@ -14,7 +14,15 @@ interface WorkingDirsSectionProps {
   onUpdate: (dirs: WorkingDir[]) => Promise<void>
 }
 
-export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, remoteIdeItems, fileItems, commandItems, onUpdate }: WorkingDirsSectionProps) {
+export default function WorkingDirsSection({
+  workingDirs,
+  sshHosts,
+  ideItems,
+  remoteIdeItems,
+  fileItems,
+  commandItems,
+  onUpdate,
+}: WorkingDirsSectionProps) {
   const [dirs, setDirs] = useState<WorkingDir[]>(workingDirs)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -34,8 +42,8 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
   // Compute suggested paths from IDE items, file items, and command items that are not in working dirs
   // Group by source for display
   const suggestedPaths = useMemo(() => {
-    const existingLocalPaths = new Set(dirs.filter(d => !d.host).map(d => d.path))
-    const existingRemotePaths = new Set(dirs.filter(d => d.host).map(d => `${d.host}:${d.path}`))
+    const existingLocalPaths = new Set(dirs.filter((d) => !d.host).map((d) => d.path))
+    const existingRemotePaths = new Set(dirs.filter((d) => d.host).map((d) => `${d.host}:${d.path}`))
 
     type Suggestion = { name: string; path: string; host?: string }
     type GroupedSuggestions = { source: string; items: Suggestion[] }
@@ -45,13 +53,13 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
 
     // From IDE items
     const idePaths = ideItems
-      .map(item => item.content)
+      .map((item) => item.content)
       .filter((path): path is string => !!path && !existingLocalPaths.has(path))
       .filter((path, index, arr) => arr.indexOf(path) === index)
     if (idePaths.length > 0) {
       localGroups.push({
         source: 'IDE',
-        items: idePaths.map(path => ({
+        items: idePaths.map((path) => ({
           name: path.split(/[/\\]/).pop() || path,
           path,
         })),
@@ -60,13 +68,13 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
 
     // From file items
     const filePaths = fileItems
-      .map(item => item.content)
+      .map((item) => item.content)
       .filter((path): path is string => !!path && !existingLocalPaths.has(path))
       .filter((path, index, arr) => arr.indexOf(path) === index)
     if (filePaths.length > 0) {
       localGroups.push({
         source: 'Open',
-        items: filePaths.map(path => ({
+        items: filePaths.map((path) => ({
           name: path.split(/[/\\]/).pop() || path,
           path,
         })),
@@ -75,14 +83,14 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
 
     // From command items (local)
     const commandLocalPaths = commandItems
-      .filter(item => item.command_cwd && !item.command_host)
-      .map(item => item.command_cwd!)
-      .filter(path => !existingLocalPaths.has(path))
+      .filter((item) => item.command_cwd && !item.command_host)
+      .map((item) => item.command_cwd!)
+      .filter((path) => !existingLocalPaths.has(path))
       .filter((path, index, arr) => arr.indexOf(path) === index)
     if (commandLocalPaths.length > 0) {
       localGroups.push({
         source: 'Command',
-        items: commandLocalPaths.map(path => ({
+        items: commandLocalPaths.map((path) => ({
           name: path.split(/[/\\]/).pop() || path,
           path,
         })),
@@ -94,7 +102,7 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
 
     // From Remote IDE items
     const remoteIdePaths = remoteIdeItems
-      .map(item => {
+      .map((item) => {
         const content = item.content || ''
         const colonIndex = content.indexOf(':')
         if (colonIndex > 0) {
@@ -104,14 +112,14 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
         }
         return null
       })
-      .filter((item): item is { host: string; path: string; key: string } =>
-        !!item && !existingRemotePaths.has(item.key)
+      .filter(
+        (item): item is { host: string; path: string; key: string } => !!item && !existingRemotePaths.has(item.key)
       )
-      .filter((item, index, arr) => arr.findIndex(i => i.key === item.key) === index)
+      .filter((item, index, arr) => arr.findIndex((i) => i.key === item.key) === index)
     if (remoteIdePaths.length > 0) {
       remoteGroups.push({
         source: 'Remote IDE',
-        items: remoteIdePaths.map(item => ({
+        items: remoteIdePaths.map((item) => ({
           name: item.path.split('/').pop() || item.path,
           path: item.path,
           host: item.host,
@@ -121,18 +129,18 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
 
     // From command items (remote)
     const commandRemotePaths = commandItems
-      .filter(item => item.command_cwd && item.command_host)
-      .map(item => ({
+      .filter((item) => item.command_cwd && item.command_host)
+      .map((item) => ({
         host: item.command_host!,
         path: item.command_cwd!,
         key: `${item.command_host}:${item.command_cwd}`,
       }))
-      .filter(item => !existingRemotePaths.has(item.key))
-      .filter((item, index, arr) => arr.findIndex(i => i.key === item.key) === index)
+      .filter((item) => !existingRemotePaths.has(item.key))
+      .filter((item, index, arr) => arr.findIndex((i) => i.key === item.key) === index)
     if (commandRemotePaths.length > 0) {
       remoteGroups.push({
         source: 'Command',
-        items: commandRemotePaths.map(item => ({
+        items: commandRemotePaths.map((item) => ({
           name: item.path.split('/').pop() || item.path,
           path: item.path,
           host: item.host,
@@ -300,7 +308,7 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
 
   return (
     <>
-      <section className="mb-6" ref={containerRef}>
+      <section ref={containerRef}>
         <h3 className="section-label">Working Dirs</h3>
         <div className="flex flex-wrap gap-2 items-center">
           {/* Existing dirs */}
@@ -330,12 +338,7 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
                 </div>
                 <div className="flex items-center gap-2">
                   {editIsRemote && (
-                    <HostInput
-                      value={editHost}
-                      onChange={setEditHost}
-                      suggestions={sshHosts}
-                      className="w-28"
-                    />
+                    <HostInput value={editHost} onChange={setEditHost} suggestions={sshHosts} className="w-28" />
                   )}
                   <input
                     type="text"
@@ -352,7 +355,12 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
                     title="Browse folder"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -364,15 +372,34 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
                 onClick={() => handleEdit(index)}
               >
                 {dir.host ? (
-                  <svg className="w-4 h-4 text-[var(--accent-remote)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="w-4 h-4 text-[var(--accent-remote)]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  <svg
+                    className="w-4 h-4 text-[var(--text-muted)]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    />
                   </svg>
                 )}
-                <span className={`font-mono text-sm ${dir.host ? 'text-[var(--accent-remote)]' : 'text-[var(--text-primary)]'}`}>{dir.name}</span>
+                <span
+                  className={`font-mono text-sm ${dir.host ? 'text-[var(--accent-remote)]' : 'text-[var(--text-primary)]'}`}
+                >
+                  {dir.name}
+                </span>
                 <span className="font-mono text-xs text-[var(--text-muted)]">
                   {dir.host ? `@${dir.host}` : 'local'}
                 </span>
@@ -391,7 +418,9 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
 
           {/* New dir input (dashed box) */}
           {isAddingNew ? (
-            <div className={`flex flex-col gap-2 px-3 py-2 rounded-lg border ${isRemote ? 'border-[var(--accent-remote)]' : 'border-[var(--accent-primary)]'} bg-[var(--bg-surface)]`}>
+            <div
+              className={`flex flex-col gap-2 px-3 py-2 rounded-lg border ${isRemote ? 'border-[var(--accent-remote)]' : 'border-[var(--accent-primary)]'} bg-[var(--bg-surface)]`}
+            >
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -412,12 +441,7 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
               </div>
               <div className="flex items-center gap-2">
                 {isRemote && (
-                  <HostInput
-                    value={newHost}
-                    onChange={setNewHost}
-                    suggestions={sshHosts}
-                    className="w-28"
-                  />
+                  <HostInput value={newHost} onChange={setNewHost} suggestions={sshHosts} className="w-28" />
                 )}
                 <input
                   type="text"
@@ -434,7 +458,12 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
                   title="Browse folder"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    />
                   </svg>
                 </button>
               </div>
@@ -469,7 +498,8 @@ export default function WorkingDirsSection({ workingDirs, sshHosts, ideItems, re
                         }`}
                         title={suggestion.host ? `${suggestion.host}:${suggestion.path}` : suggestion.path}
                       >
-                        + {suggestion.name} <span className="opacity-50">{suggestion.host ? `@${suggestion.host}` : 'local'}</span>
+                        + {suggestion.name}{' '}
+                        <span className="opacity-50">{suggestion.host ? `@${suggestion.host}` : 'local'}</span>
                       </button>
                     ))}
                   </div>

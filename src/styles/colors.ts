@@ -24,13 +24,13 @@ export const semanticColors = {
   // Primary - Used for IDE shortcuts, primary actions, success states
   primary: {
     dark: {
-      base: '#00ff88',      // Bright terminal green
-      dim: '#00cc6a',       // Darker green for hover
-      rgb: '0, 255, 136',   // For rgba() backgrounds
+      base: '#00ff88', // Bright terminal green
+      dim: '#00cc6a', // Darker green for hover
+      rgb: '0, 255, 136', // For rgba() backgrounds
     },
     light: {
-      base: '#059669',      // Emerald green
-      dim: '#047857',       // Darker emerald
+      base: '#059669', // Emerald green
+      dim: '#047857', // Darker emerald
       rgb: '5, 150, 105',
     },
   },
@@ -38,12 +38,12 @@ export const semanticColors = {
   // Secondary - Used for links, external references
   secondary: {
     dark: {
-      base: '#00d4ff',      // Cyan
+      base: '#00d4ff', // Cyan
       dim: '#00a8cc',
       rgb: '0, 212, 255',
     },
     light: {
-      base: '#0891b2',      // Teal
+      base: '#0891b2', // Teal
       dim: '#0e7490',
       rgb: '8, 145, 178',
     },
@@ -52,12 +52,12 @@ export const semanticColors = {
   // Tertiary - Used for notes, warnings, commands
   tertiary: {
     dark: {
-      base: '#ffaa00',      // Amber/Orange
+      base: '#ffaa00', // Amber/Orange
       dim: '#e69500',
       rgb: '255, 170, 0',
     },
     light: {
-      base: '#d97706',      // Amber
+      base: '#d97706', // Amber
       dim: '#b45309',
       rgb: '217, 119, 6',
     },
@@ -66,12 +66,12 @@ export const semanticColors = {
   // Remote - Used for remote IDE, SSH connections
   remote: {
     dark: {
-      base: '#e879f9',      // Fuchsia/Magenta
+      base: '#e879f9', // Fuchsia/Magenta
       dim: '#d946ef',
       rgb: '232, 121, 249',
     },
     light: {
-      base: '#c026d3',      // Fuchsia
+      base: '#c026d3', // Fuchsia
       dim: '#a21caf',
       rgb: '192, 38, 211',
     },
@@ -97,15 +97,23 @@ export const semanticColors = {
 // Maps app sections to semantic colors
 // ===========================================
 
-export type SectionType = 'ide' | 'remote-ide' | 'links' | 'notes' | 'files' | 'commands' | 'working-dirs-local' | 'working-dirs-remote'
+export type SectionType =
+  | 'ide'
+  | 'remote-ide'
+  | 'links'
+  | 'notes'
+  | 'files'
+  | 'commands'
+  | 'working-dirs-local'
+  | 'working-dirs-remote'
 
 export const sectionColors: Record<SectionType, keyof typeof semanticColors> = {
-  'ide': 'primary',
+  ide: 'primary',
   'remote-ide': 'remote',
-  'links': 'secondary',
-  'notes': 'tertiary',
-  'files': 'primary',         // Uses primary but with lower opacity
-  'commands': 'tertiary',
+  links: 'secondary',
+  notes: 'tertiary',
+  files: 'primary', // Uses primary but with lower opacity
+  commands: 'tertiary',
   'working-dirs-local': 'primary',
   'working-dirs-remote': 'remote',
 }

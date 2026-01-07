@@ -15,6 +15,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Async data loading pattern, not form reset */
   useEffect(() => {
     if (!host) return
 
@@ -39,6 +40,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
         setLoading(false)
       })
   }, [host, currentPath])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleNavigate = (entry: RemoteDirEntry) => {
     if (entry.isDir) {
@@ -71,10 +73,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-content w-full max-w-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="modal-content w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">
             Browse Remote: <span className="text-[var(--accent-remote)]">{host}</span>
@@ -138,8 +137,18 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
                   onClick={() => handleNavigate(entry)}
                   className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-[var(--bg-elevated)] transition-colors"
                 >
-                  <svg className="w-4 h-4 text-[var(--accent-remote)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  <svg
+                    className="w-4 h-4 text-[var(--accent-remote)]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    />
                   </svg>
                   <span className="font-mono text-sm text-[var(--text-primary)]">{entry.name}</span>
                 </button>

@@ -24,7 +24,7 @@ app.get('/:id', (c) => {
 // Create project
 app.post('/', async (c) => {
   const body = await c.req.json()
-  const { name, description, metadata } = body
+  const { name, description = '', metadata = {} } = body
 
   if (!name) {
     return c.json({ error: 'Name is required' }, 400)
@@ -64,13 +64,23 @@ app.delete('/:id', (c) => {
 app.post('/:id/items', async (c) => {
   const projectId = c.req.param('id')
   const body = await c.req.json()
-  const { type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, command_host } = body
+  const { type, title, content = '', ide_type, remote_ide_type, command_mode, command_cwd, command_host } = body
 
   if (!type || !title) {
     return c.json({ error: 'Type and title are required' }, 400)
   }
 
-  const item = db.createItem(projectId, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, command_host)
+  const item = db.createItem(
+    projectId,
+    type,
+    title,
+    content,
+    ide_type,
+    remote_ide_type,
+    command_mode,
+    command_cwd,
+    command_host
+  )
   return c.json(item, 201)
 })
 

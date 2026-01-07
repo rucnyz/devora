@@ -104,10 +104,7 @@ export default function AddDropdown({
               onClick={() => handleAction(action.id)}
               className="w-full px-4 py-2 text-left text-sm font-mono hover:bg-[var(--bg-surface)] transition-colors flex items-center gap-2"
             >
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: action.color }}
-              />
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: action.color }} />
               <span style={{ color: action.color }}>{action.label}</span>
             </button>
           ))}

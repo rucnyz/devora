@@ -3,6 +3,19 @@ export type IdeType = 'pycharm' | 'cursor' | 'vscode' | 'zed' | 'antigravity'
 export type RemoteIdeType = 'cursor' | 'vscode'
 export type CommandMode = 'background' | 'output'
 
+// Section keys for drag-and-drop reordering
+export type SectionKey = 'workingDirs' | 'ide' | 'remoteIde' | 'file' | 'command' | 'links' | 'notes'
+
+export const DEFAULT_SECTION_ORDER: SectionKey[] = [
+  'workingDirs',
+  'ide',
+  'remoteIde',
+  'file',
+  'command',
+  'links',
+  'notes',
+]
+
 export interface Item {
   id: string
   project_id: string
@@ -30,6 +43,7 @@ export interface ProjectMetadata {
   custom_url?: string
   other_links?: { label: string; url: string }[]
   working_dirs?: WorkingDir[]
+  section_order?: SectionKey[]
 }
 
 export interface Project {

@@ -1,7 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { selectFolder, runCommand } from '../../hooks/useProjects'
+import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
+import CommandCreator from './CommandCreator'
+import WorkingDirsSuggestions from './WorkingDirsSuggestions'
 import type { Item, CommandMode, WorkingDir } from '../../types'
 
 interface CommandSectionProps {
@@ -25,13 +28,6 @@ export default function CommandSection({
   onDelete,
   onCreatingChange,
 }: CommandSectionProps) {
-  const [newTitle, setNewTitle] = useState('')
-  const [newContent, setNewContent] = useState('')
-  const [newMode, setNewMode] = useState<CommandMode>('background')
-  const [newCwd, setNewCwd] = useState('')
-  const [newHost, setNewHost] = useState('')
-  const newCommandRef = useRef<HTMLDivElement>(null)
-
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
@@ -41,20 +37,16 @@ export default function CommandSection({
   const editCommandRef = useRef<HTMLDivElement>(null)
 
   const [commandOutput, setCommandOutput] = useState<{ title: string; output: string; error?: string } | null>(null)
-  const [showBrowser, setShowBrowser] = useState<'create' | 'edit' | null>(null)
+  const [showBrowser, setShowBrowser] = useState(false)
 
-  const saveCreating = useCallback(async () => {
-    if (isCreating && newContent.trim()) {
-      const title = newTitle.trim() || newContent.trim()
-      await onAdd(title, newContent.trim(), newMode, newCwd.trim() || undefined, newHost.trim() || undefined)
-      onCreatingChange(false)
-      setNewTitle('')
-      setNewContent('')
-      setNewMode('background')
-      setNewCwd('')
-      setNewHost('')
-    }
-  }, [isCreating, newTitle, newContent, newMode, newCwd, newHost, onAdd, onCreatingChange])
+  const resetEditState = useCallback(() => {
+    setEditingId(null)
+    setEditTitle('')
+    setEditContent('')
+    setEditMode('background')
+    setEditCwd('')
+    setEditHost('')
+  }, [])
 
   const saveEditing = useCallback(async () => {
     if (editingId && editContent.trim()) {
@@ -66,72 +58,25 @@ export default function CommandSection({
         command_cwd: editCwd.trim() || undefined,
         command_host: editHost.trim() || undefined,
       })
-      setEditingId(null)
-      setEditTitle('')
-      setEditContent('')
-      setEditMode('background')
-      setEditCwd('')
-      setEditHost('')
+      resetEditState()
     }
-  }, [editingId, editTitle, editContent, editMode, editCwd, editHost, onUpdate])
+  }, [editingId, editTitle, editContent, editMode, editCwd, editHost, onUpdate, resetEditState])
 
-  // Click outside handler
-  useEffect(() => {
-    const handleClickOutside = async (event: MouseEvent) => {
-      if (showBrowser) return // Don't close when browser modal is open
-      if (isCreating && newCommandRef.current && !newCommandRef.current.contains(event.target as Node)) {
-        if (newContent.trim()) {
-          await saveCreating()
-        } else {
-          onCreatingChange(false)
-        }
-      }
-      if (editingId && editCommandRef.current && !editCommandRef.current.contains(event.target as Node)) {
-        if (editContent.trim()) {
-          await saveEditing()
-        } else {
-          setEditingId(null)
-        }
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showBrowser, isCreating, newContent, saveCreating, editingId, editContent, saveEditing, onCreatingChange])
+  useEditorHandlers({
+    containerRef: editCommandRef,
+    isActive: !!editingId,
+    canSave: !!editContent.trim(),
+    onSave: saveEditing,
+    onCancel: resetEditState,
+    skipClickOutside: showBrowser,
+  })
 
-  // Ctrl+S handler
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        if (editingId && editContent.trim()) {
-          e.preventDefault()
-          e.stopPropagation()
-          await saveEditing()
-        } else if (isCreating && newContent.trim()) {
-          e.preventDefault()
-          e.stopPropagation()
-          await saveCreating()
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [isCreating, newContent, saveCreating, editingId, editContent, saveEditing])
-
-  const handleBrowse = async (isEdit: boolean) => {
-    const host = isEdit ? editHost : newHost
-    if (host) {
-      // Remote: show browser modal
-      setShowBrowser(isEdit ? 'edit' : 'create')
+  const handleBrowseForEdit = async () => {
+    if (editHost) {
+      setShowBrowser(true)
     } else {
-      // Local: use folder picker
       const path = await selectFolder()
-      if (path) {
-        if (isEdit) {
-          setEditCwd(path)
-        } else {
-          setNewCwd(path)
-        }
-      }
+      if (path) setEditCwd(path)
     }
   }
 
@@ -161,110 +106,25 @@ export default function CommandSection({
     }
   }
 
-  // Reset state when isCreating changes
-  useEffect(() => {
-    if (isCreating) {
-      setNewTitle('')
-      setNewContent('')
-      setNewMode('background')
-      setNewCwd('')
-      setNewHost('')
-    }
-  }, [isCreating])
+  const handleAdd = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string) => {
+    await onAdd(title, command, mode, cwd, host)
+    onCreatingChange(false)
+  }
 
   if (!isCreating && items.length === 0) return null
 
   return (
     <>
-      <section id="section-commands" className="mb-8 scroll-mt-6">
+      <section id="section-commands" className="scroll-mt-6">
         <h3 className="section-label">Commands</h3>
 
-        {/* Inline Command Creator */}
         {isCreating && (
-          <div
-            ref={newCommandRef}
-            className="mb-4 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-visible)]"
-          >
-            <div className="flex flex-wrap items-center gap-3 mb-3">
-              <input
-                type="text"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Title (optional)..."
-                className="input-terminal w-40"
-              />
-              <input
-                type="text"
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
-                placeholder="Command to run..."
-                className="input-terminal flex-1"
-                autoFocus
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3 mb-3">
-              <HostInput
-                value={newHost}
-                onChange={setNewHost}
-                suggestions={sshHosts}
-                placeholder="Host (optional for remote)"
-                className="w-36"
-              />
-              <div className="flex-1 flex gap-2">
-                <input
-                  type="text"
-                  value={newCwd}
-                  onChange={(e) => setNewCwd(e.target.value)}
-                  placeholder={newHost ? 'Remote path...' : 'Working directory (optional)...'}
-                  className="input-terminal flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleBrowse(false)}
-                  className="btn-ghost whitespace-nowrap"
-                >
-                  Browse
-                </button>
-              </div>
-              <select
-                value={newMode}
-                onChange={(e) => setNewMode(e.target.value as CommandMode)}
-                className="input-terminal w-36"
-              >
-                <option value="background">Background</option>
-                <option value="output">Show Output</option>
-              </select>
-            </div>
-            {/* Working dirs suggestions */}
-            {workingDirs.length > 0 && (
-              <div className="mb-3">
-                <span className="text-xs font-mono text-[var(--text-muted)]">Working dirs:</span>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {workingDirs.map((dir) => (
-                    <button
-                      key={dir.host ? `${dir.host}:${dir.path}` : dir.path}
-                      type="button"
-                      onClick={() => {
-                        setNewCwd(dir.path)
-                        setNewHost(dir.host || '')
-                      }}
-                      className={`text-xs font-mono px-2 py-1 rounded border transition-colors ${
-                        dir.host
-                          ? 'bg-[#e879f9]/10 border-[#e879f9]/30 text-[#e879f9] hover:bg-[#e879f9]/20'
-                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
-                      }`}
-                      title={dir.host ? `${dir.host}:${dir.path}` : dir.path}
-                    >
-                      {dir.name} <span className="opacity-50">{dir.host ? `@${dir.host}` : 'local'}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="text-xs font-mono text-[var(--text-muted)]">
-              Click outside to save {newHost && <span className="text-[#e879f9]">(SSH: {newHost})</span>}
-            </div>
-          </div>
+          <CommandCreator
+            workingDirs={workingDirs}
+            sshHosts={sshHosts}
+            onAdd={handleAdd}
+            onCancel={() => onCreatingChange(false)}
+          />
         )}
 
         <div className="flex flex-wrap gap-2">
@@ -308,11 +168,7 @@ export default function CommandSection({
                       placeholder={editHost ? 'Remote path...' : 'Working directory (optional)...'}
                       className="input-terminal flex-1"
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleBrowse(true)}
-                      className="btn-ghost whitespace-nowrap"
-                    >
+                    <button type="button" onClick={handleBrowseForEdit} className="btn-ghost whitespace-nowrap">
                       Browse
                     </button>
                   </div>
@@ -325,32 +181,14 @@ export default function CommandSection({
                     <option value="output">Show Output</option>
                   </select>
                 </div>
-                {/* Working dirs suggestions for edit */}
-                {workingDirs.length > 0 && (
-                  <div className="mb-3">
-                    <span className="text-xs font-mono text-[var(--text-muted)]">Working dirs:</span>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {workingDirs.map((dir) => (
-                        <button
-                          key={dir.host ? `${dir.host}:${dir.path}` : dir.path}
-                          type="button"
-                          onClick={() => {
-                            setEditCwd(dir.path)
-                            setEditHost(dir.host || '')
-                          }}
-                          className={`text-xs font-mono px-2 py-1 rounded border transition-colors ${
-                            dir.host
-                              ? 'bg-[#e879f9]/10 border-[#e879f9]/30 text-[#e879f9] hover:bg-[#e879f9]/20'
-                              : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
-                          }`}
-                          title={dir.host ? `${dir.host}:${dir.path}` : dir.path}
-                        >
-                          {dir.name} <span className="opacity-50">{dir.host ? `@${dir.host}` : 'local'}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <WorkingDirsSuggestions
+                  workingDirs={workingDirs}
+                  onSelect={(path, host) => {
+                    setEditCwd(path)
+                    setEditHost(host || '')
+                  }}
+                  className="mb-3"
+                />
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-mono text-[var(--text-muted)]">
                     Click outside to save {editHost && <span className="text-[#e879f9]">(SSH: {editHost})</span>}
@@ -359,7 +197,7 @@ export default function CommandSection({
                     onClick={(e) => {
                       e.stopPropagation()
                       onDelete(item.id)
-                      setEditingId(null)
+                      resetEditState()
                     }}
                     className="btn-delete"
                   >
@@ -383,16 +221,17 @@ export default function CommandSection({
                     </svg>
                   ) : (
                     <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
                     </svg>
                   )}
                   <span>{item.title}</span>
-                  {item.command_host && (
-                    <span className="text-xs text-[#e879f9]">@{item.command_host}</span>
-                  )}
-                  {item.command_mode === 'output' && (
-                    <span className="text-xs opacity-50">[out]</span>
-                  )}
+                  {item.command_host && <span className="text-xs text-[#e879f9]">@{item.command_host}</span>}
+                  {item.command_mode === 'output' && <span className="text-xs opacity-50">[out]</span>}
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -413,7 +252,6 @@ export default function CommandSection({
             )
           )}
 
-          {/* Add button */}
           {!isCreating && (
             <button
               onClick={() => onCreatingChange(true)}
@@ -428,10 +266,15 @@ export default function CommandSection({
         </div>
       </section>
 
-      {/* Command Output Modal */}
       {commandOutput && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setCommandOutput(null)}>
-          <div className="bg-[var(--bg-elevated)] border border-[var(--border-visible)] rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setCommandOutput(null)}
+        >
+          <div
+            className="bg-[var(--bg-elevated)] border border-[var(--border-visible)] rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-[var(--text-primary)]">{commandOutput.title}</h3>
               <button
@@ -445,13 +288,17 @@ export default function CommandSection({
               {commandOutput.output && (
                 <div className="mb-4">
                   <h4 className="text-sm font-mono text-[var(--text-muted)] mb-2">Output:</h4>
-                  <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--text-secondary)] whitespace-pre-wrap overflow-x-auto">{commandOutput.output}</pre>
+                  <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--text-secondary)] whitespace-pre-wrap overflow-x-auto">
+                    {commandOutput.output}
+                  </pre>
                 </div>
               )}
               {commandOutput.error && (
                 <div>
                   <h4 className="text-sm font-mono text-[var(--accent-danger)] mb-2">Error:</h4>
-                  <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--accent-danger)] whitespace-pre-wrap overflow-x-auto">{commandOutput.error}</pre>
+                  <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--accent-danger)] whitespace-pre-wrap overflow-x-auto">
+                    {commandOutput.error}
+                  </pre>
                 </div>
               )}
             </div>
@@ -459,20 +306,15 @@ export default function CommandSection({
         </div>
       )}
 
-      {/* Remote Directory Browser Modal */}
       {showBrowser && (
         <RemoteDirBrowser
-          host={showBrowser === 'edit' ? editHost : newHost}
-          initialPath={showBrowser === 'edit' ? editCwd : newCwd}
+          host={editHost}
+          initialPath={editCwd}
           onSelect={(path) => {
-            if (showBrowser === 'edit') {
-              setEditCwd(path)
-            } else {
-              setNewCwd(path)
-            }
-            setShowBrowser(null)
+            setEditCwd(path)
+            setShowBrowser(false)
           }}
-          onClose={() => setShowBrowser(null)}
+          onClose={() => setShowBrowser(false)}
         />
       )}
     </>

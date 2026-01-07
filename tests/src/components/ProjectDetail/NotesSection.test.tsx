@@ -65,7 +65,8 @@ describe('NotesSection', () => {
     expect(screen.getByText('Notes')).toBeTruthy()
     expect(screen.getByPlaceholderText('Note title...')).toBeTruthy()
     expect(screen.getByPlaceholderText('Write your note here...')).toBeTruthy()
-    expect(screen.getByText('Click outside to save')).toBeTruthy()
+    // NoteCreator shows "cancel" when empty, "save" when has content
+    expect(screen.getByText(/Click outside to (save|cancel)/)).toBeTruthy()
   })
 
   test('hides Add button when isCreating is true', () => {

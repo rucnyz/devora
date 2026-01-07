@@ -6,6 +6,9 @@ import projectsRoutes from './routes/projects'
 import itemsRoutes from './routes/items'
 import actionsRoutes from './routes/actions'
 import dataRoutes from './routes/data'
+import updateRoutes from './routes/update'
+import settingsRoutes from './routes/settings'
+import fileCardsRoutes, { fileCardsDirectRoutes } from './routes/fileCards'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
@@ -25,6 +28,10 @@ app.route('/api/projects', projectsRoutes)
 app.route('/api/items', itemsRoutes)
 app.route('/api/open', actionsRoutes)
 app.route('/api/data', dataRoutes)
+app.route('/api/update', updateRoutes)
+app.route('/api/settings', settingsRoutes)
+app.route('/api/projects', fileCardsRoutes) // File cards nested under projects
+app.route('/api/file-cards', fileCardsDirectRoutes) // Direct file card operations
 app.get('/api/health', (c) => c.json({ status: 'ok' }))
 
 // Serve static files in production (when dist folder exists)

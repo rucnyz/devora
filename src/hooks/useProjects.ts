@@ -65,20 +65,23 @@ export function useProject(id: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchProject = useCallback(async (showLoading = true) => {
-    try {
-      if (showLoading) setLoading(true)
-      const res = await fetch(`${API_BASE}/projects/${id}`)
-      if (!res.ok) throw new Error('Failed to fetch project')
-      const data = await res.json()
-      setProject(data)
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      if (showLoading) setLoading(false)
-    }
-  }, [id])
+  const fetchProject = useCallback(
+    async (showLoading = true) => {
+      try {
+        if (showLoading) setLoading(true)
+        const res = await fetch(`${API_BASE}/projects/${id}`)
+        if (!res.ok) throw new Error('Failed to fetch project')
+        const data = await res.json()
+        setProject(data)
+        setError(null)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        if (showLoading) setLoading(false)
+      }
+    },
+    [id]
+  )
 
   useEffect(() => {
     fetchProject()
@@ -114,7 +117,12 @@ export function useProject(id: string) {
     return item as Item
   }
 
-  const updateItem = async (itemId: string, updates: Partial<Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'command_host'>>) => {
+  const updateItem = async (
+    itemId: string,
+    updates: Partial<
+      Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'command_host'>
+    >
+  ) => {
     const res = await fetch(`${API_BASE}/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -240,7 +248,12 @@ export interface CommandResult {
   exitCode?: number
 }
 
-export async function runCommand(command: string, mode: CommandMode, cwd?: string, host?: string): Promise<CommandResult> {
+export async function runCommand(
+  command: string,
+  mode: CommandMode,
+  cwd?: string,
+  host?: string
+): Promise<CommandResult> {
   const res = await fetch(`${API_BASE}/open/command`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

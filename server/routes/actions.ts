@@ -1,5 +1,13 @@
 import { Hono } from 'hono'
-import { openWithIde, openFile, selectFolder, selectFile, openRemoteIde, type IdeType, type RemoteIdeType } from '../utils/launchers'
+import {
+  openWithIde,
+  openFile,
+  selectFolder,
+  selectFile,
+  openRemoteIde,
+  type IdeType,
+  type RemoteIdeType,
+} from '../utils/launchers'
 import { readFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
@@ -20,7 +28,7 @@ export function parseSSHConfig(content: string): string[] {
       if (hostValue && !hostValue.includes('*') && !hostValue.includes('?')) {
         // Handle multiple hosts on same line (e.g., "Host server1 server2")
         const hostNames = hostValue.split(/\s+/)
-        hosts.push(...hostNames.filter(h => h && !h.includes('*') && !h.includes('?')))
+        hosts.push(...hostNames.filter((h) => h && !h.includes('*') && !h.includes('?')))
       }
     }
   }
@@ -129,7 +137,7 @@ app.post('/url-metadata', async (c) => {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; ProjectManager/1.0)',
-        'Accept': 'text/html',
+        Accept: 'text/html',
       },
     })
     clearTimeout(timeout)
@@ -141,8 +149,9 @@ app.post('/url-metadata', async (c) => {
     const html = await response.text()
 
     // Try to extract og:title first
-    const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
-      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i)
+    const ogTitleMatch =
+      html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i)
     if (ogTitleMatch) {
       return c.json({ title: ogTitleMatch[1].trim() })
     }
@@ -163,7 +172,12 @@ app.post('/url-metadata', async (c) => {
 // Run custom command (local or remote via SSH)
 app.post('/command', async (c) => {
   const body = await c.req.json()
-  const { command, mode, cwd, host } = body as { command: string; mode: 'background' | 'output'; cwd?: string; host?: string }
+  const { command, mode, cwd, host } = body as {
+    command: string
+    mode: 'background' | 'output'
+    cwd?: string
+    host?: string
+  }
 
   if (!command) {
     return c.json({ error: 'command is required' }, 400)
@@ -268,11 +282,14 @@ app.post('/ssh/list-dir', async (c) => {
 
     const lines = output.trim().split('\n')
     const currentPath = lines[0] // First line is pwd output
-    const entries = lines.slice(1).map(line => {
-      const isDir = line.endsWith('/')
-      const name = isDir ? line.slice(0, -1) : line.replace(/[@*|]$/, '')
-      return { name, isDir }
-    }).filter(e => e.name && !e.name.startsWith('.')) // Filter hidden files
+    const entries = lines
+      .slice(1)
+      .map((line) => {
+        const isDir = line.endsWith('/')
+        const name = isDir ? line.slice(0, -1) : line.replace(/[@*|]$/, '')
+        return { name, isDir }
+      })
+      .filter((e) => e.name && !e.name.startsWith('.')) // Filter hidden files
 
     return c.json({ path: currentPath, entries })
   } catch (error) {

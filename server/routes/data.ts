@@ -25,7 +25,7 @@ app.post('/import', async (c) => {
     return c.json({
       success: true,
       ...result,
-      message: `Imported ${result.projectsImported} projects and ${result.itemsImported} items. Skipped ${result.skipped} existing entries.`
+      message: `Imported ${result.projectsImported} projects and ${result.itemsImported} items. Skipped ${result.skipped} existing entries.`,
     })
   } catch (error) {
     return c.json({ error: 'Failed to import data: ' + (error as Error).message }, 400)

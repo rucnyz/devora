@@ -49,17 +49,10 @@ export default function NoteEditor({ note, onSave, onClose }: Props) {
             <h3 className="text-lg font-semibold text-[var(--text-primary)]">{note.title}</h3>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="btn-ghost"
-            >
+            <button onClick={onClose} className="btn-ghost">
               Cancel
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="btn-solid"
-            >
+            <button onClick={handleSave} disabled={saving} className="btn-solid">
               {saving ? 'Saving...' : 'Save'}
             </button>
           </div>

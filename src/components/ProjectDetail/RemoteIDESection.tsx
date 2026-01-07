@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { openRemoteIde } from '../../hooks/useProjects'
-import { REMOTE_IDE_LABELS, REMOTE_IDE_TAG_CLASSES, REMOTE_IDE_TYPES } from '../../constants/itemTypes'
+import { useEditorHandlers } from '../../hooks/useEditorHandlers'
+import { parseRemoteContent, buildRemoteContent, getPathName } from '../../utils/remote'
+import { REMOTE_IDE_LABELS, REMOTE_IDE_TAG_CLASS, REMOTE_IDE_TYPES } from '../../constants/itemTypes'
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
+import RemoteIDECreator from './RemoteIDECreator'
 import type { Item, RemoteIdeType, WorkingDir } from '../../types'
 
 interface RemoteIDESectionProps {
@@ -26,111 +29,52 @@ export default function RemoteIDESection({
   onDelete,
   onCreatingChange,
 }: RemoteIDESectionProps) {
-  const [newRemoteIdeType, setNewRemoteIdeType] = useState<RemoteIdeType>('cursor')
-  const [newHost, setNewHost] = useState('')
-  const [newPath, setNewPath] = useState('')
-  const newRemoteIdeRef = useRef<HTMLDivElement>(null)
-
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editRemoteIdeType, setEditRemoteIdeType] = useState<RemoteIdeType>('cursor')
   const [editHost, setEditHost] = useState('')
   const [editPath, setEditPath] = useState('')
   const editRemoteIdeRef = useRef<HTMLDivElement>(null)
 
-  const [showBrowser, setShowBrowser] = useState<'create' | 'edit' | null>(null)
+  const [showBrowser, setShowBrowser] = useState(false)
 
-  const saveCreating = useCallback(async () => {
-    if (isCreating && newHost.trim() && newPath.trim()) {
-      const pathParts = newPath.trim().split('/')
-      const title = pathParts[pathParts.length - 1] || 'Remote'
-      const content = `${newHost.trim()}:${newPath.trim()}`
-      await onAdd(title, content, newRemoteIdeType)
-      onCreatingChange(false)
-      setNewHost('')
-      setNewPath('')
-      setNewRemoteIdeType('cursor')
-    }
-  }, [isCreating, newHost, newPath, newRemoteIdeType, onAdd, onCreatingChange])
+  const resetEditState = useCallback(() => {
+    setEditingId(null)
+    setEditHost('')
+    setEditPath('')
+    setEditRemoteIdeType('cursor')
+  }, [])
 
   const saveEditing = useCallback(async () => {
     if (editingId && editHost.trim() && editPath.trim()) {
-      const pathParts = editPath.trim().split('/')
-      const title = pathParts[pathParts.length - 1] || 'Remote'
-      const content = `${editHost.trim()}:${editPath.trim()}`
+      const title = getPathName(editPath, 'Remote')
+      const content = buildRemoteContent(editHost, editPath)
       await onUpdate(editingId, { title, content, remote_ide_type: editRemoteIdeType })
-      setEditingId(null)
-      setEditHost('')
-      setEditPath('')
-      setEditRemoteIdeType('cursor')
+      resetEditState()
     }
-  }, [editingId, editHost, editPath, editRemoteIdeType, onUpdate])
+  }, [editingId, editHost, editPath, editRemoteIdeType, onUpdate, resetEditState])
 
-  // Click outside handler (skip when browser modal is open)
-  useEffect(() => {
-    const handleClickOutside = async (event: MouseEvent) => {
-      if (showBrowser) return
-
-      if (isCreating && newRemoteIdeRef.current && !newRemoteIdeRef.current.contains(event.target as Node)) {
-        if (newHost.trim() && newPath.trim()) {
-          await saveCreating()
-        } else {
-          onCreatingChange(false)
-        }
-      }
-      if (editingId && editRemoteIdeRef.current && !editRemoteIdeRef.current.contains(event.target as Node)) {
-        if (editHost.trim() && editPath.trim()) {
-          await saveEditing()
-        } else {
-          setEditingId(null)
-        }
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showBrowser, isCreating, newHost, newPath, saveCreating, editingId, editHost, editPath, saveEditing, onCreatingChange])
-
-  // Ctrl+S handler
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        if (editingId && editHost.trim() && editPath.trim()) {
-          e.preventDefault()
-          e.stopPropagation()
-          await saveEditing()
-        } else if (isCreating && newHost.trim() && newPath.trim()) {
-          e.preventDefault()
-          e.stopPropagation()
-          await saveCreating()
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [isCreating, newHost, newPath, saveCreating, editingId, editHost, editPath, saveEditing])
+  useEditorHandlers({
+    containerRef: editRemoteIdeRef,
+    isActive: !!editingId,
+    canSave: !!editHost.trim() && !!editPath.trim(),
+    onSave: saveEditing,
+    onCancel: resetEditState,
+    skipClickOutside: showBrowser,
+  })
 
   const handleEdit = (item: Item) => {
     setEditingId(item.id)
     setEditRemoteIdeType(item.remote_ide_type || 'cursor')
-    // Parse content: "host:path"
-    const content = item.content || ''
-    const colonIndex = content.indexOf(':')
-    if (colonIndex > 0) {
-      setEditHost(content.substring(0, colonIndex))
-      setEditPath(content.substring(colonIndex + 1))
-    } else {
-      setEditHost(content)
-      setEditPath('')
-    }
+    const { host, path } = parseRemoteContent(item.content || '')
+    setEditHost(host)
+    setEditPath(path)
   }
 
   const handleOpen = async (item: Item) => {
     if (item.remote_ide_type && item.content) {
       try {
-        const content = item.content
-        const colonIndex = content.indexOf(':')
-        if (colonIndex > 0) {
-          const host = content.substring(0, colonIndex)
-          const path = content.substring(colonIndex + 1)
+        const { host, path } = parseRemoteContent(item.content)
+        if (host && path) {
           await openRemoteIde(item.remote_ide_type, host, path)
         }
       } catch {
@@ -139,91 +83,25 @@ export default function RemoteIDESection({
     }
   }
 
-  // Reset state when isCreating changes
-  useEffect(() => {
-    if (isCreating) {
-      setNewRemoteIdeType('cursor')
-      setNewHost('')
-      setNewPath('')
-    }
-  }, [isCreating])
+  const handleAdd = async (title: string, content: string, remoteIdeType: RemoteIdeType) => {
+    await onAdd(title, content, remoteIdeType)
+    onCreatingChange(false)
+  }
 
   if (!isCreating && items.length === 0) return null
 
   return (
     <>
-      <section id="section-remote" className="mb-8 scroll-mt-6">
+      <section id="section-remote" className="scroll-mt-6">
         <h3 className="section-label">Remote IDE</h3>
 
-        {/* Inline Remote IDE Creator */}
         {isCreating && (
-          <div
-            ref={newRemoteIdeRef}
-            className="mb-4 p-4 rounded-xl bg-[var(--accent-remote)]/5 border border-[var(--accent-remote)]/30"
-          >
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={newRemoteIdeType}
-                onChange={(e) => setNewRemoteIdeType(e.target.value as RemoteIdeType)}
-                className="input-terminal !w-auto"
-              >
-                {REMOTE_IDE_TYPES.map((ide) => (
-                  <option key={ide.value} value={ide.value}>
-                    {ide.label}
-                  </option>
-                ))}
-              </select>
-              <HostInput
-                value={newHost}
-                onChange={setNewHost}
-                suggestions={sshHosts}
-                className="w-40"
-                autoFocus
-              />
-              <div className="flex-1 flex gap-2">
-                <input
-                  type="text"
-                  value={newPath}
-                  onChange={(e) => setNewPath(e.target.value)}
-                  placeholder="/home/user/project"
-                  className="input-terminal flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowBrowser('create')}
-                  disabled={!newHost.trim()}
-                  className="btn-ghost whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Browse
-                </button>
-              </div>
-            </div>
-            {/* Working dirs suggestions (remote only) */}
-            {workingDirs.filter(d => d.host).length > 0 && (
-              <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
-                <span className="text-xs font-mono text-[var(--text-muted)]">Working dirs:</span>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {workingDirs.filter(d => d.host).map((dir) => (
-                    <button
-                      key={`${dir.host}:${dir.path}`}
-                      type="button"
-                      onClick={() => {
-                        setNewHost(dir.host!)
-                        setNewPath(dir.path)
-                      }}
-                      className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-secondary)] hover:text-[var(--accent-remote)] hover:border-[var(--accent-remote)] transition-colors"
-                      title={`${dir.host}:${dir.path}`}
-                    >
-                      {dir.name} <span className="opacity-50">@{dir.host}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="text-xs font-mono text-[var(--text-muted)] mt-3">
-              Click outside to save
-            </div>
-          </div>
+          <RemoteIDECreator
+            sshHosts={sshHosts}
+            workingDirs={workingDirs}
+            onAdd={handleAdd}
+            onCancel={() => onCreatingChange(false)}
+          />
         )}
 
         <div className="flex flex-wrap gap-2">
@@ -263,7 +141,7 @@ export default function RemoteIDESection({
                     />
                     <button
                       type="button"
-                      onClick={() => setShowBrowser('edit')}
+                      onClick={() => setShowBrowser(true)}
                       disabled={!editHost.trim()}
                       className="btn-ghost whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -277,7 +155,7 @@ export default function RemoteIDESection({
                     onClick={(e) => {
                       e.stopPropagation()
                       onDelete(item.id)
-                      setEditingId(null)
+                      resetEditState()
                     }}
                     className="btn-delete"
                   >
@@ -292,7 +170,7 @@ export default function RemoteIDESection({
                 style={{ animationDelay: `${index * 30}ms` }}
               >
                 <div
-                  className={`tag ${REMOTE_IDE_TAG_CLASSES[item.remote_ide_type!] || 'tag-remote-ide-cursor'} cursor-pointer`}
+                  className={`tag ${REMOTE_IDE_TAG_CLASS} cursor-pointer`}
                   onClick={() => handleOpen(item)}
                 >
                   <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -320,7 +198,6 @@ export default function RemoteIDESection({
             )
           )}
 
-          {/* Add button */}
           {!isCreating && (
             <button
               onClick={() => onCreatingChange(true)}
@@ -335,20 +212,15 @@ export default function RemoteIDESection({
         </div>
       </section>
 
-      {/* Remote Directory Browser Modal */}
       {showBrowser && (
         <RemoteDirBrowser
-          host={showBrowser === 'create' ? newHost : editHost}
-          initialPath={showBrowser === 'create' ? newPath || '~' : editPath || '~'}
+          host={editHost}
+          initialPath={editPath || '~'}
           onSelect={(path) => {
-            if (showBrowser === 'create') {
-              setNewPath(path)
-            } else {
-              setEditPath(path)
-            }
-            setShowBrowser(null)
+            setEditPath(path)
+            setShowBrowser(false)
           }}
-          onClose={() => setShowBrowser(null)}
+          onClose={() => setShowBrowser(false)}
         />
       )}
     </>

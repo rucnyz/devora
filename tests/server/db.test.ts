@@ -64,8 +64,8 @@ describe('Database Functions', () => {
   })
 
   describe('createProject', () => {
-    test('creates project with default values', () => {
-      const project = dbFuncs.createProject('New Project')
+    test('creates project with all required fields', () => {
+      const project = dbFuncs.createProject('New Project', '', {})
 
       expect(project.id).toBeDefined()
       expect(project.name).toBe('New Project')
@@ -85,7 +85,7 @@ describe('Database Functions', () => {
     })
 
     test('project is retrievable after creation', () => {
-      const created = dbFuncs.createProject('Retrievable Project')
+      const created = dbFuncs.createProject('Retrievable Project', '', {})
       const retrieved = dbFuncs.getProjectById(created.id)
 
       expect(retrieved).not.toBeNull()
@@ -167,15 +167,15 @@ describe('Database Functions', () => {
     test('creates item with auto-incremented order', () => {
       seedTestData(db)
 
-      const item1 = dbFuncs.createItem('test-project-2', 'note', 'Note 1')
-      const item2 = dbFuncs.createItem('test-project-2', 'note', 'Note 2')
+      const item1 = dbFuncs.createItem('test-project-2', 'note', 'Note 1', '')
+      const item2 = dbFuncs.createItem('test-project-2', 'note', 'Note 2', '')
 
       expect(item1.order).toBe(0)
       expect(item2.order).toBe(1)
     })
 
     test('creates item with correct properties', () => {
-      const project = dbFuncs.createProject('Test Project')
+      const project = dbFuncs.createProject('Test Project', '', {})
       const item = dbFuncs.createItem(project.id, 'ide', 'VS Code', '/path/to/project', 'vscode')
 
       expect(item.id).toBeDefined()
@@ -187,14 +187,14 @@ describe('Database Functions', () => {
     })
 
     test('creates item with remote IDE type', () => {
-      const project = dbFuncs.createProject('Test Project')
+      const project = dbFuncs.createProject('Test Project', '', {})
       const item = dbFuncs.createItem(project.id, 'remote-ide', 'Remote Cursor', '/remote/path', undefined, 'cursor')
 
       expect(item.remote_ide_type).toBe('cursor')
     })
 
     test('creates command item with mode and cwd', () => {
-      const project = dbFuncs.createProject('Test Project')
+      const project = dbFuncs.createProject('Test Project', '', {})
       const item = dbFuncs.createItem(project.id, 'command', 'Build', 'npm run build', undefined, undefined, 'output', '/home/user/project')
 
       expect(item.command_mode).toBe('output')
@@ -202,10 +202,10 @@ describe('Database Functions', () => {
     })
 
     test('updates parent project updated_at', () => {
-      const project = dbFuncs.createProject('Test Project')
+      const project = dbFuncs.createProject('Test Project', '', {})
       const beforeTime = new Date(project.updated_at).getTime()
 
-      dbFuncs.createItem(project.id, 'note', 'New Note')
+      dbFuncs.createItem(project.id, 'note', 'New Note', '')
       const updatedProject = dbFuncs.getProjectById(project.id)
       const afterTime = new Date(updatedProject!.updated_at).getTime()
 

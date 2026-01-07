@@ -1,10 +1,12 @@
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
+import eslintConfigPrettier from 'eslint-config-prettier'
 
-export default tseslint.config(
+export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  eslintConfigPrettier,
   {
     files: ['**/*.{ts,tsx}'],
     plugins: {
@@ -12,14 +14,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // Relax some TypeScript rules for this project
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      // TODO: Fix set-state-in-effect issues by extracting creator forms into separate components
-      // Affected files: CommandSection, FileSection, NotesSection, RemoteIDESection, RemoteDirBrowser
-      'react-hooks/set-state-in-effect': 'off',
+      'no-use-before-define': 'off', // Disable base rule
+      '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: true, variables: true }],
     },
   },
   {
     ignores: ['dist/', 'node_modules/', 'release/'],
-  }
-)
+  },
+]

@@ -45,7 +45,7 @@ export async function openWithIde(ideType: IdeType, path: string): Promise<void>
   const useShell = command === 'cmd' || command.endsWith('.cmd')
 
   // When using shell, quote args that contain spaces
-  const finalArgs = useShell ? args.map(arg => arg.includes(' ') ? `"${arg}"` : arg) : args
+  const finalArgs = useShell ? args.map((arg) => (arg.includes(' ') ? `"${arg}"` : arg)) : args
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, finalArgs, {

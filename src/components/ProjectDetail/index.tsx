@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useProject, fetchSSHHosts, fetchUrlMetadata } from '../../hooks/useProjects'
 import SectionNavigation from './SectionNavigation'
 import ProjectHeader from './ProjectHeader'
@@ -10,7 +12,9 @@ import FileSection from './FileSection'
 import CommandSection from './CommandSection'
 import LinksSection from './LinksSection'
 import NotesSection from './NotesSection'
-import type { IdeType, RemoteIdeType, CommandMode, WorkingDir } from '../../types'
+import SortableSection from './SortableSection'
+import FileCardContainer from '../FilePreviewCard/FileCardContainer'
+import { DEFAULT_SECTION_ORDER, type IdeType, type RemoteIdeType, type CommandMode, type WorkingDir, type SectionKey } from '../../types'
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
@@ -43,67 +47,74 @@ export default function ProjectDetail() {
   }, [])
 
   // Helper: quick add URL with metadata fetch
-  const quickAddUrl = useCallback(async (url: string) => {
-    const trimmedUrl = url.trim()
-    if (!trimmedUrl) return
-    try {
-      const urlObj = new URL(trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl}`)
-      const pathParts = urlObj.pathname.split('/').filter(Boolean)
-      const lastSegment = pathParts[pathParts.length - 1]
-      let fallbackTitle = lastSegment ? decodeURIComponent(lastSegment) : urlObj.hostname
+  const quickAddUrl = useCallback(
+    async (url: string) => {
+      const trimmedUrl = url.trim()
+      if (!trimmedUrl) return
+      try {
+        const urlObj = new URL(trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl}`)
+        const pathParts = urlObj.pathname.split('/').filter(Boolean)
+        const lastSegment = pathParts[pathParts.length - 1]
+        let fallbackTitle = lastSegment ? decodeURIComponent(lastSegment) : urlObj.hostname
 
-      // Special handling for Notion URLs
-      if (urlObj.hostname.includes('notion.so') && lastSegment) {
-        const notionMatch = lastSegment.match(/^(.+)-[a-f0-9]{32}$/i)
-        if (notionMatch) {
-          fallbackTitle = 'Notion - ' + notionMatch[1].replace(/-/g, ' ')
-        }
-      }
-
-      const newItem = await addItem('url', fallbackTitle, urlObj.href)
-
-      // Fetch metadata in background (skip for Notion)
-      if (!urlObj.hostname.includes('notion.so')) {
-        fetchUrlMetadata(urlObj.href).then(metaTitle => {
-          if (metaTitle && metaTitle !== fallbackTitle) {
-            updateItem(newItem.id, { title: metaTitle })
+        // Special handling for Notion URLs
+        if (urlObj.hostname.includes('notion.so') && lastSegment) {
+          const notionMatch = lastSegment.match(/^(.+)-[a-f0-9]{32}$/i)
+          if (notionMatch) {
+            fallbackTitle = 'Notion - ' + notionMatch[1].replace(/-/g, ' ')
           }
-        })
+        }
+
+        const newItem = await addItem('url', fallbackTitle, urlObj.href)
+
+        // Fetch metadata in background (skip for Notion)
+        if (!urlObj.hostname.includes('notion.so')) {
+          fetchUrlMetadata(urlObj.href).then((metaTitle) => {
+            if (metaTitle && metaTitle !== fallbackTitle) {
+              updateItem(newItem.id, { title: metaTitle })
+            }
+          })
+        }
+      } catch {
+        // Invalid URL, ignore
       }
-    } catch {
-      // Invalid URL, ignore
-    }
-  }, [addItem, updateItem])
+    },
+    [addItem, updateItem]
+  )
 
   // Helper: quick add working directory from path
-  const quickAddWorkingDir = useCallback(async (path: string) => {
-    if (!project) return
-    const trimmedPath = path.trim()
-    if (!trimmedPath) return
+  const quickAddWorkingDir = useCallback(
+    async (path: string) => {
+      if (!project) return
+      const trimmedPath = path.trim()
+      if (!trimmedPath) return
 
-    const existingDirs = project.metadata.working_dirs || []
-    // Check if path already exists
-    if (existingDirs.some(d => d.path === trimmedPath)) return
+      const existingDirs = project.metadata.working_dirs || []
+      // Check if path already exists
+      if (existingDirs.some((d) => d.path === trimmedPath)) return
 
-    // Extract folder name from path
-    const name = trimmedPath.split(/[/\\]/).filter(Boolean).pop() || trimmedPath
+      // Extract folder name from path
+      const name = trimmedPath.split(/[/\\]/).filter(Boolean).pop() || trimmedPath
 
-    const newDirs: WorkingDir[] = [...existingDirs, { name, path: trimmedPath }]
-    await updateProject({
-      metadata: {
-        ...project.metadata,
-        working_dirs: newDirs,
-      },
-    })
-  }, [project, updateProject])
+      const newDirs: WorkingDir[] = [...existingDirs, { name, path: trimmedPath }]
+      await updateProject({
+        metadata: {
+          ...project.metadata,
+          working_dirs: newDirs,
+        },
+      })
+    },
+    [project, updateProject]
+  )
 
   // Global paste handler: URL -> Links, File path -> Working Dirs
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
       const activeEl = document.activeElement
-      const isEditing = activeEl instanceof HTMLInputElement ||
-                        activeEl instanceof HTMLTextAreaElement ||
-                        activeEl?.getAttribute('contenteditable') === 'true'
+      const isEditing =
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        activeEl?.getAttribute('contenteditable') === 'true'
 
       if (isEditing) return
 
@@ -123,6 +134,27 @@ export default function ProjectDetail() {
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
   }, [isFilePath, quickAddUrl, quickAddWorkingDir])
+
+  // Section order - must be called before any conditional returns (React hooks rule)
+  const sectionOrder = useMemo((): SectionKey[] => {
+    const order = project?.metadata.section_order
+    if (!order || order.length === 0) return DEFAULT_SECTION_ORDER
+    // Validate and fill in missing sections
+    const validKeys = new Set(DEFAULT_SECTION_ORDER)
+    const result = order.filter((key) => validKeys.has(key))
+    // Add any missing sections at the end
+    for (const key of DEFAULT_SECTION_ORDER) {
+      if (!result.includes(key)) result.push(key)
+    }
+    return result
+  }, [project?.metadata.section_order])
+
+  // DnD sensors with activation constraint to prevent accidental drags
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  )
 
   if (loading) {
     return (
@@ -163,14 +195,38 @@ export default function ProjectDetail() {
 
   // Navigation items - only show sections that have content or are being created
   // Colors use CSS variables for consistency with the color system
-  const navItems = [
-    { id: 'section-apps', label: 'IDE', show: ideItems.length > 0 || isCreatingIde, color: 'var(--accent-primary)' },
-    { id: 'section-remote', label: 'Remote', show: remoteIdeItems.length > 0 || isCreatingRemoteIde, color: 'var(--accent-remote)' },
-    { id: 'section-files', label: 'Open', show: fileItems.length > 0 || isCreatingFile, color: 'var(--text-secondary)' },
-    { id: 'section-commands', label: 'Commands', show: commandItems.length > 0 || isCreatingCommand, color: 'var(--accent-warning)' },
-    { id: 'section-links', label: 'Links', show: true, color: 'var(--accent-secondary)' },
-    { id: 'section-notes', label: 'Notes', show: true, color: 'var(--accent-warning)' },
-  ].filter(item => item.show)
+  const navItemsConfig: Record<SectionKey, { id: string; label: string; show: boolean; color: string }> = {
+    workingDirs: {
+      id: 'section-working-dirs',
+      label: 'Dirs',
+      show: (project.metadata.working_dirs || []).length > 0,
+      color: 'var(--text-muted)',
+    },
+    ide: { id: 'section-apps', label: 'IDE', show: ideItems.length > 0 || isCreatingIde, color: 'var(--accent-primary)' },
+    remoteIde: {
+      id: 'section-remote',
+      label: 'Remote',
+      show: remoteIdeItems.length > 0 || isCreatingRemoteIde,
+      color: 'var(--accent-remote)',
+    },
+    file: {
+      id: 'section-files',
+      label: 'Open',
+      show: fileItems.length > 0 || isCreatingFile,
+      color: 'var(--text-secondary)',
+    },
+    command: {
+      id: 'section-commands',
+      label: 'Commands',
+      show: commandItems.length > 0 || isCreatingCommand,
+      color: 'var(--accent-warning)',
+    },
+    links: { id: 'section-links', label: 'Links', show: true, color: 'var(--accent-secondary)' },
+    notes: { id: 'section-notes', label: 'Notes', show: true, color: 'var(--accent-warning)' },
+  }
+
+  // Build navItems in section order
+  const navItems = sectionOrder.map((key) => navItemsConfig[key]).filter((item) => item.show)
 
   // Handler functions for adding items
   const handleAddNote = async (title: string, content?: string) => {
@@ -206,8 +262,97 @@ export default function ProjectDetail() {
     })
   }
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = sectionOrder.indexOf(active.id as SectionKey)
+      const newIndex = sectionOrder.indexOf(over.id as SectionKey)
+      const newOrder = arrayMove(sectionOrder, oldIndex, newIndex)
+      await updateProject({
+        metadata: {
+          ...project.metadata,
+          section_order: newOrder,
+        },
+      })
+    }
+  }
+
+  // Map section keys to their components
+  const sectionsMap: Record<SectionKey, ReactNode> = {
+    workingDirs: (
+      <WorkingDirsSection
+        workingDirs={project.metadata.working_dirs || []}
+        sshHosts={sshHosts}
+        ideItems={ideItems}
+        remoteIdeItems={remoteIdeItems}
+        fileItems={fileItems}
+        commandItems={commandItems}
+        onUpdate={handleUpdateWorkingDirs}
+      />
+    ),
+    ide: (
+      <IDESection
+        items={ideItems}
+        isCreating={isCreatingIde}
+        workingDirs={project.metadata.working_dirs || []}
+        onAdd={handleAddIde}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onCreatingChange={setIsCreatingIde}
+      />
+    ),
+    remoteIde: (
+      <RemoteIDESection
+        items={remoteIdeItems}
+        isCreating={isCreatingRemoteIde}
+        sshHosts={sshHosts}
+        workingDirs={project.metadata.working_dirs || []}
+        onAdd={handleAddRemoteIde}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onCreatingChange={setIsCreatingRemoteIde}
+      />
+    ),
+    file: (
+      <FileSection
+        items={fileItems}
+        isCreating={isCreatingFile}
+        onAdd={handleAddFile}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onCreatingChange={setIsCreatingFile}
+      />
+    ),
+    command: (
+      <CommandSection
+        items={commandItems}
+        isCreating={isCreatingCommand}
+        workingDirs={project.metadata.working_dirs || []}
+        sshHosts={sshHosts}
+        onAdd={handleAddCommand}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onCreatingChange={setIsCreatingCommand}
+      />
+    ),
+    links: <LinksSection urls={urlItems} onAdd={handleAddUrl} onUpdate={updateItem} onDelete={deleteItem} />,
+    notes: (
+      <NotesSection
+        notes={notes}
+        isCreating={isCreatingNote}
+        onAdd={handleAddNote}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onCreatingChange={setIsCreatingNote}
+      />
+    ),
+  }
+
   return (
     <div className="animate-card-enter relative">
+      {/* File Preview Cards - floating drag-drop file previews */}
+      <FileCardContainer projectId={project.id} />
+
       {/* Side Navigation */}
       <SectionNavigation items={navItems} />
 
@@ -233,79 +378,16 @@ export default function ProjectDetail() {
         onCreateCommand={() => setIsCreatingCommand(true)}
       />
 
-      {/* Working Dirs Section */}
-      <WorkingDirsSection
-        workingDirs={project.metadata.working_dirs || []}
-        sshHosts={sshHosts}
-        ideItems={ideItems}
-        remoteIdeItems={remoteIdeItems}
-        fileItems={fileItems}
-        commandItems={commandItems}
-        onUpdate={handleUpdateWorkingDirs}
-      />
-
-      {/* IDE Section */}
-      <IDESection
-        items={ideItems}
-        isCreating={isCreatingIde}
-        workingDirs={project.metadata.working_dirs || []}
-        onAdd={handleAddIde}
-        onUpdate={updateItem}
-        onDelete={deleteItem}
-        onCreatingChange={setIsCreatingIde}
-      />
-
-      {/* Remote IDE Section */}
-      <RemoteIDESection
-        items={remoteIdeItems}
-        isCreating={isCreatingRemoteIde}
-        sshHosts={sshHosts}
-        workingDirs={project.metadata.working_dirs || []}
-        onAdd={handleAddRemoteIde}
-        onUpdate={updateItem}
-        onDelete={deleteItem}
-        onCreatingChange={setIsCreatingRemoteIde}
-      />
-
-      {/* File Section */}
-      <FileSection
-        items={fileItems}
-        isCreating={isCreatingFile}
-        onAdd={handleAddFile}
-        onUpdate={updateItem}
-        onDelete={deleteItem}
-        onCreatingChange={setIsCreatingFile}
-      />
-
-      {/* Command Section */}
-      <CommandSection
-        items={commandItems}
-        isCreating={isCreatingCommand}
-        workingDirs={project.metadata.working_dirs || []}
-        sshHosts={sshHosts}
-        onAdd={handleAddCommand}
-        onUpdate={updateItem}
-        onDelete={deleteItem}
-        onCreatingChange={setIsCreatingCommand}
-      />
-
-      {/* Links Section */}
-      <LinksSection
-        urls={urlItems}
-        onAdd={handleAddUrl}
-        onUpdate={updateItem}
-        onDelete={deleteItem}
-      />
-
-      {/* Notes Section */}
-      <NotesSection
-        notes={notes}
-        isCreating={isCreatingNote}
-        onAdd={handleAddNote}
-        onUpdate={updateItem}
-        onDelete={deleteItem}
-        onCreatingChange={setIsCreatingNote}
-      />
+      {/* Sortable Sections */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
+          {sectionOrder.map((key) => (
+            <SortableSection key={key} id={key}>
+              {sectionsMap[key]}
+            </SortableSection>
+          ))}
+        </SortableContext>
+      </DndContext>
     </div>
   )
 }

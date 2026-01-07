@@ -1,6 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { selectFolder, openIde } from '../../hooks/useProjects'
-import { IDE_LABELS, IDE_TAG_CLASSES, IDE_TYPES } from '../../constants/itemTypes'
+import { useEditorHandlers } from '../../hooks/useEditorHandlers'
+import { getPathName } from '../../utils/remote'
+import { IDE_LABELS, IDE_TAG_CLASS, IDE_TYPES } from '../../constants/itemTypes'
+import WorkingDirsSuggestions from './WorkingDirsSuggestions'
 import type { Item, IdeType, WorkingDir } from '../../types'
 
 // Extracted creator component to reset state on mount
@@ -19,40 +22,19 @@ function IDECreator({
 
   const saveCreating = useCallback(async () => {
     if (newPath.trim()) {
-      const pathParts = newPath.trim().split(/[\\/]/)
-      const title = pathParts[pathParts.length - 1] || 'Project'
+      const title = getPathName(newPath, 'Project')
       await onAdd(title, newPath.trim(), newIdeType)
       onCreatingChange(false)
     }
   }, [newPath, newIdeType, onAdd, onCreatingChange])
 
-  // Click outside handler
-  useEffect(() => {
-    const handleClickOutside = async (event: MouseEvent) => {
-      if (newIdeRef.current && !newIdeRef.current.contains(event.target as Node)) {
-        if (newPath.trim()) {
-          await saveCreating()
-        } else {
-          onCreatingChange(false)
-        }
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [newPath, saveCreating, onCreatingChange])
-
-  // Ctrl+S handler
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's' && newPath.trim()) {
-        e.preventDefault()
-        e.stopPropagation()
-        await saveCreating()
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [newPath, saveCreating])
+  useEditorHandlers({
+    containerRef: newIdeRef,
+    isActive: true,
+    canSave: !!newPath.trim(),
+    onSave: saveCreating,
+    onCancel: () => onCreatingChange(false),
+  })
 
   const handleSelectFolder = async () => {
     const path = await selectFolder()
@@ -85,37 +67,18 @@ function IDECreator({
             className="input-terminal flex-1"
             autoFocus
           />
-          <button
-            type="button"
-            onClick={handleSelectFolder}
-            className="btn-ghost whitespace-nowrap"
-          >
+          <button type="button" onClick={handleSelectFolder} className="btn-ghost whitespace-nowrap">
             Browse
           </button>
         </div>
       </div>
-      {/* Working dirs suggestions (local only) */}
-      {workingDirs.filter(d => !d.host).length > 0 && (
-        <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
-          <span className="text-xs font-mono text-[var(--text-muted)]">Working dirs:</span>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {workingDirs.filter(d => !d.host).map((dir) => (
-              <button
-                key={dir.path}
-                type="button"
-                onClick={() => setNewPath(dir.path)}
-                className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] transition-colors"
-                title={dir.path}
-              >
-                {dir.name} <span className="opacity-50">local</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="text-xs font-mono text-[var(--text-muted)] mt-3">
-        Click outside to save
-      </div>
+      <WorkingDirsSuggestions
+        workingDirs={workingDirs}
+        filter="local"
+        onSelect={(path) => setNewPath(path)}
+        className="mt-3 pt-3 border-t border-[var(--border-subtle)]"
+      />
+      <div className="text-xs font-mono text-[var(--text-muted)] mt-3">Click outside to save</div>
     </div>
   )
 }
@@ -144,46 +107,27 @@ export default function IDESection({
   const [editPath, setEditPath] = useState('')
   const editIdeRef = useRef<HTMLDivElement>(null)
 
+  const resetEditState = useCallback(() => {
+    setEditingId(null)
+    setEditPath('')
+    setEditIdeType('pycharm')
+  }, [])
+
   const saveEditing = useCallback(async () => {
     if (editingId && editPath.trim()) {
-      const pathParts = editPath.trim().split(/[\\/]/)
-      const title = pathParts[pathParts.length - 1] || 'Project'
+      const title = getPathName(editPath, 'Project')
       await onUpdate(editingId, { title, content: editPath.trim(), ide_type: editIdeType })
-      setEditingId(null)
-      setEditPath('')
-      setEditIdeType('pycharm')
+      resetEditState()
     }
-  }, [editingId, editPath, editIdeType, onUpdate])
+  }, [editingId, editPath, editIdeType, onUpdate, resetEditState])
 
-  // Click outside handler for editing
-  useEffect(() => {
-    const handleClickOutside = async (event: MouseEvent) => {
-      if (editingId && editIdeRef.current && !editIdeRef.current.contains(event.target as Node)) {
-        if (editPath.trim()) {
-          await saveEditing()
-        } else {
-          setEditingId(null)
-        }
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [editingId, editPath, saveEditing])
-
-  // Ctrl+S handler for editing
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        if (editingId && editPath.trim()) {
-          e.preventDefault()
-          e.stopPropagation()
-          await saveEditing()
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [editingId, editPath, saveEditing])
+  useEditorHandlers({
+    containerRef: editIdeRef,
+    isActive: !!editingId,
+    canSave: !!editPath.trim(),
+    onSave: saveEditing,
+    onCancel: resetEditState,
+  })
 
   const handleSelectFolderForEdit = async () => {
     const path = await selectFolder()
@@ -209,17 +153,10 @@ export default function IDESection({
   if (!isCreating && items.length === 0) return null
 
   return (
-    <section id="section-apps" className="mb-8 scroll-mt-6">
+    <section id="section-apps" className="scroll-mt-6">
       <h3 className="section-label">IDE</h3>
 
-      {/* Inline IDE Creator */}
-      {isCreating && (
-        <IDECreator
-          workingDirs={workingDirs}
-          onAdd={onAdd}
-          onCreatingChange={onCreatingChange}
-        />
-      )}
+      {isCreating && <IDECreator workingDirs={workingDirs} onAdd={onAdd} onCreatingChange={onCreatingChange} />}
 
       <div className="flex flex-wrap gap-2">
         {items.map((item, index) =>
@@ -250,11 +187,7 @@ export default function IDESection({
                     className="input-terminal flex-1"
                     autoFocus
                   />
-                  <button
-                    type="button"
-                    onClick={handleSelectFolderForEdit}
-                    className="btn-ghost whitespace-nowrap"
-                  >
+                  <button type="button" onClick={handleSelectFolderForEdit} className="btn-ghost whitespace-nowrap">
                     Browse
                   </button>
                 </div>
@@ -265,7 +198,7 @@ export default function IDESection({
                   onClick={(e) => {
                     e.stopPropagation()
                     onDelete(item.id)
-                    setEditingId(null)
+                    resetEditState()
                   }}
                   className="btn-delete"
                 >
@@ -280,7 +213,7 @@ export default function IDESection({
               style={{ animationDelay: `${index * 30}ms` }}
             >
               <div
-                className={`tag ${IDE_TAG_CLASSES[item.ide_type!] || 'tag-file'} cursor-pointer`}
+                className={`tag ${IDE_TAG_CLASS} cursor-pointer`}
                 onClick={() => handleOpen(item)}
               >
                 <span>{IDE_LABELS[item.ide_type!] || item.ide_type}</span>
@@ -305,7 +238,6 @@ export default function IDESection({
           )
         )}
 
-        {/* Add button */}
         {!isCreating && (
           <button
             onClick={() => onCreatingChange(true)}

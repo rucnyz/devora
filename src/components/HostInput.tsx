@@ -23,9 +23,7 @@ export default function HostInput({
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Filter suggestions based on input
-  const filteredSuggestions = suggestions.filter(
-    (s) => s.toLowerCase().includes(value.toLowerCase()) && s !== value
-  )
+  const filteredSuggestions = suggestions.filter((s) => s.toLowerCase().includes(value.toLowerCase()) && s !== value)
 
   // Close suggestions when clicking outside
   useEffect(() => {

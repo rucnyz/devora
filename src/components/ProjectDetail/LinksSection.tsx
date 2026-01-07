@@ -17,40 +17,43 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
   const [editTitle, setEditTitle] = useState('')
   const editUrlRef = useRef<HTMLDivElement>(null)
 
-  const quickAddUrl = useCallback(async (url: string) => {
-    const trimmedUrl = url.trim()
-    if (!trimmedUrl) return
-    try {
-      const urlObj = new URL(trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl}`)
-      // Fallback: use last path segment or hostname
-      const pathParts = urlObj.pathname.split('/').filter(Boolean)
-      const lastSegment = pathParts[pathParts.length - 1]
-      let fallbackTitle = lastSegment ? decodeURIComponent(lastSegment) : urlObj.hostname
+  const quickAddUrl = useCallback(
+    async (url: string) => {
+      const trimmedUrl = url.trim()
+      if (!trimmedUrl) return
+      try {
+        const urlObj = new URL(trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl}`)
+        // Fallback: use last path segment or hostname
+        const pathParts = urlObj.pathname.split('/').filter(Boolean)
+        const lastSegment = pathParts[pathParts.length - 1]
+        let fallbackTitle = lastSegment ? decodeURIComponent(lastSegment) : urlObj.hostname
 
-      // Special handling for Notion URLs - extract page title from URL
-      if (urlObj.hostname.includes('notion.so') && lastSegment) {
-        const notionMatch = lastSegment.match(/^(.+)-[a-f0-9]{32}$/i)
-        if (notionMatch) {
-          fallbackTitle = 'Notion - ' + notionMatch[1].replace(/-/g, ' ')
-        }
-      }
-
-      // Immediately add with fallback title (optimistic update)
-      const newItem = await onAdd(fallbackTitle, urlObj.href)
-      setQuickUrlInput('')
-
-      // Fetch metadata in background and update if found (skip for Notion)
-      if (!urlObj.hostname.includes('notion.so')) {
-        fetchUrlMetadata(urlObj.href).then(metaTitle => {
-          if (metaTitle && metaTitle !== fallbackTitle) {
-            onUpdate(newItem.id, { title: metaTitle })
+        // Special handling for Notion URLs - extract page title from URL
+        if (urlObj.hostname.includes('notion.so') && lastSegment) {
+          const notionMatch = lastSegment.match(/^(.+)-[a-f0-9]{32}$/i)
+          if (notionMatch) {
+            fallbackTitle = 'Notion - ' + notionMatch[1].replace(/-/g, ' ')
           }
-        })
+        }
+
+        // Immediately add with fallback title (optimistic update)
+        const newItem = await onAdd(fallbackTitle, urlObj.href)
+        setQuickUrlInput('')
+
+        // Fetch metadata in background and update if found (skip for Notion)
+        if (!urlObj.hostname.includes('notion.so')) {
+          fetchUrlMetadata(urlObj.href).then((metaTitle) => {
+            if (metaTitle && metaTitle !== fallbackTitle) {
+              onUpdate(newItem.id, { title: metaTitle })
+            }
+          })
+        }
+      } catch {
+        // Invalid URL, don't add
       }
-    } catch {
-      // Invalid URL, don't add
-    }
-  }, [onAdd, onUpdate])
+    },
+    [onAdd, onUpdate]
+  )
 
   const saveEditing = useCallback(async () => {
     if (editingId && editTitle.trim()) {
@@ -75,7 +78,6 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [editingId, editTitle, saveEditing])
 
-
   // Ctrl+S handler
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -92,7 +94,7 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
   }, [editingId, editTitle, saveEditing])
 
   return (
-    <section id="section-links" className="mb-8 scroll-mt-6">
+    <section id="section-links" className="scroll-mt-6">
       <h3 className="section-label">Links</h3>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -135,7 +137,12 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
               style={{ animationDelay: `${index * 30}ms` }}
             >
               <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
               </svg>
               <span>{item.title}</span>
               <button
