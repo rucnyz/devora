@@ -41,23 +41,33 @@ export async function openWithIde(ideType: IdeType, path: string): Promise<void>
 
   const { command, args } = launcher(path)
 
-  // On Windows, .cmd files and cmd-based launchers need shell: true
-  const useShell = command === 'cmd' || command.endsWith('.cmd')
+  if (isWindows) {
+    // On Windows, use PowerShell Start-Process to ensure window comes to foreground
+    return new Promise((resolve, reject) => {
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
+      const psCommand = `Start-Process -FilePath '${command}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
 
-  // When using shell, quote args that contain spaces
-  const finalArgs = useShell ? args.map((arg) => (arg.includes(' ') ? `"${arg}"` : arg)) : args
+      const child = spawn('powershell', ['-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      })
 
+      child.on('error', reject)
+      child.unref()
+      setTimeout(resolve, 100)
+    })
+  }
+
+  // Non-Windows: use direct spawn
   return new Promise((resolve, reject) => {
-    const child = spawn(command, finalArgs, {
+    const child = spawn(command, args, {
       detached: true,
       stdio: 'ignore',
-      shell: useShell,
     })
 
     child.on('error', reject)
     child.unref()
-
-    // Resolve immediately since we're launching in background
     setTimeout(resolve, 100)
   })
 }
@@ -65,16 +75,33 @@ export async function openWithIde(ideType: IdeType, path: string): Promise<void>
 export async function openFile(path: string): Promise<void> {
   const { command, args } = launchers.file(path)
 
+  if (isWindows) {
+    // On Windows, use PowerShell Start-Process to ensure window comes to foreground
+    return new Promise((resolve, reject) => {
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
+      const psCommand = `Start-Process -FilePath '${command}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
+
+      const child = spawn('powershell', ['-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      })
+
+      child.on('error', reject)
+      child.unref()
+      setTimeout(resolve, 100)
+    })
+  }
+
+  // Non-Windows: use direct spawn
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       detached: true,
       stdio: 'ignore',
-      shell: false,
     })
 
     child.on('error', reject)
     child.unref()
-
     setTimeout(resolve, 100)
   })
 }
@@ -326,17 +353,32 @@ export async function openRemoteIde(ideType: RemoteIdeType, host: string, path: 
 
   const { command, args } = launcher(host, path)
 
+  if (isWindows) {
+    // On Windows, use PowerShell Start-Process to ensure window comes to foreground
+    // Set MSYS env vars to prevent path conversion issues
+    return new Promise((resolve, reject) => {
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
+      const psCommand = `$env:MSYS_NO_PATHCONV='1'; $env:MSYS2_ARG_CONV_EXCL='*'; Start-Process -FilePath '${command}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
+
+      const child = spawn('powershell', ['-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      })
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to spawn ${command}: ${err.message}`))
+      })
+      child.unref()
+      setTimeout(resolve, 200)
+    })
+  }
+
+  // Non-Windows: use direct spawn
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: isWindows, // Need shell on Windows to run .cmd files
-      env: {
-        ...process.env,
-        // Prevent MSYS/Git Bash from converting Unix paths to Windows paths
-        MSYS_NO_PATHCONV: '1',
-        MSYS2_ARG_CONV_EXCL: '*',
-      },
     })
 
     let stderr = ''
@@ -355,8 +397,6 @@ export async function openRemoteIde(ideType: RemoteIdeType, host: string, path: 
     })
 
     child.unref()
-
-    // Resolve after a short delay - if spawn fails, error event fires quickly
     setTimeout(resolve, 200)
   })
 }
