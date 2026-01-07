@@ -194,6 +194,24 @@ export async function openFile(path: string) {
   if (!res.ok) throw new Error('Failed to open file')
 }
 
+export async function openApp(app: string, args: string[] = []) {
+  const res = await fetch(`${API_BASE}/open/app`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app, args }),
+  })
+  if (!res.ok) throw new Error('Failed to open app')
+}
+
+export async function openUrl(url: string) {
+  const res = await fetch(`${API_BASE}/open/url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+  if (!res.ok) throw new Error('Failed to open URL')
+}
+
 export async function selectFolder(): Promise<string | null> {
   const res = await fetch(`${API_BASE}/open/select-folder`, {
     method: 'POST',
