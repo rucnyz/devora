@@ -43,9 +43,11 @@ export async function openWithIde(ideType: IdeType, path: string): Promise<void>
 
   if (isWindows) {
     // On Windows, use PowerShell Start-Process to ensure window comes to foreground
+    // Escape single quotes by doubling them for PowerShell single-quoted strings
     return new Promise((resolve, reject) => {
+      const escapedCommand = command.replace(/'/g, "''")
       const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
-      const psCommand = `Start-Process -FilePath '${command}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
+      const psCommand = `Start-Process -FilePath '${escapedCommand}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
 
       const child = spawn('powershell', ['-Command', psCommand], {
         detached: true,
@@ -77,9 +79,11 @@ export async function openFile(path: string): Promise<void> {
 
   if (isWindows) {
     // On Windows, use PowerShell Start-Process to ensure window comes to foreground
+    // Escape single quotes by doubling them for PowerShell single-quoted strings
     return new Promise((resolve, reject) => {
+      const escapedCommand = command.replace(/'/g, "''")
       const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
-      const psCommand = `Start-Process -FilePath '${command}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
+      const psCommand = `Start-Process -FilePath '${escapedCommand}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
 
       const child = spawn('powershell', ['-Command', psCommand], {
         detached: true,
@@ -356,9 +360,11 @@ export async function openRemoteIde(ideType: RemoteIdeType, host: string, path: 
   if (isWindows) {
     // On Windows, use PowerShell Start-Process to ensure window comes to foreground
     // Set MSYS env vars to prevent path conversion issues
+    // Escape single quotes by doubling them for PowerShell single-quoted strings
     return new Promise((resolve, reject) => {
+      const escapedCommand = command.replace(/'/g, "''")
       const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
-      const psCommand = `$env:MSYS_NO_PATHCONV='1'; $env:MSYS2_ARG_CONV_EXCL='*'; Start-Process -FilePath '${command}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
+      const psCommand = `$env:MSYS_NO_PATHCONV='1'; $env:MSYS2_ARG_CONV_EXCL='*'; Start-Process -FilePath '${escapedCommand}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
 
       const child = spawn('powershell', ['-Command', psCommand], {
         detached: true,
