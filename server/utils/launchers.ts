@@ -41,23 +41,35 @@ export async function openWithIde(ideType: IdeType, path: string): Promise<void>
 
   const { command, args } = launcher(path)
 
-  // On Windows, .cmd files and cmd-based launchers need shell: true
-  const useShell = command === 'cmd' || command.endsWith('.cmd')
+  if (isWindows) {
+    // On Windows, use PowerShell Start-Process to ensure window comes to foreground
+    // Escape single quotes by doubling them for PowerShell single-quoted strings
+    return new Promise((resolve, reject) => {
+      const escapedCommand = command.replace(/'/g, "''")
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
+      const psCommand = `Start-Process -FilePath '${escapedCommand}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
 
-  // When using shell, quote args that contain spaces
-  const finalArgs = useShell ? args.map((arg) => (arg.includes(' ') ? `"${arg}"` : arg)) : args
+      const child = spawn('powershell', ['-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      })
 
+      child.on('error', reject)
+      child.unref()
+      setTimeout(resolve, 100)
+    })
+  }
+
+  // Non-Windows: use direct spawn
   return new Promise((resolve, reject) => {
-    const child = spawn(command, finalArgs, {
+    const child = spawn(command, args, {
       detached: true,
       stdio: 'ignore',
-      shell: useShell,
     })
 
     child.on('error', reject)
     child.unref()
-
-    // Resolve immediately since we're launching in background
     setTimeout(resolve, 100)
   })
 }
@@ -65,16 +77,35 @@ export async function openWithIde(ideType: IdeType, path: string): Promise<void>
 export async function openFile(path: string): Promise<void> {
   const { command, args } = launchers.file(path)
 
+  if (isWindows) {
+    // On Windows, use PowerShell Start-Process to ensure window comes to foreground
+    // Escape single quotes by doubling them for PowerShell single-quoted strings
+    return new Promise((resolve, reject) => {
+      const escapedCommand = command.replace(/'/g, "''")
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
+      const psCommand = `Start-Process -FilePath '${escapedCommand}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
+
+      const child = spawn('powershell', ['-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      })
+
+      child.on('error', reject)
+      child.unref()
+      setTimeout(resolve, 100)
+    })
+  }
+
+  // Non-Windows: use direct spawn
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       detached: true,
       stdio: 'ignore',
-      shell: false,
     })
 
     child.on('error', reject)
     child.unref()
-
     setTimeout(resolve, 100)
   })
 }
@@ -82,6 +113,7 @@ export async function openFile(path: string): Promise<void> {
 export async function selectFolder(): Promise<string | null> {
   return new Promise((resolve, reject) => {
     // Use modern IFileOpenDialog (Windows Vista+) for native Windows 11 file picker
+    // With DPI awareness and foreground window support for proper display
     const psScript = `
 Add-Type -TypeDefinition @"
 using System;
@@ -130,12 +162,28 @@ internal interface IShellItem {
 }
 
 public class FolderPicker {
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("shcore.dll")]
+    private static extern int SetProcessDpiAwareness(int awareness);
+
     public static string Show() {
+        // Set Per-Monitor DPI awareness for crisp rendering on Windows 10/11
+        try { SetProcessDpiAwareness(2); } catch { }
+
         var dialog = (IFileOpenDialog)new FileOpenDialog();
         dialog.SetOptions(0x20); // FOS_PICKFOLDERS
         dialog.SetTitle("Select folder");
-        int hr = dialog.Show(IntPtr.Zero);
+
+        // Get foreground window handle to ensure dialog appears on top
+        IntPtr hwnd = GetForegroundWindow();
+        int hr = dialog.Show(hwnd);
         if (hr != 0) return "";
+
         IShellItem item;
         dialog.GetResult(out item);
         string path;
@@ -178,6 +226,7 @@ public class FolderPicker {
 export async function selectFile(): Promise<string | null> {
   return new Promise((resolve, reject) => {
     // Use modern IFileOpenDialog for native Windows 11 file picker
+    // With DPI awareness and foreground window support for proper display
     const psScript = `
 Add-Type -TypeDefinition @"
 using System;
@@ -226,11 +275,27 @@ internal interface IShellItem {
 }
 
 public class FilePicker {
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("shcore.dll")]
+    private static extern int SetProcessDpiAwareness(int awareness);
+
     public static string Show() {
+        // Set Per-Monitor DPI awareness for crisp rendering on Windows 10/11
+        try { SetProcessDpiAwareness(2); } catch { }
+
         var dialog = (IFileOpenDialog)new FileOpenDialog();
         dialog.SetTitle("Select file");
-        int hr = dialog.Show(IntPtr.Zero);
+
+        // Get foreground window handle to ensure dialog appears on top
+        IntPtr hwnd = GetForegroundWindow();
+        int hr = dialog.Show(hwnd);
         if (hr != 0) return "";
+
         IShellItem item;
         dialog.GetResult(out item);
         string path;
@@ -292,17 +357,34 @@ export async function openRemoteIde(ideType: RemoteIdeType, host: string, path: 
 
   const { command, args } = launcher(host, path)
 
+  if (isWindows) {
+    // On Windows, use PowerShell Start-Process to ensure window comes to foreground
+    // Set MSYS env vars to prevent path conversion issues
+    // Escape single quotes by doubling them for PowerShell single-quoted strings
+    return new Promise((resolve, reject) => {
+      const escapedCommand = command.replace(/'/g, "''")
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(',')
+      const psCommand = `$env:MSYS_NO_PATHCONV='1'; $env:MSYS2_ARG_CONV_EXCL='*'; Start-Process -FilePath '${escapedCommand}' -ArgumentList ${quotedArgs} -WindowStyle Normal`
+
+      const child = spawn('powershell', ['-Command', psCommand], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      })
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to spawn ${command}: ${err.message}`))
+      })
+      child.unref()
+      setTimeout(resolve, 200)
+    })
+  }
+
+  // Non-Windows: use direct spawn
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: isWindows, // Need shell on Windows to run .cmd files
-      env: {
-        ...process.env,
-        // Prevent MSYS/Git Bash from converting Unix paths to Windows paths
-        MSYS_NO_PATHCONV: '1',
-        MSYS2_ARG_CONV_EXCL: '*',
-      },
     })
 
     let stderr = ''
@@ -321,8 +403,6 @@ export async function openRemoteIde(ideType: RemoteIdeType, host: string, path: 
     })
 
     child.unref()
-
-    // Resolve after a short delay - if spawn fails, error event fires quickly
     setTimeout(resolve, 200)
   })
 }
