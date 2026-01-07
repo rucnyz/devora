@@ -14,18 +14,15 @@ Download from [GitHub Releases](https://github.com/rucnyz/devora/releases) - ava
 
 ## Development
 
-Go to https://bun.sh/docs/installation to install Bun.
-
 ```shell
+# Install Bun: https://bun.sh
 git clone https://github.com/rucnyz/devora.git
 cd devora
-
 bun install
-bun run dev
+# Run development server
+bun run dev      # http://localhost:5173
+
+# Build for production
+bun run preview  # http://localhost:13000
 ```
 
-or production mode
-
-```shell
-bun run preview
-```
