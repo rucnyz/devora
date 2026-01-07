@@ -25,7 +25,7 @@ import {
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
-  const { project, loading, error, addItem, updateItem, deleteItem, updateProject } = useProject(id!)
+  const { project, loading, error, addItem, updateItem, deleteItem, updateProject, reorderItems } = useProject(id!)
 
   // SSH hosts from ~/.ssh/config
   const [sshHosts, setSSHHosts] = useState<string[]>([])
@@ -356,6 +356,7 @@ export default function ProjectDetail() {
         onUpdate={updateItem}
         onDelete={deleteItem}
         onCreatingChange={setIsCreatingNote}
+        onReorder={reorderItems}
       />
     ),
   }

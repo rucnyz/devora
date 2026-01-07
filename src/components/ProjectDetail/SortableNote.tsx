@@ -1,10 +1,9 @@
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { ReactNode } from 'react'
-import type { SectionKey } from '../../types'
 
-interface SortableSectionProps {
-  id: SectionKey
+interface SortableNoteProps {
+  id: string
   children: ReactNode
 }
 
@@ -17,7 +16,7 @@ const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   return defaultAnimateLayoutChanges(args)
 }
 
-export default function SortableSection({ id, children }: SortableSectionProps) {
+export default function SortableNote({ id, children }: SortableNoteProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     animateLayoutChanges,
@@ -30,12 +29,12 @@ export default function SortableSection({ id, children }: SortableSectionProps) 
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="group/sortable relative mb-8 last:mb-0">
+    <div ref={setNodeRef} style={style} className="group/note relative">
       {/* Drag Handle */}
       <button
         {...attributes}
         {...listeners}
-        className="absolute -left-6 top-2 p-1 rounded opacity-0 group-hover/sortable:opacity-50 hover:!opacity-100 focus:!opacity-100 cursor-grab active:cursor-grabbing text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-opacity z-10"
+        className="absolute -left-6 top-3 p-1 rounded opacity-0 group-hover/note:opacity-50 hover:!opacity-100 focus:!opacity-100 cursor-grab active:cursor-grabbing text-[var(--text-muted)] hover:text-[var(--accent-warning)] transition-opacity z-10"
         title="Drag to reorder"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

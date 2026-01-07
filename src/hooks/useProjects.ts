@@ -148,7 +148,32 @@ export function useProject(id: string) {
     await fetchProject(false)
   }
 
-  return { project, loading, error, fetchProject, addItem, updateItem, deleteItem, updateProject }
+  const reorderItems = async (itemIds: string[]) => {
+    // Optimistic update - reorder items locally first
+    if (project?.items) {
+      const itemMap = new Map(project.items.map((item) => [item.id, item]))
+      const reorderedItems = itemIds
+        .map((id) => itemMap.get(id))
+        .filter((item): item is Item => item !== undefined)
+        .map((item, index) => ({ ...item, order: index }))
+      // Keep items not in itemIds (other types) in their original positions
+      const otherItems = project.items.filter((item) => !itemIds.includes(item.id))
+      setProject({
+        ...project,
+        items: [...reorderedItems, ...otherItems].sort((a, b) => a.order - b.order),
+      })
+    }
+
+    // Send to backend (no need to refetch)
+    const res = await fetch(`${API_BASE}/projects/${id}/items/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemIds }),
+    })
+    if (!res.ok) throw new Error('Failed to reorder items')
+  }
+
+  return { project, loading, error, fetchProject, addItem, updateItem, deleteItem, updateProject, reorderItems }
 }
 
 export async function openIde(ideType: IdeType, path: string) {

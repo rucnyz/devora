@@ -170,12 +170,12 @@ export default function WorkingDirsSection({
     }
   }, [isAddingNew])
 
-  const saveEdit = useCallback(async () => {
+  const saveEdit = useCallback(async (): Promise<boolean> => {
     if (editingIndex !== null) {
       const trimmedName = editName.trim()
       const trimmedPath = editPath.trim()
       const trimmedHost = editHost.trim()
-      if (trimmedName && trimmedPath) {
+      if (trimmedName && trimmedPath && (!editIsRemote || trimmedHost)) {
         const newDirs = [...dirs]
         newDirs[editingIndex] = {
           name: trimmedName,
@@ -184,16 +184,20 @@ export default function WorkingDirsSection({
         }
         setDirs(newDirs)
         await onUpdate(newDirs)
+        setEditingIndex(null)
+        setEditName('')
+        setEditPath('')
+        setEditHost('')
+        setEditIsRemote(false)
+        return true
       }
-      setEditingIndex(null)
-      setEditName('')
-      setEditPath('')
-      setEditHost('')
-      setEditIsRemote(false)
+      // Keep state if partial input - user can continue editing
+      return false
     }
+    return false
   }, [editingIndex, editName, editPath, editHost, editIsRemote, dirs, onUpdate])
 
-  const saveNew = useCallback(async () => {
+  const saveNew = useCallback(async (): Promise<boolean> => {
     if (isAddingNew) {
       const trimmedName = newName.trim()
       const trimmedPath = newPath.trim()
@@ -207,13 +211,27 @@ export default function WorkingDirsSection({
         const newDirs = [...dirs, newDir]
         setDirs(newDirs)
         await onUpdate(newDirs)
+        // Only clear state after successful save
+        setIsAddingNew(false)
+        setNewName('')
+        setNewPath('')
+        setNewHost('')
+        setIsRemote(false)
+        return true
       }
-      setIsAddingNew(false)
-      setNewName('')
-      setNewPath('')
-      setNewHost('')
-      setIsRemote(false)
+      // If nothing to save (all fields empty), also clear state
+      if (!trimmedName && !trimmedPath && (!isRemote || !trimmedHost)) {
+        setIsAddingNew(false)
+        setNewName('')
+        setNewPath('')
+        setNewHost('')
+        setIsRemote(false)
+        return true
+      }
+      // Otherwise keep state (partial input) - user can continue editing
+      return false
     }
+    return false
   }, [isAddingNew, newName, newPath, newHost, isRemote, dirs, onUpdate])
 
   // Click outside handler
@@ -343,7 +361,15 @@ export default function WorkingDirsSection({
                   <input
                     type="text"
                     value={editPath}
-                    onChange={(e) => setEditPath(e.target.value)}
+                    onChange={(e) => {
+                      const path = e.target.value
+                      setEditPath(path)
+                      // Auto-fill name from path if name is empty
+                      if (!editName && path.trim()) {
+                        const folderName = path.split(/[/\\]/).pop() || ''
+                        if (folderName) setEditName(folderName)
+                      }
+                    }}
                     onKeyDown={(e) => handleKeyDown(e, false)}
                     className="bg-transparent font-mono text-sm text-[var(--text-secondary)] outline-none min-w-[200px]"
                     placeholder={editIsRemote ? '/home/user/project' : 'Path'}
@@ -446,7 +472,15 @@ export default function WorkingDirsSection({
                 <input
                   type="text"
                   value={newPath}
-                  onChange={(e) => setNewPath(e.target.value)}
+                  onChange={(e) => {
+                    const path = e.target.value
+                    setNewPath(path)
+                    // Auto-fill name from path if name is empty
+                    if (!newName && path.trim()) {
+                      const folderName = path.split(/[/\\]/).pop() || ''
+                      if (folderName) setNewName(folderName)
+                    }
+                  }}
                   onKeyDown={(e) => handleKeyDown(e, true)}
                   className="bg-transparent font-mono text-sm text-[var(--text-secondary)] outline-none min-w-[200px]"
                   placeholder={isRemote ? '/home/user/project' : 'Path'}
