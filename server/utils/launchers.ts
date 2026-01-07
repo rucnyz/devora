@@ -82,6 +82,7 @@ export async function openFile(path: string): Promise<void> {
 export async function selectFolder(): Promise<string | null> {
   return new Promise((resolve, reject) => {
     // Use modern IFileOpenDialog (Windows Vista+) for native Windows 11 file picker
+    // With DPI awareness and foreground window support for proper display
     const psScript = `
 Add-Type -TypeDefinition @"
 using System;
@@ -130,12 +131,28 @@ internal interface IShellItem {
 }
 
 public class FolderPicker {
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("shcore.dll")]
+    private static extern int SetProcessDpiAwareness(int awareness);
+
     public static string Show() {
+        // Set Per-Monitor DPI awareness for crisp rendering on Windows 10/11
+        try { SetProcessDpiAwareness(2); } catch { }
+
         var dialog = (IFileOpenDialog)new FileOpenDialog();
         dialog.SetOptions(0x20); // FOS_PICKFOLDERS
         dialog.SetTitle("Select folder");
-        int hr = dialog.Show(IntPtr.Zero);
+
+        // Get foreground window handle to ensure dialog appears on top
+        IntPtr hwnd = GetForegroundWindow();
+        int hr = dialog.Show(hwnd);
         if (hr != 0) return "";
+
         IShellItem item;
         dialog.GetResult(out item);
         string path;
@@ -178,6 +195,7 @@ public class FolderPicker {
 export async function selectFile(): Promise<string | null> {
   return new Promise((resolve, reject) => {
     // Use modern IFileOpenDialog for native Windows 11 file picker
+    // With DPI awareness and foreground window support for proper display
     const psScript = `
 Add-Type -TypeDefinition @"
 using System;
@@ -226,11 +244,27 @@ internal interface IShellItem {
 }
 
 public class FilePicker {
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("shcore.dll")]
+    private static extern int SetProcessDpiAwareness(int awareness);
+
     public static string Show() {
+        // Set Per-Monitor DPI awareness for crisp rendering on Windows 10/11
+        try { SetProcessDpiAwareness(2); } catch { }
+
         var dialog = (IFileOpenDialog)new FileOpenDialog();
         dialog.SetTitle("Select file");
-        int hr = dialog.Show(IntPtr.Zero);
+
+        // Get foreground window handle to ensure dialog appears on top
+        IntPtr hwnd = GetForegroundWindow();
+        int hr = dialog.Show(hwnd);
         if (hr != 0) return "";
+
         IShellItem item;
         dialog.GetResult(out item);
         string path;
