@@ -64,7 +64,9 @@ export function useFileCards(projectId: string) {
 
   const updateCard = async (
     id: string,
-    updates: Partial<Pick<FileCard, 'filename' | 'content' | 'position_x' | 'position_y' | 'is_expanded' | 'is_minimized' | 'z_index'>>
+    updates: Partial<
+      Pick<FileCard, 'filename' | 'content' | 'position_x' | 'position_y' | 'is_expanded' | 'is_minimized' | 'z_index'>
+    >
   ) => {
     // Optimistic update for smooth dragging
     setCards((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)))

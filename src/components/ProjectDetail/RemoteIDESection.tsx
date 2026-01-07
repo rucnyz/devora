@@ -169,10 +169,7 @@ export default function RemoteIDESection({
                 className="group/remote-ide relative animate-card-enter mr-7"
                 style={{ animationDelay: `${index * 30}ms` }}
               >
-                <div
-                  className={`tag ${REMOTE_IDE_TAG_CLASS} cursor-pointer`}
-                  onClick={() => handleOpen(item)}
-                >
+                <div className={`tag ${REMOTE_IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
                   <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M12 5l7 7-7 7" />
                   </svg>

@@ -212,10 +212,7 @@ export default function IDESection({
               className="group/ide relative animate-card-enter mr-12"
               style={{ animationDelay: `${index * 30}ms` }}
             >
-              <div
-                className={`tag ${IDE_TAG_CLASS} cursor-pointer`}
-                onClick={() => handleOpen(item)}
-              >
+              <div className={`tag ${IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
                 <span>{IDE_LABELS[item.ide_type!] || item.ide_type}</span>
                 <span className="opacity-60">{item.title}</span>
                 <button

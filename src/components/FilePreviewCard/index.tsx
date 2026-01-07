@@ -82,64 +82,67 @@ export default function FilePreviewCard({
     y: Math.max(0, Math.min(y, window.innerHeight - 50)),
   })
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return
-    e.preventDefault()
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest('button')) return
+      e.preventDefault()
 
-    const state = dragStateRef.current
-    state.startMouseX = e.clientX
-    state.startMouseY = e.clientY
-    state.startCardX = localPosition.x
-    state.startCardY = localPosition.y
-    state.active = true
+      const state = dragStateRef.current
+      state.startMouseX = e.clientX
+      state.startMouseY = e.clientY
+      state.startCardX = localPosition.x
+      state.startCardY = localPosition.y
+      state.active = true
 
-    setIsDragging(true)
-    callbacksRef.current.onBringToFront()
+      setIsDragging(true)
+      callbacksRef.current.onBringToFront()
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (state.rafId) cancelAnimationFrame(state.rafId)
-      state.rafId = requestAnimationFrame(() => {
-        if (!state.active) return
-        const { x, y } = clampPosition(
+      const handleMouseMove = (e: MouseEvent) => {
+        if (state.rafId) cancelAnimationFrame(state.rafId)
+        state.rafId = requestAnimationFrame(() => {
+          if (!state.active) return
+          const { x, y } = clampPosition(
+            state.startCardX + e.clientX - state.startMouseX,
+            state.startCardY + e.clientY - state.startMouseY
+          )
+          if (cardRef.current) {
+            cardRef.current.style.transform = `translate(${x - state.startCardX}px, ${y - state.startCardY}px)`
+          }
+        })
+      }
+
+      const handleMouseUp = (e: MouseEvent) => {
+        state.active = false
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+        if (state.rafId) {
+          cancelAnimationFrame(state.rafId)
+          state.rafId = 0
+        }
+
+        const { x: finalX, y: finalY } = clampPosition(
           state.startCardX + e.clientX - state.startMouseX,
           state.startCardY + e.clientY - state.startMouseY
         )
+
         if (cardRef.current) {
-          cardRef.current.style.transform = `translate(${x - state.startCardX}px, ${y - state.startCardY}px)`
+          cardRef.current.style.left = `${finalX}px`
+          cardRef.current.style.top = `${finalY}px`
+          cardRef.current.style.transform = ''
         }
-      })
-    }
 
-    const handleMouseUp = (e: MouseEvent) => {
-      state.active = false
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      if (state.rafId) {
-        cancelAnimationFrame(state.rafId)
-        state.rafId = 0
+        setLocalPosition({ x: finalX, y: finalY })
+        setIsDragging(false)
+        // Save as percentage
+        const percent = pixelToPercent(finalX, finalY)
+        callbacksRef.current.onPositionChange(percent.x, percent.y)
       }
 
-      const { x: finalX, y: finalY } = clampPosition(
-        state.startCardX + e.clientX - state.startMouseX,
-        state.startCardY + e.clientY - state.startMouseY
-      )
-
-      if (cardRef.current) {
-        cardRef.current.style.left = `${finalX}px`
-        cardRef.current.style.top = `${finalY}px`
-        cardRef.current.style.transform = ''
-      }
-
-      setLocalPosition({ x: finalX, y: finalY })
-      setIsDragging(false)
-      // Save as percentage
-      const percent = pixelToPercent(finalX, finalY)
-      callbacksRef.current.onPositionChange(percent.x, percent.y)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  }, [localPosition.x, localPosition.y])
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    },
+    [localPosition.x, localPosition.y]
+  )
 
   // Truncate filename for display
   const displayFilename = card.filename.length > 20 ? card.filename.slice(0, 17) + '...' : card.filename
@@ -190,7 +193,12 @@ export default function FilePreviewCard({
             title="Restore"
           >
             <svg className="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+              />
             </svg>
           </button>
           {/* Close button */}
@@ -263,7 +271,12 @@ export default function FilePreviewCard({
             title="Fullscreen"
           >
             <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+              />
             </svg>
           </button>
           {/* Close button */}
@@ -325,14 +338,21 @@ export default function FilePreviewCard({
                     />
                   </svg>
                   <span className="text-base font-mono text-[var(--text-primary)]">{card.filename}</span>
-                  <span className="text-sm text-[var(--text-muted)]">({(card.content.length / 1024).toFixed(1)} KB)</span>
+                  <span className="text-sm text-[var(--text-muted)]">
+                    ({(card.content.length / 1024).toFixed(1)} KB)
+                  </span>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="p-1.5 hover:bg-[var(--accent-danger)]/20 rounded transition-colors"
                   title="Close"
                 >
-                  <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-5 h-5 text-[var(--text-muted)]"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>

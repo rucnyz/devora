@@ -14,7 +14,14 @@ import LinksSection from './LinksSection'
 import NotesSection from './NotesSection'
 import SortableSection from './SortableSection'
 import FileCardContainer from '../FilePreviewCard/FileCardContainer'
-import { DEFAULT_SECTION_ORDER, type IdeType, type RemoteIdeType, type CommandMode, type WorkingDir, type SectionKey } from '../../types'
+import {
+  DEFAULT_SECTION_ORDER,
+  type IdeType,
+  type RemoteIdeType,
+  type CommandMode,
+  type WorkingDir,
+  type SectionKey,
+} from '../../types'
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
@@ -202,7 +209,12 @@ export default function ProjectDetail() {
       show: (project.metadata.working_dirs || []).length > 0,
       color: 'var(--text-muted)',
     },
-    ide: { id: 'section-apps', label: 'IDE', show: ideItems.length > 0 || isCreatingIde, color: 'var(--accent-primary)' },
+    ide: {
+      id: 'section-apps',
+      label: 'IDE',
+      show: ideItems.length > 0 || isCreatingIde,
+      color: 'var(--accent-primary)',
+    },
     remoteIde: {
       id: 'section-remote',
       label: 'Remote',

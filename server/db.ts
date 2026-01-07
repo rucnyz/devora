@@ -335,14 +335,7 @@ export function createDbFunctions(db: Database) {
 
       db.run(
         'INSERT INTO projects (id, name, description, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [
-          project.id,
-          project.name,
-          project.description,
-          project.metadata,
-          project.created_at,
-          project.updated_at,
-        ]
+        [project.id, project.name, project.description, project.metadata, project.created_at, project.updated_at]
       )
       projectsImported++
     }
@@ -468,7 +461,9 @@ export function createDbFunctions(db: Database) {
 
   function updateFileCard(
     id: string,
-    updates: Partial<Pick<FileCard, 'filename' | 'content' | 'position_x' | 'position_y' | 'is_expanded' | 'is_minimized' | 'z_index'>>
+    updates: Partial<
+      Pick<FileCard, 'filename' | 'content' | 'position_x' | 'position_y' | 'is_expanded' | 'is_minimized' | 'z_index'>
+    >
   ): FileCard | null {
     const existing = db.query('SELECT * FROM file_cards WHERE id = ?').get(id) as FileCardRow | null
     if (!existing) return null
