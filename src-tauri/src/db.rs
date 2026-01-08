@@ -1,5 +1,6 @@
 use crate::models::*;
 use chrono::Utc;
+use log::info;
 use rusqlite::{params, Connection, Result};
 use std::fs;
 use std::path::PathBuf;
@@ -16,7 +17,7 @@ impl Database {
         fs::create_dir_all(&data_dir).expect("Failed to create data directory");
 
         let db_path = data_dir.join("projects.db");
-        println!("Database path: {:?}", db_path);
+        info!("Database path: {:?}", db_path);
 
         let conn = Connection::open(&db_path)?;
         conn.execute_batch("PRAGMA foreign_keys = ON;")?;
@@ -35,18 +36,18 @@ impl Database {
         let target_version = 1;
 
         if current_version >= target_version {
-            println!("Database is up to date (version {})", current_version);
+            info!("Database is up to date (version {})", current_version);
             return Ok(());
         }
 
-        println!(
+        info!(
             "Migrating database from version {} to {}",
             current_version, target_version
         );
 
         // Initial schema (v1)
         if current_version < 1 {
-            println!("  Creating initial schema");
+            info!("Creating initial schema");
             conn.execute_batch(
                 "
                 CREATE TABLE IF NOT EXISTS projects (
@@ -100,7 +101,7 @@ impl Database {
             )?;
         }
 
-        println!("Database migration complete (version {})", target_version);
+        info!("Database migration complete (version {})", target_version);
         Ok(())
     }
 

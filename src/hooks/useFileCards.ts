@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as api from '../api/tauri'
-
-export type { FileCard } from '../api/tauri'
 import type { FileCard } from '../api/tauri'
+
+export type { FileCard }
 
 export function useFileCards(projectId: string) {
   const [cards, setCards] = useState<FileCard[]>([])

@@ -230,12 +230,13 @@ pub fn open_ide(ideType: IdeType, path: String) -> Result<(), String> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
 
-        // Use cmd /c to run .cmd files, with CREATE_NEW_PROCESS_GROUP to detach
+        // Use cmd /c to run .cmd files, hide console and detach from parent
         Command::new("cmd")
             .args(["/c", cmd, &path])
-            .creation_flags(CREATE_NEW_PROCESS_GROUP)
+            .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
             .spawn()
             .map_err(|e| format!("Failed to open IDE: {}", e))?;
     }
@@ -267,11 +268,13 @@ pub fn open_remote_ide(
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
 
+        // Use cmd /c to run .cmd files, hide console and detach from parent
         Command::new("cmd")
             .args(["/c", cmd, "--folder-uri", &folder_uri])
-            .creation_flags(CREATE_NEW_PROCESS_GROUP)
+            .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
             .spawn()
             .map_err(|e| format!("Failed to open remote IDE: {}", e))?;
     }
