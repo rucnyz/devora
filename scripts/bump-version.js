@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global process, console */
 import { readFileSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
 
