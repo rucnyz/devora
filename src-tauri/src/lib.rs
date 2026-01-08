@@ -3,33 +3,21 @@ mod db;
 mod models;
 
 use db::Database;
-use std::path::PathBuf;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            // Initialize database
-            // In debug mode: use project root/data for easy access during development
-            // In release mode: use executable directory for portable app
-            let data_dir = if cfg!(debug_assertions) {
-                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .parent()
-                    .map(|p| p.to_path_buf())
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("data")
-            } else {
-                std::env::current_exe()
-                    .ok()
-                    .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
-                    .unwrap_or_else(|| {
-                        app.path()
-                            .app_data_dir()
-                            .unwrap_or_else(|_| PathBuf::from("."))
-                    })
-                    .join("data")
-            };
+            // Initialize database in system app data directory
+            // Windows: C:\Users\<user>\AppData\Roaming\com.devora.app\data\
+            // macOS: ~/Library/Application Support/com.devora.app/data/
+            // Linux: ~/.local/share/com.devora.app/data/
+            let data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("Failed to get app data directory")
+                .join("data");
 
             let database = Database::new(data_dir)
                 .expect("Failed to initialize database");
