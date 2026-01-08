@@ -1,6 +1,6 @@
 {
   "name": "devora",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -18,7 +18,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "prepare": "husky",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "bump": "node scripts/bump-version.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
