@@ -343,11 +343,16 @@ pub async fn list_remote_dir(host: String, path: Option<String>) -> Result<DirLi
     };
 
     #[cfg(windows)]
-    let output = tokio::process::Command::new("ssh")
-        .args([&host, &cmd])
-        .output()
-        .await
-        .map_err(|e| format!("Failed to execute SSH command: {}", e))?;
+    let output = {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        tokio::process::Command::new("ssh")
+            .args([&host, &cmd])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .await
+            .map_err(|e| format!("Failed to execute SSH command: {}", e))?
+    };
 
     if !output.status.success() {
         return Err(format!(
@@ -403,6 +408,19 @@ pub async fn run_command(
             ssh_cmd
         };
 
+        #[cfg(windows)]
+        let output = {
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+            tokio::process::Command::new("ssh")
+                .args([&remote_host, &full_cmd])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output()
+                .await
+                .map_err(|e| format!("Failed to execute SSH command: {}", e))?
+        };
+
+        #[cfg(not(windows))]
         let output = tokio::process::Command::new("ssh")
             .args([&remote_host, &full_cmd])
             .output()
