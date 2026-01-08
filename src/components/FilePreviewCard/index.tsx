@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Virtuoso } from 'react-virtuoso'
-import type { FileCard } from '../../hooks/useFileCards'
+import type { FileCard } from '../../api/tauri.ts'
 import { readFileContent, getFileInfo, readFileLines } from '../../api/tauri'
 import { useSetting } from '../../hooks/useSettings'
 
@@ -301,7 +301,7 @@ export default function FilePreviewCard({
         <div className="flex items-center gap-2 px-2 py-1.5">
           {/* File icon */}
           <svg
-            className="w-3.5 h-3.5 text-[var(--accent-secondary)] flex-shrink-0"
+            className="w-3.5 h-3.5 text-(--accent-secondary) shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -313,7 +313,7 @@ export default function FilePreviewCard({
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <span className="text-xs font-mono text-[var(--text-primary)] max-w-[120px] truncate" title={card.filename}>
+          <span className="text-xs font-mono text-(--text-primary) max-w-30 truncate" title={card.filename}>
             {displayFilename}
           </span>
           {/* Restore button */}
@@ -322,10 +322,10 @@ export default function FilePreviewCard({
               e.stopPropagation()
               onMinimizeToggle()
             }}
-            className="p-0.5 hover:bg-[var(--bg-hover)] rounded transition-colors"
+            className="p-0.5 hover:bg-(--bg-hover) rounded transition-colors"
             title="Restore"
           >
-            <svg className="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -340,10 +340,10 @@ export default function FilePreviewCard({
               e.stopPropagation()
               onClose()
             }}
-            className="p-0.5 hover:bg-[var(--accent-danger)]/20 rounded transition-colors"
+            className="p-0.5 hover:bg-(--accent-danger)/20 rounded transition-colors"
             title="Close"
           >
-            <svg className="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -360,11 +360,11 @@ export default function FilePreviewCard({
       onMouseDown={handleMouseDown}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-subtle)]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-(--border-subtle)">
         <div className="flex items-center gap-2 min-w-0">
           {/* File icon */}
           <svg
-            className="w-4 h-4 text-[var(--accent-secondary)] flex-shrink-0"
+            className="w-4 h-4 text-(--accent-secondary) shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -376,7 +376,7 @@ export default function FilePreviewCard({
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <span className="text-sm font-mono text-[var(--text-primary)] truncate" title={card.filename}>
+          <span className="text-sm font-mono text-(--text-primary) truncate" title={card.filename}>
             {card.filename.length > 30 ? card.filename.slice(0, 27) + '...' : card.filename}
           </span>
         </div>
@@ -387,10 +387,10 @@ export default function FilePreviewCard({
               e.stopPropagation()
               onMinimizeToggle()
             }}
-            className="p-1 hover:bg-[var(--bg-hover)] rounded transition-colors"
+            className="p-1 hover:bg-(--bg-hover) rounded transition-colors"
             title="Minimize"
           >
-            <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
           </button>
@@ -400,10 +400,10 @@ export default function FilePreviewCard({
               e.stopPropagation()
               setIsModalOpen(true)
             }}
-            className="p-1 hover:bg-[var(--bg-hover)] rounded transition-colors"
+            className="p-1 hover:bg-(--bg-hover) rounded transition-colors"
             title="Fullscreen"
           >
-            <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -418,10 +418,10 @@ export default function FilePreviewCard({
               e.stopPropagation()
               onClose()
             }}
-            className="p-1 hover:bg-[var(--accent-danger)]/20 rounded transition-colors"
+            className="p-1 hover:bg-(--accent-danger)/20 rounded transition-colors"
             title="Close"
           >
-            <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -434,18 +434,18 @@ export default function FilePreviewCard({
         onMouseDown={(e) => e.stopPropagation()} // Allow text selection
       >
         {loading ? (
-          <div className="p-3 text-xs text-[var(--text-muted)] italic">Loading preview...</div>
+          <div className="p-3 text-xs text-(--text-muted) italic">Loading preview...</div>
         ) : error ? (
-          <div className="p-3 text-xs text-[var(--accent-danger)]">Error: {error}</div>
+          <div className="p-3 text-xs text-(--accent-danger)">Error: {error}</div>
         ) : (
-          <pre className="p-3 text-xs font-mono text-[var(--text-secondary)] overflow-auto whitespace-pre-wrap break-words cursor-text select-text">
+          <pre className="p-3 text-xs font-mono text-(--text-secondary) overflow-auto whitespace-pre-wrap wrap-break-word cursor-text select-text">
             {previewContent}
           </pre>
         )}
       </div>
 
       {/* Footer with file size info */}
-      <div className="px-3 py-1 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
+      <div className="px-3 py-1 border-t border-(--border-subtle) text-xs text-(--text-muted)">
         {loading
           ? '...'
           : error
@@ -459,18 +459,23 @@ export default function FilePreviewCard({
       {isModalOpen &&
         createPortal(
           <div
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm"
             onClick={() => setIsModalOpen(false)}
           >
             <div
-              className="glass-card shadow-2xl w-[90vw] max-w-4xl h-[85vh] flex flex-col"
+              className="glass-card shadow-2xl flex flex-col"
+              style={{
+                // Divide by zoom to keep modal at consistent visual size relative to viewport
+                width: `min(${90 / ((zoomLevel ?? 100) / 100)}vw, 56rem)`,
+                height: `${85 / ((zoomLevel ?? 100) / 100)}vh`,
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-(--border-subtle)">
                 <div className="flex items-center gap-2">
                   <svg
-                    className="w-5 h-5 text-[var(--accent-secondary)] flex-shrink-0"
+                    className="w-5 h-5 text-(--accent-secondary) shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -482,8 +487,8 @@ export default function FilePreviewCard({
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                  <span className="text-base font-mono text-[var(--text-primary)]">{card.filename}</span>
-                  <span className="text-sm text-[var(--text-muted)]">
+                  <span className="text-base font-mono text-(--text-primary)">{card.filename}</span>
+                  <span className="text-sm text-(--text-muted)">
                     {loadingFull
                       ? '(Loading...)'
                       : lineCount > 0
@@ -493,15 +498,10 @@ export default function FilePreviewCard({
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1.5 hover:bg-[var(--accent-danger)]/20 rounded transition-colors"
+                  className="p-1.5 hover:bg-(--accent-danger)/20 rounded transition-colors"
                   title="Close"
                 >
-                  <svg
-                    className="w-5 h-5 text-[var(--text-muted)]"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-5 h-5 text-(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -509,7 +509,7 @@ export default function FilePreviewCard({
               {/* Modal Content */}
               <div className="flex-1 overflow-hidden">
                 {loadingFull ? (
-                  <div className="p-4 text-sm text-[var(--text-muted)] italic">Loading file info...</div>
+                  <div className="p-4 text-sm text-(--text-muted) italic">Loading file info...</div>
                 ) : lineCount > 0 ? (
                   <Virtuoso
                     style={{ height: '100%', width: '100%' }}
@@ -526,8 +526,8 @@ export default function FilePreviewCard({
                     itemContent={(index) => {
                       const lineContent = getLineContent(index)
                       return (
-                        <div className="px-4 py-0.5 font-mono text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words hover:bg-[var(--bg-hover)]">
-                          <span className="inline-block w-12 text-right text-[var(--text-muted)] select-none mr-4">
+                        <div className="px-4 py-0.5 font-mono text-sm text-(--text-secondary) whitespace-pre-wrap wrap-break-word hover:bg-(--bg-hover)">
+                          <span className="inline-block w-12 text-right text-(--text-muted) select-none mr-4">
                             {index + 1}
                           </span>
                           {lineContent || '\u00A0'}
@@ -536,7 +536,7 @@ export default function FilePreviewCard({
                     }}
                   />
                 ) : (
-                  <div className="p-4 text-sm text-[var(--text-muted)] italic">Empty file</div>
+                  <div className="p-4 text-sm text-(--text-muted) italic">Empty file</div>
                 )}
               </div>
             </div>
