@@ -416,7 +416,7 @@ impl Database {
         let coding_agent_type = coding_agent_type.unwrap_or(existing_coding_agent_type);
         // Handle coding_agent_args: Some(Some("")) means clear, Some(Some(value)) means set, None means keep existing
         let coding_agent_args = match coding_agent_args {
-            Some(Some(s)) if s.is_empty() => None, // empty string = clear the field
+            Some(Some("")) => None, // empty string = clear the field
             Some(Some(s)) => Some(s), // non-empty string = set the value
             Some(None) => None, // explicit None = clear the field
             None => existing_coding_agent_args.as_deref(), // not provided = keep existing
