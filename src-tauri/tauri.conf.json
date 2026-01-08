@@ -42,9 +42,6 @@
     "windows": {
       "wix": {
         "language": "en-US"
-      },
-      "nsis": {
-        "installMode": "currentUser"
       }
     }
   },
@@ -55,7 +52,7 @@
         "https://github.com/rucnyz/devora/releases/latest/download/latest.json"
       ],
       "windows": {
-        "installMode": "passive"
+        "installMode": "basicUi"
       }
     }
   }
