@@ -56,8 +56,13 @@ export const config: Options.Testrunner = {
     timeout: 60000,
   },
 
-  // Start tauri-driver before tests
+  // Build Tauri application before tests (can be skipped in CI)
   onPrepare: async function () {
+    if (process.env.SKIP_TAURI_BUILD === 'true') {
+      console.log('Skipping Tauri build (SKIP_TAURI_BUILD=true)')
+      return
+    }
+
     console.log('Building Tauri application...')
     const { execSync } = await import('child_process')
 
