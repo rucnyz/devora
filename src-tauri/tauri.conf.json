@@ -42,6 +42,9 @@
     "windows": {
       "wix": {
         "language": "en-US"
+      },
+      "nsis": {
+        "installMode": "currentUser"
       }
     }
   },
