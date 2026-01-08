@@ -9,15 +9,11 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            // Initialize database in system app data directory
-            // Windows: C:\Users\<user>\AppData\Roaming\com.devora.app\data\
-            // macOS: ~/Library/Application Support/com.devora.app/data/
-            // Linux: ~/.local/share/com.devora.app/data/
-            let data_dir = app
-                .path()
-                .app_data_dir()
-                .expect("Failed to get app data directory")
-                .join("data");
+            // Initialize database in ~/.devora/
+            // Cross-platform: Windows, macOS, Linux all use ~/.devora/
+            let data_dir = dirs::home_dir()
+                .expect("Failed to get home directory")
+                .join(".devora");
 
             let database = Database::new(data_dir)
                 .expect("Failed to initialize database");

@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Devora",
   "version": "0.1.2",
-  "identifier": "com.devora.app",
+  "identifier": "io.github.rucnyz.devora",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
