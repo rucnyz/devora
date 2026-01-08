@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { selectFolder, openCodingAgent } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useSetting } from '../../hooks/useSettings'
@@ -8,109 +8,106 @@ import { CODING_AGENT_LABELS, CODING_AGENT_TAG_CLASS, CODING_AGENT_TYPES } from 
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
 import type { Item, CodingAgentType, WorkingDir, TerminalType } from '../../types'
 
-// Helper to check if args contain a flag
-function hasFlag(args: string, flag: string): boolean {
-  return args.split(/\s+/).includes(flag)
-}
-
-// Helper to toggle a flag in args
-function toggleFlag(args: string, flag: string, enabled: boolean): string {
-  const parts = args.split(/\s+/).filter((p) => p && p !== flag)
-  if (enabled) {
-    parts.unshift(flag)
+// Helper to quote a path if it contains spaces (for shell compatibility)
+function quotePath(path: string): string {
+  if (path.includes(' ')) {
+    return `"${path}"`
   }
-  return parts.join(' ')
+  return path
 }
 
-// Helper to check if args start with "web"
-function hasWebMode(args: string): boolean {
-  return args.trim().startsWith('web')
-}
-
-// Helper to toggle web mode
-function toggleWebMode(args: string, enabled: boolean): string {
-  const trimmed = args.trim()
-  if (enabled && !trimmed.startsWith('web')) {
-    return trimmed ? `web ${trimmed}` : 'web'
-  } else if (!enabled && trimmed.startsWith('web')) {
-    return trimmed.replace(/^web\s*/, '')
-  }
-  return args
-}
-
-// Helper to parse --add-dir paths from args
-// Matches paths after --add-dir until next --flag or end of string
-function getAddDirPaths(args: string): string[] {
-  const match = args.match(/--add-dir\s+(.*?)(?=\s+--|$)/)
-  if (match && match[1]) {
-    return match[1]
-      .trim()
-      .split(/\s+/)
-      .filter((p) => p)
-  }
-  return []
-}
-
-// Regex to match --add-dir and its paths (until next --flag or end)
-const ADD_DIR_REGEX = /--add-dir(?:\s+.*?)?(?=\s+--|$)/
-
-// Helper to add a path to --add-dir
-function addPathToAddDir(args: string, newPath: string): string {
-  const existingPaths = getAddDirPaths(args)
-  if (existingPaths.includes(newPath)) return args
-
-  const hasAddDirFlag = args.includes('--add-dir')
-
-  if (existingPaths.length > 0) {
-    // Replace existing --add-dir with expanded version
-    const newPaths = [...existingPaths, newPath].join(' ')
-    return args.replace(ADD_DIR_REGEX, `--add-dir ${newPaths}`)
-  } else if (hasAddDirFlag) {
-    // --add-dir flag exists but no paths yet, replace it with flag + new path
-    return args.replace(ADD_DIR_REGEX, `--add-dir ${newPath}`)
-  } else {
-    // Add new --add-dir with path
-    return `${args} --add-dir ${newPath}`.trim()
-  }
-}
-
-// Helper to remove a path from --add-dir
-function removePathFromAddDir(args: string, pathToRemove: string): string {
-  const existingPaths = getAddDirPaths(args)
-  const newPaths = existingPaths.filter((p) => p !== pathToRemove)
-
-  if (newPaths.length === 0) {
-    // Remove --add-dir entirely
-    return args.replace(ADD_DIR_REGEX, '').trim()
-  } else {
-    return args.replace(ADD_DIR_REGEX, `--add-dir ${newPaths.join(' ')}`)
-  }
-}
-
-// Checkbox component for agent options
-function AgentCheckbox({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string
-  checked: boolean
-  onChange: (checked: boolean) => void
-}) {
+// Button component for appending args
+function ArgButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <label className="flex items-center gap-1.5 text-sm font-mono text-(--text-muted) cursor-pointer hover:text-(--text-primary) transition-colors">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="w-3.5 h-3.5 rounded border border-(--border-visible) bg-(--bg-elevated) accent-(--accent-agent)"
-      />
-      <span>{label}</span>
-    </label>
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-2 py-0.5 rounded text-xs font-mono bg-(--bg-elevated) border border-(--border-subtle) text-(--text-muted) hover:border-(--accent-agent) hover:text-(--accent-agent) transition-colors"
+    >
+      + {label}
+    </button>
   )
 }
 
-// Agent-specific options component
+// Dropdown button for --add-dir with path options
+function AddDirDropdown({ workingDirs, onSelect }: { workingDirs: WorkingDir[]; onSelect: (arg: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  const handleBrowse = async () => {
+    const path = await selectFolder()
+    if (path) {
+      onSelect(`--add-dir ${quotePath(path)}`)
+    }
+    setIsOpen(false)
+  }
+
+  const handleSelectDir = (path: string) => {
+    onSelect(`--add-dir ${quotePath(path)}`)
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="px-2 py-0.5 rounded text-xs font-mono bg-(--bg-elevated) border border-(--border-subtle) text-(--text-muted) hover:border-(--accent-agent) hover:text-(--accent-agent) transition-colors flex items-center gap-1"
+      >
+        + --add-dir
+        <svg
+          className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="absolute left-0 top-full mt-1 z-50 min-w-48 py-1 rounded-lg bg-(--bg-elevated) border border-(--border-visible) shadow-lg">
+          <button
+            type="button"
+            onClick={handleBrowse}
+            className="w-full px-3 py-1.5 text-left text-xs font-mono text-(--text-muted) hover:bg-(--bg-surface) hover:text-(--accent-agent) transition-colors"
+          >
+            Browse...
+          </button>
+          {workingDirs.length > 0 && (
+            <>
+              <div className="border-t border-(--border-subtle) my-1" />
+              {workingDirs.map((d) => (
+                <button
+                  key={d.path}
+                  type="button"
+                  onClick={() => handleSelectDir(d.path)}
+                  className="w-full px-3 py-1.5 text-left text-xs font-mono text-(--text-muted) hover:bg-(--bg-surface) hover:text-(--accent-agent) transition-colors truncate"
+                  title={d.path}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Agent-specific options component - buttons append to args, no parsing needed
 function AgentOptions({
   agentType,
   args,
@@ -123,88 +120,26 @@ function AgentOptions({
   workingDirs: WorkingDir[]
 }) {
   const localWorkingDirs = useMemo(() => workingDirs.filter((d) => !d.host), [workingDirs])
-  const addDirPaths = useMemo(() => getAddDirPaths(args), [args])
 
-  const handleSelectAddDir = async () => {
-    const path = await selectFolder()
-    if (path) {
-      onArgsChange(addPathToAddDir(args, path))
-    }
+  const appendArg = (arg: string) => {
+    onArgsChange(args ? `${args} ${arg}` : arg)
   }
 
   if (agentType === 'claude-code') {
-    const hasChrome = hasFlag(args, '--chrome')
-    const hasAddDir = args.includes('--add-dir')
-
     return (
-      <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-(--border-subtle)">
-        <div className="flex flex-wrap items-center gap-4">
-          <AgentCheckbox
-            label="--chrome"
-            checked={hasChrome}
-            onChange={(v) => onArgsChange(toggleFlag(args, '--chrome', v))}
-          />
-          <AgentCheckbox
-            label="--add-dir"
-            checked={hasAddDir}
-            onChange={(v) => {
-              if (v && !hasAddDir) {
-                onArgsChange(`${args} --add-dir `.trim())
-              } else if (!v && hasAddDir) {
-                onArgsChange(args.replace(ADD_DIR_REGEX, '').trim())
-              }
-            }}
-          />
-        </div>
-
-        {hasAddDir && (
-          <div className="flex flex-wrap items-center gap-2 ml-4">
-            <span className="text-xs text-(--text-muted) font-mono">Dirs:</span>
-            {addDirPaths.map((p) => (
-              <span
-                key={p}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-(--bg-elevated) border border-(--border-subtle) text-xs font-mono"
-              >
-                {getPathName(p, p)}
-                <button
-                  type="button"
-                  onClick={() => onArgsChange(removePathFromAddDir(args, p))}
-                  className="text-(--text-muted) hover:text-(--accent-danger)"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            <button type="button" onClick={handleSelectAddDir} className="btn-ghost text-xs py-0.5 px-2">
-              + Browse
-            </button>
-            {localWorkingDirs.length > 0 && (
-              <>
-                {localWorkingDirs.map((d) => (
-                  <button
-                    key={d.path}
-                    type="button"
-                    onClick={() => onArgsChange(addPathToAddDir(args, d.path))}
-                    className="px-2 py-0.5 rounded text-xs font-mono bg-(--bg-elevated) border border-(--border-subtle) text-(--text-muted) hover:border-(--accent-agent) hover:text-(--accent-agent) transition-colors"
-                    disabled={addDirPaths.includes(d.path)}
-                  >
-                    + {d.name}
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
-        )}
+      <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-(--border-subtle)">
+        <span className="text-xs text-(--text-muted) font-mono">Insert:</span>
+        <ArgButton label="--chrome" onClick={() => appendArg('--chrome')} />
+        <AddDirDropdown workingDirs={localWorkingDirs} onSelect={appendArg} />
       </div>
     )
   }
 
   if (agentType === 'opencode') {
-    const hasWeb = hasWebMode(args)
-
     return (
-      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-(--border-subtle)">
-        <AgentCheckbox label="web mode" checked={hasWeb} onChange={(v) => onArgsChange(toggleWebMode(args, v))} />
+      <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-(--border-subtle)">
+        <span className="text-xs text-(--text-muted) font-mono">Insert:</span>
+        <ArgButton label="web" onClick={() => appendArg('web')} />
       </div>
     )
   }
