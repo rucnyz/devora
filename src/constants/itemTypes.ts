@@ -5,7 +5,19 @@ import type { IdeType, RemoteIdeType } from '../types'
  * All IDE shortcuts use the unified 'tag-ide' class (primary/green color)
  */
 export const IDE_LABELS: Record<IdeType, string> = {
+  // JetBrains IDEs
+  idea: 'IntelliJ IDEA',
   pycharm: 'PyCharm',
+  webstorm: 'WebStorm',
+  phpstorm: 'PhpStorm',
+  rubymine: 'RubyMine',
+  clion: 'CLion',
+  goland: 'GoLand',
+  rider: 'Rider',
+  datagrip: 'DataGrip',
+  rustrover: 'RustRover',
+  aqua: 'Aqua',
+  // Other IDEs
   cursor: 'Cursor',
   vscode: 'VS Code',
   zed: 'Zed',
@@ -15,13 +27,37 @@ export const IDE_LABELS: Record<IdeType, string> = {
 // All IDEs use the unified tag-ide class for consistent styling
 export const IDE_TAG_CLASS = 'tag-ide'
 
-export const IDE_TYPES: { value: IdeType; label: string }[] = [
-  { value: 'pycharm', label: 'PyCharm' },
-  { value: 'cursor', label: 'Cursor' },
-  { value: 'vscode', label: 'VS Code' },
-  { value: 'zed', label: 'Zed' },
-  { value: 'antigravity', label: 'Antigravity' },
+// Grouped IDE types for dropdown with optgroup
+export const IDE_GROUPS: { group: string; items: { value: IdeType; label: string }[] }[] = [
+  {
+    group: 'JetBrains',
+    items: [
+      { value: 'idea', label: 'IntelliJ IDEA' },
+      { value: 'pycharm', label: 'PyCharm' },
+      { value: 'webstorm', label: 'WebStorm' },
+      { value: 'phpstorm', label: 'PhpStorm' },
+      { value: 'rubymine', label: 'RubyMine' },
+      { value: 'clion', label: 'CLion' },
+      { value: 'goland', label: 'GoLand' },
+      { value: 'rider', label: 'Rider' },
+      { value: 'datagrip', label: 'DataGrip' },
+      { value: 'rustrover', label: 'RustRover' },
+      { value: 'aqua', label: 'Aqua' },
+    ],
+  },
+  {
+    group: 'Other',
+    items: [
+      { value: 'cursor', label: 'Cursor' },
+      { value: 'vscode', label: 'VS Code' },
+      { value: 'zed', label: 'Zed' },
+      { value: 'antigravity', label: 'Antigravity' },
+    ],
+  },
 ]
+
+// Flat list for backward compatibility
+export const IDE_TYPES: { value: IdeType; label: string }[] = IDE_GROUPS.flatMap((g) => g.items)
 
 /**
  * Remote IDE Configuration

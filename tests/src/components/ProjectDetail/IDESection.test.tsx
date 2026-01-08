@@ -1,7 +1,13 @@
 import { describe, test, expect, mock, beforeEach } from 'bun:test'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import IDESection from '../../../../src/components/ProjectDetail/IDESection'
+import { CustomIdesProvider } from '../../../../src/hooks/useCustomIdes'
 import type { Item, WorkingDir } from '../../../../src/types'
+
+// Wrapper component to provide required context
+const Wrapper = ({ children }: { children: React.ReactNode }) => (
+  <CustomIdesProvider>{children}</CustomIdesProvider>
+)
 
 describe('IDESection', () => {
   const mockOnAdd = mock(() => Promise.resolve())
@@ -25,7 +31,7 @@ describe('IDESection', () => {
   }
 
   test('returns null when no items and not creating', () => {
-    const { container } = render(<IDESection {...defaultProps} />)
+    const { container } = render(<IDESection {...defaultProps} />, { wrapper: Wrapper })
     expect(container.firstChild).toBeNull()
   })
 
@@ -44,7 +50,7 @@ describe('IDESection', () => {
       },
     ]
 
-    render(<IDESection {...defaultProps} items={items} />)
+    render(<IDESection {...defaultProps} items={items} />, { wrapper: Wrapper })
 
     expect(screen.getByText('IDE')).toBeTruthy()
     expect(screen.getByText('Add')).toBeTruthy()
@@ -66,7 +72,7 @@ describe('IDESection', () => {
       },
     ]
 
-    render(<IDESection {...defaultProps} items={items} />)
+    render(<IDESection {...defaultProps} items={items} />, { wrapper: Wrapper })
 
     const addButton = screen.getByText('Add')
     fireEvent.click(addButton)
@@ -75,7 +81,7 @@ describe('IDESection', () => {
   })
 
   test('shows creator form when isCreating is true', () => {
-    render(<IDESection {...defaultProps} isCreating={true} />)
+    render(<IDESection {...defaultProps} isCreating={true} />, { wrapper: Wrapper })
 
     expect(screen.getByText('IDE')).toBeTruthy()
     expect(screen.getByPlaceholderText('Project folder path...')).toBeTruthy()
@@ -98,7 +104,7 @@ describe('IDESection', () => {
       },
     ]
 
-    render(<IDESection {...defaultProps} items={items} isCreating={true} />)
+    render(<IDESection {...defaultProps} items={items} isCreating={true} />, { wrapper: Wrapper })
 
     expect(screen.queryByRole('button', { name: 'Add' })).toBeNull()
   })
@@ -108,7 +114,7 @@ describe('IDESection', () => {
       { name: 'frontend', path: '/home/user/frontend' },
     ]
 
-    render(<IDESection {...defaultProps} isCreating={true} workingDirs={workingDirs} />)
+    render(<IDESection {...defaultProps} isCreating={true} workingDirs={workingDirs} />, { wrapper: Wrapper })
 
     expect(screen.getByText('Working dirs:')).toBeTruthy()
     expect(screen.getByText(/frontend/)).toBeTruthy()
@@ -120,7 +126,7 @@ describe('IDESection', () => {
       { name: 'remote-project', path: '/home/user/project', host: 'server1' },
     ]
 
-    render(<IDESection {...defaultProps} isCreating={true} workingDirs={workingDirs} />)
+    render(<IDESection {...defaultProps} isCreating={true} workingDirs={workingDirs} />, { wrapper: Wrapper })
 
     expect(screen.getByText(/frontend/)).toBeTruthy()
     expect(screen.queryByText(/remote-project/)).toBeNull()

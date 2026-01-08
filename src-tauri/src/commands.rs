@@ -57,8 +57,8 @@ pub fn create_item(
     itemType: ItemType,
     title: String,
     content: Option<String>,
-    ideType: Option<IdeType>,
-    remoteIdeType: Option<RemoteIdeType>,
+    ideType: Option<String>,  // Changed to String to support custom IDE IDs
+    remoteIdeType: Option<String>,  // Changed to String to support custom remote IDE IDs
     commandMode: Option<CommandMode>,
     commandCwd: Option<String>,
     commandHost: Option<String>,
@@ -69,8 +69,8 @@ pub fn create_item(
         itemType,
         &title,
         &content.unwrap_or_default(),
-        ideType,
-        remoteIdeType,
+        ideType.as_deref(),
+        remoteIdeType.as_deref(),  // Changed to string
         commandMode,
         commandCwd.as_deref(),
         commandHost.as_deref(),
@@ -83,8 +83,8 @@ pub fn update_item(
     id: String,
     title: Option<String>,
     content: Option<String>,
-    ideType: Option<Option<IdeType>>,
-    remoteIdeType: Option<Option<RemoteIdeType>>,
+    ideType: Option<Option<String>>,  // Changed to String to support custom IDE IDs
+    remoteIdeType: Option<Option<String>>,  // Changed to String to support custom remote IDE IDs
     commandMode: Option<Option<CommandMode>>,
     commandCwd: Option<Option<String>>,
     commandHost: Option<Option<String>>,
@@ -95,8 +95,8 @@ pub fn update_item(
         &id,
         title.as_deref(),
         content.as_deref(),
-        ideType,
-        remoteIdeType,
+        ideType.map(|o| o.as_deref().map(|s| s.to_string())),
+        remoteIdeType.map(|o| o.as_deref().map(|s| s.to_string())),  // Changed to string
         commandMode,
         commandCwd.as_ref().map(|o| o.as_deref()),
         commandHost.as_ref().map(|o| o.as_deref()),
@@ -235,7 +235,19 @@ pub fn import_data(
 #[tauri::command]
 pub fn open_ide(ideType: IdeType, path: String) -> Result<(), String> {
     let cmd = match ideType {
+        // JetBrains IDEs
+        IdeType::Idea => "idea",
         IdeType::Pycharm => "pycharm",
+        IdeType::Webstorm => "webstorm",
+        IdeType::Phpstorm => "phpstorm",
+        IdeType::Rubymine => "rubymine",
+        IdeType::Clion => "clion",
+        IdeType::Goland => "goland",
+        IdeType::Rider => "rider",
+        IdeType::Datagrip => "datagrip",
+        IdeType::Rustrover => "rustrover",
+        IdeType::Aqua => "aqua",
+        // Other IDEs
         IdeType::Cursor => "cursor",
         IdeType::Vscode => "code",
         IdeType::Zed => "zed",
@@ -262,6 +274,38 @@ pub fn open_ide(ideType: IdeType, path: String) -> Result<(), String> {
             .arg(&path)
             .spawn()
             .map_err(|e| format!("Failed to open IDE: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_custom_ide(command: String, path: String) -> Result<(), String> {
+    // Replace {path} placeholder with quoted path to handle spaces
+    let quoted_path = format!("\"{}\"", path);
+    let full_command = command.replace("{path}", &quoted_path);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+
+        // Use raw_arg to prevent Rust from adding extra quotes around the command
+        // This ensures the command is passed to cmd.exe exactly as we built it
+        Command::new("cmd")
+            .raw_arg(format!("/c {}", full_command))
+            .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
+            .spawn()
+            .map_err(|e| format!("Failed to open custom IDE: {}", e))?;
+    }
+
+    #[cfg(not(windows))]
+    {
+        Command::new("sh")
+            .args(["-c", &full_command])
+            .spawn()
+            .map_err(|e| format!("Failed to open custom IDE: {}", e))?;
     }
 
     Ok(())

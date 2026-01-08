@@ -17,7 +17,6 @@ import FileCardContainer from '../FilePreviewCard/FileCardContainer'
 import Sidebar from '../Sidebar'
 import {
   DEFAULT_SECTION_ORDER,
-  type IdeType,
   type RemoteIdeType,
   type CommandMode,
   type WorkingDir,
@@ -249,7 +248,7 @@ export default function ProjectDetail() {
     await addItem('note', title, content)
   }
 
-  const handleAddIde = async (title: string, path: string, ideType: IdeType) => {
+  const handleAddIde = async (title: string, path: string, ideType: string) => {
     await addItem('ide', title, path, ideType)
   }
 

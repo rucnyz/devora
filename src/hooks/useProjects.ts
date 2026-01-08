@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Project, Item, ItemType, IdeType, RemoteIdeType, CommandMode, ProjectMetadata } from '../types'
+import type { Project, Item, ItemType, CommandMode, ProjectMetadata } from '../types'
 import * as api from '../api/tauri'
 
 export function useProjects() {
@@ -75,8 +75,8 @@ export function useProject(id: string) {
     type: ItemType,
     title: string,
     content?: string,
-    ideType?: IdeType,
-    remoteIdeType?: RemoteIdeType,
+    ideType?: string, // Can be built-in IdeType or custom IDE id
+    remoteIdeType?: string, // Can be built-in RemoteIdeType or custom remote IDE id
     commandMode?: CommandMode,
     commandCwd?: string,
     commandHost?: string
@@ -141,6 +141,7 @@ export function useProject(id: string) {
 
 // Re-export system operations from API
 export const openIde = api.openIde
+export const openCustomIde = api.openCustomIde
 export const openFile = api.openFile
 export const selectFolder = api.selectFolder
 export const selectFile = api.selectFile

@@ -1,22 +1,39 @@
 import { useState, useRef, useCallback } from 'react'
-import { selectFolder, openIde } from '../../hooks/useProjects'
+import { selectFolder, openIde, openCustomIde } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
+import { useCustomIdes } from '../../hooks/useCustomIdes'
 import { getPathName } from '../../utils/remote'
-import { IDE_LABELS, IDE_TAG_CLASS, IDE_TYPES } from '../../constants/itemTypes'
+import { IDE_LABELS, IDE_TAG_CLASS, IDE_GROUPS, IDE_TYPES } from '../../constants/itemTypes'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
-import type { Item, IdeType, WorkingDir } from '../../types'
+import type { Item, IdeType, WorkingDir, CustomIde } from '../../types'
+
+// Check if IDE type is a built-in IDE
+const isBuiltInIde = (ideType: string): ideType is IdeType => {
+  return IDE_TYPES.some((ide) => ide.value === ideType)
+}
+
+// Get display label for any IDE (built-in or custom)
+const getIdeLabel = (ideType: string, customIdes: CustomIde[]): string => {
+  if (isBuiltInIde(ideType)) {
+    return IDE_LABELS[ideType]
+  }
+  const custom = customIdes.find((c) => c.id === ideType)
+  return custom?.label || ideType
+}
 
 // Extracted creator component to reset state on mount
 function IDECreator({
   workingDirs,
+  customIdes,
   onAdd,
   onCreatingChange,
 }: {
   workingDirs: WorkingDir[]
-  onAdd: (title: string, path: string, ideType: IdeType) => Promise<void>
+  customIdes: CustomIde[]
+  onAdd: (title: string, path: string, ideType: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
 }) {
-  const [newIdeType, setNewIdeType] = useState<IdeType>('pycharm')
+  const [newIdeType, setNewIdeType] = useState<string>('pycharm')
   const [newPath, setNewPath] = useState('')
   const newIdeRef = useRef<HTMLDivElement>(null)
 
@@ -46,21 +63,27 @@ function IDECreator({
   }
 
   return (
-    <div
-      ref={newIdeRef}
-      className="mb-4 p-4 rounded-xl bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/30"
-    >
+    <div ref={newIdeRef} className="mb-4 p-4 rounded-xl bg-(--accent-primary)/5 border border-(--accent-primary)/30">
       <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={newIdeType}
-          onChange={(e) => setNewIdeType(e.target.value as IdeType)}
-          className="input-terminal !w-auto"
-        >
-          {IDE_TYPES.map((ide) => (
-            <option key={ide.value} value={ide.value}>
-              {ide.label}
-            </option>
+        <select value={newIdeType} onChange={(e) => setNewIdeType(e.target.value)} className="input-terminal w-auto!">
+          {IDE_GROUPS.map((group) => (
+            <optgroup key={group.group} label={group.group}>
+              {group.items.map((ide) => (
+                <option key={ide.value} value={ide.value}>
+                  {ide.label}
+                </option>
+              ))}
+            </optgroup>
           ))}
+          {customIdes.length > 0 && (
+            <optgroup label="Custom">
+              {customIdes.map((ide) => (
+                <option key={ide.id} value={ide.id}>
+                  {ide.label}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
         <div className="flex-1 flex gap-2">
           <input
@@ -80,9 +103,9 @@ function IDECreator({
         workingDirs={workingDirs}
         filter="local"
         onSelect={(path) => setNewPath(path)}
-        className="mt-3 pt-3 border-t border-[var(--border-subtle)]"
+        className="mt-3 pt-3 border-t border-(--border-subtle)"
       />
-      <div className="text-xs font-mono text-[var(--text-muted)] mt-3">Click outside to save</div>
+      <div className="text-xs font-mono text-(--text-muted) mt-3">Click outside to save</div>
     </div>
   )
 }
@@ -91,7 +114,7 @@ interface IDESectionProps {
   items: Item[]
   isCreating: boolean
   workingDirs: WorkingDir[]
-  onAdd: (title: string, path: string, ideType: IdeType) => Promise<void>
+  onAdd: (title: string, path: string, ideType: string) => Promise<void>
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
@@ -106,8 +129,9 @@ export default function IDESection({
   onDelete,
   onCreatingChange,
 }: IDESectionProps) {
+  const { customIdes } = useCustomIdes()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editIdeType, setEditIdeType] = useState<IdeType>('pycharm')
+  const [editIdeType, setEditIdeType] = useState<string>('pycharm')
   const [editPath, setEditPath] = useState('')
   const editIdeRef = useRef<HTMLDivElement>(null)
 
@@ -147,9 +171,19 @@ export default function IDESection({
   const handleOpen = async (item: Item) => {
     if (item.ide_type && item.content) {
       try {
-        await openIde(item.ide_type, item.content)
-      } catch {
-        alert(`Failed to open ${item.ide_type}`)
+        if (isBuiltInIde(item.ide_type)) {
+          await openIde(item.ide_type, item.content)
+        } else {
+          // Custom IDE - find command and execute
+          const customIde = customIdes.find((c) => c.id === item.ide_type)
+          if (customIde) {
+            await openCustomIde(customIde.command, item.content)
+          } else {
+            throw new Error(`Custom IDE "${item.ide_type}" not found`)
+          }
+        }
+      } catch (err) {
+        alert(`Failed to open IDE: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
     }
   }
@@ -160,7 +194,14 @@ export default function IDESection({
     <section id="section-apps" className="scroll-mt-6">
       <h3 className="section-label">IDE</h3>
 
-      {isCreating && <IDECreator workingDirs={workingDirs} onAdd={onAdd} onCreatingChange={onCreatingChange} />}
+      {isCreating && (
+        <IDECreator
+          workingDirs={workingDirs}
+          customIdes={customIdes}
+          onAdd={onAdd}
+          onCreatingChange={onCreatingChange}
+        />
+      )}
 
       <div className="flex flex-wrap gap-2">
         {items.map((item, index) =>
@@ -168,19 +209,32 @@ export default function IDESection({
             <div
               key={item.id}
               ref={editIdeRef}
-              className="w-full p-4 rounded-xl bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/30 animate-card-enter"
+              className="w-full p-4 rounded-xl bg-(--accent-primary)/5 border border-(--accent-primary)/30 animate-card-enter"
             >
               <div className="flex flex-wrap items-center gap-3">
                 <select
                   value={editIdeType}
-                  onChange={(e) => setEditIdeType(e.target.value as IdeType)}
-                  className="input-terminal !w-auto"
+                  onChange={(e) => setEditIdeType(e.target.value)}
+                  className="input-terminal w-auto!"
                 >
-                  {IDE_TYPES.map((ide) => (
-                    <option key={ide.value} value={ide.value}>
-                      {ide.label}
-                    </option>
+                  {IDE_GROUPS.map((group) => (
+                    <optgroup key={group.group} label={group.group}>
+                      {group.items.map((ide) => (
+                        <option key={ide.value} value={ide.value}>
+                          {ide.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
+                  {customIdes.length > 0 && (
+                    <optgroup label="Custom">
+                      {customIdes.map((ide) => (
+                        <option key={ide.id} value={ide.id}>
+                          {ide.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 <div className="flex-1 flex gap-2">
                   <input
@@ -197,7 +251,7 @@ export default function IDESection({
                 </div>
               </div>
               <div className="flex justify-between items-center mt-3">
-                <span className="text-xs font-mono text-[var(--text-muted)]">Click outside to save</span>
+                <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -217,21 +271,21 @@ export default function IDESection({
               style={{ animationDelay: `${index * 30}ms` }}
             >
               <div className={`tag ${IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
-                <span>{IDE_LABELS[item.ide_type!] || item.ide_type}</span>
+                <span>{getIdeLabel(item.ide_type!, customIdes)}</span>
                 <span className="opacity-60">{item.title}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     onDelete(item.id)
                   }}
-                  className="ml-1 opacity-0 group-hover/ide:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-opacity"
+                  className="ml-1 opacity-0 group-hover/ide:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
                 >
                   ×
                 </button>
               </div>
               <button
                 onClick={() => handleEdit(item)}
-                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] opacity-0 group-hover/ide:opacity-100 transition-all"
+                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] opacity-0 group-hover/ide:opacity-100 transition-all"
               >
                 Edit
               </button>
@@ -242,7 +296,7 @@ export default function IDESection({
         {!isCreating && (
           <button
             onClick={() => onCreatingChange(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--accent-primary)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-primary) text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-all"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />

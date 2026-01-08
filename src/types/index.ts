@@ -1,7 +1,31 @@
 export type ItemType = 'note' | 'ide' | 'file' | 'url' | 'remote-ide' | 'command'
-export type IdeType = 'pycharm' | 'cursor' | 'vscode' | 'zed' | 'antigravity'
+export type IdeType =
+  // JetBrains IDEs
+  | 'idea'
+  | 'pycharm'
+  | 'webstorm'
+  | 'phpstorm'
+  | 'rubymine'
+  | 'clion'
+  | 'goland'
+  | 'rider'
+  | 'datagrip'
+  | 'rustrover'
+  | 'aqua'
+  // Other IDEs
+  | 'cursor'
+  | 'vscode'
+  | 'zed'
+  | 'antigravity'
 export type RemoteIdeType = 'cursor' | 'vscode'
 export type CommandMode = 'background' | 'output'
+
+// Custom IDE configuration for user-defined IDEs
+export interface CustomIde {
+  id: string // unique identifier (e.g., "nvim", "sublime")
+  label: string // display name (e.g., "Neovim", "Sublime Text")
+  command: string // command template with {path} placeholder (e.g., "nvim {path}")
+}
 
 // Section keys for drag-and-drop reordering
 export type SectionKey = 'workingDirs' | 'ide' | 'remoteIde' | 'file' | 'command' | 'links' | 'notes'
@@ -22,8 +46,8 @@ export interface Item {
   type: ItemType
   title: string
   content: string
-  ide_type?: IdeType
-  remote_ide_type?: RemoteIdeType
+  ide_type?: string // Can be built-in IdeType or custom IDE id
+  remote_ide_type?: string // Can be built-in RemoteIdeType or custom remote IDE id
   command_mode?: CommandMode
   command_cwd?: string
   command_host?: string // for remote commands via SSH

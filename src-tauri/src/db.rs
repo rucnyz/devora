@@ -173,11 +173,11 @@ impl Database {
                         item_type: item_type_str.parse().unwrap(),
                         title: row.get(3)?,
                         content: row.get(4)?,
-                        ide_type: ide_type_str.and_then(|s| s.parse().ok()),
+                        ide_type: ide_type_str,  // Already a string
                         order: row.get(6)?,
                         created_at: row.get(7)?,
                         updated_at: row.get(8)?,
-                        remote_ide_type: remote_ide_type_str.and_then(|s| s.parse().ok()),
+                        remote_ide_type: remote_ide_type_str,  // Already a string
                         command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                         command_cwd: row.get(11)?,
                         command_host: row.get(12)?,
@@ -260,8 +260,8 @@ impl Database {
         item_type: ItemType,
         title: &str,
         content: &str,
-        ide_type: Option<IdeType>,
-        remote_ide_type: Option<RemoteIdeType>,
+        ide_type: Option<&str>,  // Changed to &str to support custom IDE IDs
+        remote_ide_type: Option<&str>,  // Changed to &str to support custom remote IDE IDs
         command_mode: Option<CommandMode>,
         command_cwd: Option<&str>,
         command_host: Option<&str>,
@@ -287,8 +287,8 @@ impl Database {
                 item_type.to_string(),
                 title,
                 content,
-                ide_type.as_ref().map(|t| t.to_string()),
-                remote_ide_type.as_ref().map(|t| t.to_string()),
+                ide_type,  // Already a string, no conversion needed
+                remote_ide_type,  // Already a string, no conversion needed
                 command_mode.as_ref().map(|t| t.to_string()),
                 command_cwd,
                 command_host,
@@ -310,8 +310,8 @@ impl Database {
             item_type,
             title: title.to_string(),
             content: content.to_string(),
-            ide_type,
-            remote_ide_type,
+            ide_type: ide_type.map(|s| s.to_string()),
+            remote_ide_type: remote_ide_type.map(|s| s.to_string()),  // Changed to string
             command_mode,
             command_cwd: command_cwd.map(|s| s.to_string()),
             command_host: command_host.map(|s| s.to_string()),
@@ -326,8 +326,8 @@ impl Database {
         id: &str,
         title: Option<&str>,
         content: Option<&str>,
-        ide_type: Option<Option<IdeType>>,
-        remote_ide_type: Option<Option<RemoteIdeType>>,
+        ide_type: Option<Option<String>>,  // Changed to String to support custom IDE IDs
+        remote_ide_type: Option<Option<String>>,  // Changed to String to support custom remote IDE IDs
         command_mode: Option<Option<CommandMode>>,
         command_cwd: Option<Option<&str>>,
         command_host: Option<Option<&str>>,
@@ -363,8 +363,8 @@ impl Database {
 
         // Parse existing enum values from strings
         let existing_item_type: ItemType = existing.2.parse().unwrap();
-        let existing_ide_type: Option<IdeType> = existing.5.as_ref().and_then(|s| s.parse().ok());
-        let existing_remote_ide_type: Option<RemoteIdeType> = existing.9.as_ref().and_then(|s| s.parse().ok());
+        let existing_ide_type: Option<String> = existing.5.clone();  // Already a string
+        let existing_remote_ide_type: Option<String> = existing.9.clone();  // Already a string
         let existing_command_mode: Option<CommandMode> = existing.10.as_ref().and_then(|s| s.parse().ok());
 
         let title = title.unwrap_or(&existing.3);
@@ -382,8 +382,8 @@ impl Database {
             params![
                 title,
                 content,
-                ide_type.as_ref().map(|t| t.to_string()),
-                remote_ide_type.as_ref().map(|t| t.to_string()),
+                ide_type.as_ref(),  // Already a string
+                remote_ide_type.as_ref(),  // Already a string
                 command_mode.as_ref().map(|t| t.to_string()),
                 command_cwd,
                 command_host,
@@ -683,11 +683,11 @@ impl Database {
                             item_type: item_type_str.parse().unwrap(),
                             title: row.get(3)?,
                             content: row.get(4)?,
-                            ide_type: ide_type_str.and_then(|s| s.parse().ok()),
+                            ide_type: ide_type_str,  // Already a string
                             order: row.get(6)?,
                             created_at: row.get(7)?,
                             updated_at: row.get(8)?,
-                            remote_ide_type: remote_ide_type_str.and_then(|s| s.parse().ok()),
+                            remote_ide_type: remote_ide_type_str,  // Already a string
                             command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                             command_cwd: row.get(11)?,
                             command_host: row.get(12)?,
@@ -752,11 +752,11 @@ impl Database {
                         item_type: item_type_str.parse().unwrap(),
                         title: row.get(3)?,
                         content: row.get(4)?,
-                        ide_type: ide_type_str.and_then(|s| s.parse().ok()),
+                        ide_type: ide_type_str,  // Already a string
                         order: row.get(6)?,
                         created_at: row.get(7)?,
                         updated_at: row.get(8)?,
-                        remote_ide_type: remote_ide_type_str.and_then(|s| s.parse().ok()),
+                        remote_ide_type: remote_ide_type_str,  // Already a string
                         command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                         command_cwd: row.get(11)?,
                         command_host: row.get(12)?,
@@ -869,8 +869,8 @@ impl Database {
                     item.item_type.to_string(),
                     item.title,
                     item.content,
-                    item.ide_type.as_ref().map(|t| t.to_string()),
-                    item.remote_ide_type.as_ref().map(|t| t.to_string()),
+                    item.ide_type.as_ref(),  // Already a string
+                    item.remote_ide_type.as_ref(),  // Already a string
                     item.command_mode.as_ref().map(|t| t.to_string()),
                     item.command_cwd,
                     item.command_host,

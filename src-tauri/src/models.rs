@@ -18,7 +18,19 @@ pub enum ItemType {
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum IdeType {
+    // JetBrains IDEs
+    Idea,
     Pycharm,
+    Webstorm,
+    Phpstorm,
+    Rubymine,
+    Clion,
+    Goland,
+    Rider,
+    Datagrip,
+    Rustrover,
+    Aqua,
+    // Other IDEs
     Cursor,
     Vscode,
     Zed,
@@ -82,9 +94,9 @@ pub struct Item {
     pub title: String,
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ide_type: Option<IdeType>,
+    pub ide_type: Option<String>,  // Changed to String to support custom IDE IDs
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub remote_ide_type: Option<RemoteIdeType>,
+    pub remote_ide_type: Option<String>,  // Changed to String to support custom remote IDE IDs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_mode: Option<CommandMode>,
     #[serde(skip_serializing_if = "Option::is_none")]

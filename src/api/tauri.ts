@@ -128,8 +128,8 @@ export async function createItem(
   type: ItemType,
   title: string,
   content?: string,
-  ideType?: IdeType,
-  remoteIdeType?: RemoteIdeType,
+  ideType?: string, // Can be built-in IdeType or custom IDE id
+  remoteIdeType?: string, // Can be built-in RemoteIdeType or custom remote IDE id
   commandMode?: CommandMode,
   commandCwd?: string,
   commandHost?: string
@@ -257,6 +257,10 @@ export async function importData(data: ImportData, mode?: 'merge' | 'replace'): 
 
 export async function openIde(ideType: IdeType, path: string): Promise<void> {
   return invoke('open_ide', { ideType, path })
+}
+
+export async function openCustomIde(command: string, path: string): Promise<void> {
+  return invoke('open_custom_ide', { command, path })
 }
 
 export async function openRemoteIde(remoteIdeType: RemoteIdeType, host: string, path: string): Promise<void> {

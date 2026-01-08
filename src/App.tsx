@@ -7,6 +7,9 @@ import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
 import { useSetting, SettingsProvider } from './hooks/useSettings.tsx'
+import { useCustomIdes, CustomIdesProvider } from './hooks/useCustomIdes'
+import { IDE_TYPES } from './constants/itemTypes'
+import type { CustomIde } from './types'
 import {
   getProjects,
   exportDataToFile,
@@ -496,8 +499,15 @@ function SettingsButton() {
   const [isOpen, setIsOpen] = useState(false)
   const { value: fileCardMaxSize, updateValue: setFileCardMaxSize } = useSetting('fileCardMaxSize')
   const { value: zoomLevel, updateValue: setZoomLevel } = useSetting('zoomLevel')
+  const { customIdes, addCustomIde, updateCustomIde, deleteCustomIde } = useCustomIdes()
   const [inputValue, setInputValue] = useState('')
   const [zoomInputValue, setZoomInputValue] = useState('')
+
+  // Custom IDE form state
+  const [isAddingIde, setIsAddingIde] = useState(false)
+  const [editingIdeId, setEditingIdeId] = useState<string | null>(null)
+  const [ideForm, setIdeForm] = useState<CustomIde>({ id: '', label: '', command: '' })
+  const [ideError, setIdeError] = useState('')
 
   // Round to 1 decimal place to avoid floating point display issues
   const currentMb = Math.round((fileCardMaxSize / (1024 * 1024)) * 10) / 10
@@ -510,6 +520,73 @@ function SettingsButton() {
 
   const handleClose = () => {
     setIsOpen(false)
+    setIsAddingIde(false)
+    setEditingIdeId(null)
+    setIdeForm({ id: '', label: '', command: '' })
+    setIdeError('')
+  }
+
+  // Custom IDE handlers
+  const resetIdeForm = () => {
+    setIsAddingIde(false)
+    setEditingIdeId(null)
+    setIdeForm({ id: '', label: '', command: '' })
+    setIdeError('')
+  }
+
+  const handleAddIde = async () => {
+    if (!ideForm.id.trim() || !ideForm.label.trim() || !ideForm.command.trim()) {
+      setIdeError('All fields are required')
+      return
+    }
+    if (!/^[a-z0-9-]+$/.test(ideForm.id)) {
+      setIdeError('ID must be lowercase alphanumeric with hyphens only')
+      return
+    }
+    // Check for conflict with built-in IDE IDs
+    if (IDE_TYPES.some((ide) => ide.value === ideForm.id)) {
+      setIdeError(`ID "${ideForm.id}" conflicts with a built-in IDE. Choose a different ID.`)
+      return
+    }
+    if (!ideForm.command.includes('{path}')) {
+      setIdeError('Command must include {path} placeholder')
+      return
+    }
+    try {
+      await addCustomIde(ideForm)
+      resetIdeForm()
+    } catch (err) {
+      setIdeError(err instanceof Error ? err.message : 'Failed to add IDE')
+    }
+  }
+
+  const handleEditIde = (ide: CustomIde) => {
+    setEditingIdeId(ide.id)
+    setIdeForm({ ...ide })
+    setIdeError('')
+  }
+
+  const handleSaveEdit = async () => {
+    if (!ideForm.label.trim() || !ideForm.command.trim()) {
+      setIdeError('Label and command are required')
+      return
+    }
+    if (!ideForm.command.includes('{path}')) {
+      setIdeError('Command must include {path} placeholder')
+      return
+    }
+    try {
+      await updateCustomIde(editingIdeId!, { label: ideForm.label, command: ideForm.command })
+      resetIdeForm()
+    } catch (err) {
+      setIdeError(err instanceof Error ? err.message : 'Failed to update IDE')
+    }
+  }
+
+  const handleDeleteIde = async (id: string) => {
+    if (confirm('Delete this custom IDE?')) {
+      await deleteCustomIde(id)
+    }
   }
 
   const handleSizeChange = (mb: number) => {
@@ -592,7 +669,7 @@ function SettingsButton() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleClose}>
             {/* Dialog */}
             <div
-              className="relative bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[320px] overflow-hidden"
+              className="relative bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[400px] max-h-[80vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -609,7 +686,7 @@ function SettingsButton() {
               </div>
 
               {/* Content */}
-              <div className="p-4 space-y-4">
+              <div className="p-4 space-y-4 overflow-y-auto flex-1">
                 {/* File Preview Max Size */}
                 <div>
                   <label className="block text-sm text-[var(--text-primary)] mb-2">File preview max size</label>
@@ -695,6 +772,122 @@ function SettingsButton() {
                   </div>
                   <p className="text-xs text-[var(--text-muted)] mt-1.5">
                     Ctrl+Scroll or Ctrl+/- to zoom, Ctrl+0 to reset
+                  </p>
+                </div>
+
+                {/* Custom IDEs */}
+                <div className="border-t border-[var(--border-subtle)] pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-[var(--text-primary)]">Custom IDEs</label>
+                    {!isAddingIde && !editingIdeId && (
+                      <button
+                        onClick={() => setIsAddingIde(true)}
+                        className="text-xs text-[var(--accent-primary)] hover:underline"
+                      >
+                        + Add
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Add/Edit Form */}
+                  {(isAddingIde || editingIdeId) && (
+                    <div className="mb-3 p-3 bg-[var(--bg-surface)] rounded-lg space-y-2">
+                      {isAddingIde && (
+                        <input
+                          type="text"
+                          placeholder="ID (e.g., nvim)"
+                          value={ideForm.id}
+                          onChange={(e) => setIdeForm({ ...ideForm, id: e.target.value.toLowerCase() })}
+                          className="w-full px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                        />
+                      )}
+                      <input
+                        type="text"
+                        placeholder="Label (e.g., Neovim)"
+                        value={ideForm.label}
+                        onChange={(e) => setIdeForm({ ...ideForm, label: e.target.value })}
+                        className="w-full px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Command (e.g., nvim {path})"
+                        value={ideForm.command}
+                        onChange={(e) => setIdeForm({ ...ideForm, command: e.target.value })}
+                        className="w-full px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                      />
+                      {ideError && <p className="text-xs text-[var(--accent-danger)]">{ideError}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={isAddingIde ? handleAddIde : handleSaveEdit}
+                          className="flex-1 px-2 py-1.5 bg-[var(--accent-primary)] text-white text-xs rounded hover:opacity-90 transition-opacity"
+                        >
+                          {isAddingIde ? 'Add' : 'Save'}
+                        </button>
+                        <button
+                          onClick={resetIdeForm}
+                          className="px-2 py-1.5 bg-[var(--bg-elevated)] text-[var(--text-muted)] text-xs rounded hover:text-[var(--text-primary)] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* IDE List */}
+                  {customIdes.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {customIdes.map((ide) => (
+                        <div
+                          key={ide.id}
+                          className="flex items-center justify-between p-2 bg-[var(--bg-surface)] rounded-lg group"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm text-[var(--text-primary)] font-medium">{ide.label}</div>
+                            <div className="text-xs text-[var(--text-muted)] font-mono truncate">{ide.command}</div>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleEditIde(ide)}
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                              title="Edit"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteIde(ide.id)}
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-colors"
+                              title="Delete"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    !isAddingIde && (
+                      <p className="text-xs text-[var(--text-muted)]">
+                        No custom IDEs. Click "+ Add" to register your own IDE.
+                      </p>
+                    )
+                  )}
+                  <p className="text-xs text-[var(--text-muted)] mt-2">
+                    Use <code className="bg-[var(--bg-surface)] px-1 rounded">{'{path}'}</code> as placeholder for
+                    project path.
                   </p>
                 </div>
               </div>
@@ -906,9 +1099,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <SettingsProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
+        <CustomIdesProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </CustomIdesProvider>
       </SettingsProvider>
     </ThemeProvider>
   )

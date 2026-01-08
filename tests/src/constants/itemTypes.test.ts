@@ -3,6 +3,7 @@ import {
   IDE_LABELS,
   IDE_TAG_CLASS,
   IDE_TYPES,
+  IDE_GROUPS,
   REMOTE_IDE_LABELS,
   REMOTE_IDE_TAG_CLASS,
   REMOTE_IDE_TYPES,
@@ -12,15 +13,24 @@ import type { IdeType } from '../../../src/types'
 describe('IDE Constants', () => {
   describe('IDE_LABELS', () => {
     test('contains all IDE types', () => {
-      const ideTypes: IdeType[] = ['pycharm', 'cursor', 'vscode', 'zed', 'antigravity']
-      for (const type of ideTypes) {
+      const jetbrainsIdes: IdeType[] = ['idea', 'pycharm', 'webstorm', 'phpstorm', 'rubymine', 'clion', 'goland', 'rider', 'datagrip', 'rustrover', 'aqua']
+      const otherIdes: IdeType[] = ['cursor', 'vscode', 'zed', 'antigravity']
+      const allIdes = [...jetbrainsIdes, ...otherIdes]
+      for (const type of allIdes) {
         expect(IDE_LABELS[type]).toBeDefined()
         expect(typeof IDE_LABELS[type]).toBe('string')
       }
     })
 
-    test('has correct labels', () => {
+    test('has correct labels for JetBrains IDEs', () => {
+      expect(IDE_LABELS.idea).toBe('IntelliJ IDEA')
       expect(IDE_LABELS.pycharm).toBe('PyCharm')
+      expect(IDE_LABELS.webstorm).toBe('WebStorm')
+      expect(IDE_LABELS.clion).toBe('CLion')
+      expect(IDE_LABELS.rustrover).toBe('RustRover')
+    })
+
+    test('has correct labels for other IDEs', () => {
       expect(IDE_LABELS.cursor).toBe('Cursor')
       expect(IDE_LABELS.vscode).toBe('VS Code')
       expect(IDE_LABELS.zed).toBe('Zed')
@@ -38,14 +48,35 @@ describe('IDE Constants', () => {
     })
   })
 
+  describe('IDE_GROUPS', () => {
+    test('has JetBrains and Other groups', () => {
+      expect(IDE_GROUPS.length).toBe(2)
+      expect(IDE_GROUPS[0].group).toBe('JetBrains')
+      expect(IDE_GROUPS[1].group).toBe('Other')
+    })
+
+    test('JetBrains group contains 11 IDEs', () => {
+      expect(IDE_GROUPS[0].items.length).toBe(11)
+    })
+
+    test('Other group contains 4 IDEs', () => {
+      expect(IDE_GROUPS[1].items.length).toBe(4)
+    })
+  })
+
   describe('IDE_TYPES', () => {
-    test('contains 5 IDE options', () => {
-      expect(IDE_TYPES.length).toBe(5)
+    test('contains 15 IDE options (flattened from groups)', () => {
+      expect(IDE_TYPES.length).toBe(15)
     })
 
     test('contains all expected IDE types', () => {
       const values = IDE_TYPES.map(t => t.value)
+      // JetBrains
+      expect(values).toContain('idea')
       expect(values).toContain('pycharm')
+      expect(values).toContain('rustrover')
+      expect(values).toContain('clion')
+      // Other
       expect(values).toContain('cursor')
       expect(values).toContain('vscode')
       expect(values).toContain('zed')

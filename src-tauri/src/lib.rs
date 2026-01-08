@@ -63,6 +63,7 @@ pub fn run() {
             commands::import_data,
             // System operations
             commands::open_ide,
+            commands::open_custom_ide,
             commands::open_remote_ide,
             commands::get_ssh_hosts,
             commands::list_remote_dir,
