@@ -56,8 +56,5 @@ jobs:
       - name: Build frontend check
         run: bun run build:frontend
 
-      - name: Rust check
-        run: cargo check --manifest-path src-tauri/Cargo.toml
-
       - name: Rust clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings -A clippy::too_many_arguments -A clippy::type_complexity -A clippy::manual_flatten
