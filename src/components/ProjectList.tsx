@@ -62,7 +62,7 @@ export default function ProjectList() {
             {projects.length} {projects.length === 1 ? 'project' : 'projects'} in workspace
           </p>
         </div>
-        <button onClick={() => setShowNewForm(true)} className="btn-neon">
+        <button onClick={() => setShowNewForm(true)} className="btn-neon" data-testid="new-project-btn">
           <span>+ New Project</span>
         </button>
       </div>
@@ -72,6 +72,7 @@ export default function ProjectList() {
         <form
           onSubmit={handleCreate}
           className="mb-8 p-6 rounded-xl bg-(--bg-surface) border border-(--border-accent) animate-card-enter"
+          data-testid="new-project-form"
         >
           <h3 className="text-lg font-semibold text-(--text-primary) mb-4">Create New Project</h3>
           <div className="space-y-4">
@@ -82,6 +83,7 @@ export default function ProjectList() {
               onChange={(e) => setNewName(e.target.value)}
               className="input-terminal"
               autoFocus
+              data-testid="project-name-input"
             />
             <input
               type="text"
@@ -89,6 +91,7 @@ export default function ProjectList() {
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               className="input-terminal"
+              data-testid="project-desc-input"
             />
             <input
               type="url"
@@ -96,6 +99,7 @@ export default function ProjectList() {
               value={newGithubUrl}
               onChange={(e) => setNewGithubUrl(e.target.value)}
               className="input-terminal"
+              data-testid="project-github-input"
             />
             <input
               type="url"
@@ -103,13 +107,14 @@ export default function ProjectList() {
               value={newCustomUrl}
               onChange={(e) => setNewCustomUrl(e.target.value)}
               className="input-terminal"
+              data-testid="project-custom-url-input"
             />
           </div>
           <div className="flex gap-3 mt-6">
-            <button type="submit" className="btn-solid">
+            <button type="submit" className="btn-solid" data-testid="create-project-btn">
               Create Project
             </button>
-            <button type="button" onClick={() => setShowNewForm(false)} className="btn-ghost">
+            <button type="button" onClick={() => setShowNewForm(false)} className="btn-ghost" data-testid="cancel-create-btn">
               Cancel
             </button>
           </div>
@@ -165,6 +170,7 @@ function ProjectCard({
       style={style}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      data-testid="project-card"
     >
       <div className="flex items-start justify-between mb-3">
         <Link to={`/project/${project.id}`} className="flex-1 min-w-0">
