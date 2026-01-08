@@ -161,6 +161,7 @@ describe('CommandSection', () => {
         title: 'npm test',
         content: 'npm test',
         command_mode: 'output',
+        order: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },

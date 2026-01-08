@@ -13,7 +13,7 @@ export default function HostInput({
   value,
   onChange,
   suggestions,
-  placeholder = 'host',
+  placeholder = 'host or user@host',
   className = '',
   autoFocus = false,
 }: HostInputProps) {
@@ -47,7 +47,8 @@ export default function HostInput({
       setHighlightIndex((prev) => (prev > 0 ? prev - 1 : prev))
     } else if (e.key === 'Enter' && highlightIndex >= 0) {
       e.preventDefault()
-      onChange(filteredSuggestions[highlightIndex])
+      const selected = filteredSuggestions[highlightIndex]
+      if (selected) onChange(selected)
       setShowSuggestions(false)
       setHighlightIndex(-1)
     } else if (e.key === 'Escape') {

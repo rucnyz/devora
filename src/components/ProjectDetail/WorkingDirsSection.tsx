@@ -253,6 +253,7 @@ export default function WorkingDirsSection({
 
   const handleEdit = (index: number) => {
     const dir = dirs[index]
+    if (!dir) return
     setEditingIndex(index)
     setEditName(dir.name)
     setEditPath(dir.path)

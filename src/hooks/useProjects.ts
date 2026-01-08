@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Project, Item, ItemType, IdeType, RemoteIdeType, CommandMode, ProjectMetadata } from '../types'
-
-const API_BASE = '/api'
+import * as api from '../api/tauri'
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -11,9 +10,7 @@ export function useProjects() {
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch(`${API_BASE}/projects`)
-      if (!res.ok) throw new Error('Failed to fetch projects')
-      const data = await res.json()
+      const data = await api.getProjects()
       setProjects(data)
       setError(null)
     } catch (err) {
@@ -28,32 +25,21 @@ export function useProjects() {
   }, [fetchProjects])
 
   const createProject = async (name: string, description?: string, metadata?: ProjectMetadata) => {
-    const res = await fetch(`${API_BASE}/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, metadata }),
-    })
-    if (!res.ok) throw new Error('Failed to create project')
-    const project = await res.json()
+    const project = await api.createProject(name, description, metadata)
     setProjects((prev) => [project, ...prev])
     return project
   }
 
   const updateProject = async (id: string, updates: Partial<Pick<Project, 'name' | 'description' | 'metadata'>>) => {
-    const res = await fetch(`${API_BASE}/projects/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    })
-    if (!res.ok) throw new Error('Failed to update project')
-    const project = await res.json()
-    setProjects((prev) => prev.map((p) => (p.id === id ? project : p)))
+    const project = await api.updateProject(id, updates)
+    if (project) {
+      setProjects((prev) => prev.map((p) => (p.id === id ? project : p)))
+    }
     return project
   }
 
   const deleteProject = async (id: string) => {
-    const res = await fetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to delete project')
+    await api.deleteProject(id)
     setProjects((prev) => prev.filter((p) => p.id !== id))
   }
 
@@ -69,9 +55,7 @@ export function useProject(id: string) {
     async (showLoading = true) => {
       try {
         if (showLoading) setLoading(true)
-        const res = await fetch(`${API_BASE}/projects/${id}`)
-        if (!res.ok) throw new Error('Failed to fetch project')
-        const data = await res.json()
+        const data = await api.getProject(id)
         setProject(data)
         setError(null)
       } catch (err) {
@@ -97,24 +81,19 @@ export function useProject(id: string) {
     commandCwd?: string,
     commandHost?: string
   ) => {
-    const res = await fetch(`${API_BASE}/projects/${id}/items`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type,
-        title,
-        content,
-        ide_type: ideType,
-        remote_ide_type: remoteIdeType,
-        command_mode: commandMode,
-        command_cwd: commandCwd,
-        command_host: commandHost,
-      }),
-    })
-    if (!res.ok) throw new Error('Failed to add item')
-    const item = await res.json()
+    const item = await api.createItem(
+      id,
+      type,
+      title,
+      content,
+      ideType,
+      remoteIdeType,
+      commandMode,
+      commandCwd,
+      commandHost
+    )
     await fetchProject(false)
-    return item as Item
+    return item
   }
 
   const updateItem = async (
@@ -123,28 +102,17 @@ export function useProject(id: string) {
       Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'command_host'>
     >
   ) => {
-    const res = await fetch(`${API_BASE}/items/${itemId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    })
-    if (!res.ok) throw new Error('Failed to update item')
+    await api.updateItem(itemId, updates)
     await fetchProject(false)
   }
 
   const deleteItem = async (itemId: string) => {
-    const res = await fetch(`${API_BASE}/items/${itemId}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Failed to delete item')
+    await api.deleteItem(itemId)
     await fetchProject(false)
   }
 
   const updateProject = async (updates: Partial<Pick<Project, 'name' | 'description' | 'metadata'>>) => {
-    const res = await fetch(`${API_BASE}/projects/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    })
-    if (!res.ok) throw new Error('Failed to update project')
+    await api.updateProject(id, updates)
     await fetchProject(false)
   }
 
@@ -165,69 +133,22 @@ export function useProject(id: string) {
     }
 
     // Send to backend (no need to refetch)
-    const res = await fetch(`${API_BASE}/projects/${id}/items/reorder`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemIds }),
-    })
-    if (!res.ok) throw new Error('Failed to reorder items')
+    await api.reorderItems(id, itemIds)
   }
 
   return { project, loading, error, fetchProject, addItem, updateItem, deleteItem, updateProject, reorderItems }
 }
 
-export async function openIde(ideType: IdeType, path: string) {
-  const res = await fetch(`${API_BASE}/open/ide`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ide_type: ideType, path }),
-  })
-  if (!res.ok) throw new Error('Failed to open IDE')
-}
+// Re-export system operations from API
+export const openIde = api.openIde
+export const openFile = api.openFile
+export const selectFolder = api.selectFolder
+export const selectFile = api.selectFile
+export const openRemoteIde = api.openRemoteIde
+export const fetchSSHHosts = api.getSSHHosts
+export const fetchUrlMetadata = api.fetchUrlMetadata
 
-export async function openFile(path: string) {
-  const res = await fetch(`${API_BASE}/open/file`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path }),
-  })
-  if (!res.ok) throw new Error('Failed to open file')
-}
-
-export async function selectFolder(): Promise<string | null> {
-  const res = await fetch(`${API_BASE}/open/select-folder`, {
-    method: 'POST',
-  })
-  if (!res.ok) throw new Error('Failed to open folder picker')
-  const data = await res.json()
-  return data.path || null
-}
-
-export async function selectFile(): Promise<string | null> {
-  const res = await fetch(`${API_BASE}/open/select-file`, {
-    method: 'POST',
-  })
-  if (!res.ok) throw new Error('Failed to open file picker')
-  const data = await res.json()
-  return data.path || null
-}
-
-export async function openRemoteIde(remoteIdeType: RemoteIdeType, host: string, path: string) {
-  const res = await fetch(`${API_BASE}/open/remote-ide`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ remote_ide_type: remoteIdeType, host, path }),
-  })
-  if (!res.ok) throw new Error('Failed to open remote IDE')
-}
-
-export async function fetchSSHHosts(): Promise<string[]> {
-  const res = await fetch(`${API_BASE}/open/ssh-hosts`)
-  if (!res.ok) return []
-  const data = await res.json()
-  return data.hosts || []
-}
-
+// Remote directory types - re-export with compatible names
 export interface RemoteDirEntry {
   name: string
   isDir: boolean
@@ -239,33 +160,14 @@ export interface RemoteDirResult {
 }
 
 export async function listRemoteDir(host: string, path: string = '~'): Promise<RemoteDirResult> {
-  const res = await fetch(`${API_BASE}/open/ssh/list-dir`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ host, path }),
-  })
-  if (!res.ok) {
-    const data = await res.json()
-    throw new Error(data.error || 'Failed to list remote directory')
-  }
-  return res.json()
-}
-
-export async function fetchUrlMetadata(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(`${API_BASE}/open/url-metadata`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    return data.title || null
-  } catch {
-    return null
+  const result = await api.listRemoteDir(host, path)
+  return {
+    path: result.current_path,
+    entries: result.entries.map((e) => ({ name: e.name, isDir: e.is_dir })),
   }
 }
 
+// Command result type - re-export with compatible structure
 export interface CommandResult {
   success: boolean
   output?: string
@@ -279,14 +181,11 @@ export async function runCommand(
   cwd?: string,
   host?: string
 ): Promise<CommandResult> {
-  const res = await fetch(`${API_BASE}/open/command`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ command, mode, cwd, host }),
-  })
-  if (!res.ok) {
-    const data = await res.json()
-    throw new Error(data.error || 'Failed to run command')
+  const result = await api.runCommand(command, mode, cwd, host)
+  return {
+    success: result.exit_code === 0,
+    output: result.stdout,
+    error: result.stderr,
+    exitCode: result.exit_code,
   }
-  return res.json()
 }

@@ -707,3 +707,8 @@ h1, h2, h3, h4, h5, h6 {
 [data-theme="light"] .glow-text {
   text-shadow: 0 0 10px rgba(5, 150, 105, 0.4);
 }
+
+/* Zoom indicator animation */
+.animate-fade-in {
+  animation: fadeIn 150ms ease-out;
+}

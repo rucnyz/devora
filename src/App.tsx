@@ -1,11 +1,131 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
+import { check, type Update } from '@tauri-apps/plugin-updater'
+import { relaunch } from '@tauri-apps/plugin-process'
 import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
 import { useSetting, SettingsProvider } from './hooks/useSettings.tsx'
+import { getProjects, exportData, importData, getSetting, setSetting, deleteSetting } from './api/tauri'
 
-const API_BASE = 'http://localhost:13000/api'
+type UpdateState =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'available'; update: Update }
+  | { status: 'downloading'; progress: number }
+  | { status: 'ready' }
+  | { status: 'error'; message: string }
+  | { status: 'up-to-date' }
+
+function UpdateChecker() {
+  const [state, setState] = useState<UpdateState>({ status: 'idle' })
+
+  const checkForUpdate = async () => {
+    setState({ status: 'checking' })
+    try {
+      // Add 5 second timeout to prevent long waits on slow networks
+      const timeoutPromise = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error('Update check timed out')), 5000)
+      )
+      const update = await Promise.race([check(), timeoutPromise])
+      if (update) {
+        setState({ status: 'available', update })
+      } else {
+        setState({ status: 'up-to-date' })
+        // Reset to idle after 3 seconds
+        setTimeout(() => setState({ status: 'idle' }), 3000)
+      }
+    } catch (err) {
+      setState({ status: 'error', message: String(err) })
+      setTimeout(() => setState({ status: 'idle' }), 2000)
+    }
+  }
+
+  const downloadAndInstall = async () => {
+    if (state.status !== 'available') return
+    const { update } = state
+
+    setState({ status: 'downloading', progress: 0 })
+    try {
+      let downloaded = 0
+      let contentLength = 0
+      await update.downloadAndInstall((event) => {
+        if (event.event === 'Started') {
+          contentLength = event.data.contentLength ?? 0
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength
+          const progress = contentLength > 0 ? Math.round((downloaded / contentLength) * 100) : 0
+          setState({ status: 'downloading', progress })
+        } else if (event.event === 'Finished') {
+          setState({ status: 'ready' })
+        }
+      })
+      // Relaunch after installation
+      await relaunch()
+    } catch (err) {
+      setState({ status: 'error', message: String(err) })
+      setTimeout(() => setState({ status: 'idle' }), 2000)
+    }
+  }
+
+  // Render based on state
+  switch (state.status) {
+    case 'idle':
+      return (
+        <button
+          onClick={checkForUpdate}
+          className="text-xs font-mono text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+        >
+          Check for update
+        </button>
+      )
+
+    case 'checking':
+      return (
+        <span className="text-xs font-mono text-[var(--text-muted)] flex items-center gap-1.5">
+          <span className="w-3 h-3 border border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
+          Checking...
+        </span>
+      )
+
+    case 'available':
+      return (
+        <button
+          onClick={downloadAndInstall}
+          className="text-xs font-mono text-[var(--accent-primary)] hover:underline flex items-center gap-1"
+        >
+          <span>v{state.update.version} available</span>
+          <span className="px-1.5 py-0.5 rounded bg-[var(--accent-primary)] text-white text-[10px]">Update</span>
+        </button>
+      )
+
+    case 'downloading':
+      return (
+        <span className="text-xs font-mono text-[var(--accent-primary)] flex items-center gap-1.5">
+          <span className="w-3 h-3 border border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+          Downloading {state.progress}%
+        </span>
+      )
+
+    case 'ready':
+      return <span className="text-xs font-mono text-[var(--accent-primary)]">Restarting...</span>
+
+    case 'up-to-date':
+      return <span className="text-xs font-mono text-[var(--text-muted)]">Up to date</span>
+
+    case 'error':
+      return (
+        <button
+          onClick={checkForUpdate}
+          className="text-xs font-mono text-[var(--accent-danger)] hover:underline"
+          title={state.message}
+        >
+          Update failed - retry
+        </button>
+      )
+  }
+}
 
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
@@ -55,10 +175,9 @@ function DataMenu() {
   const openExportDialog = async () => {
     setIsOpen(false)
     try {
-      const res = await fetch(`${API_BASE}/projects`)
-      const data = await res.json()
-      setProjects(data)
-      setSelectedProjects(new Set(data.map((p: ProjectBasic) => p.id))) // Select all by default
+      const data = await getProjects()
+      setProjects(data.map((p) => ({ id: p.id, name: p.name })))
+      setSelectedProjects(new Set(data.map((p) => p.id))) // Select all by default
       setShowExportDialog(true)
     } catch {
       setStatus({ type: 'error', message: 'Failed to load projects' })
@@ -86,10 +205,8 @@ function DataMenu() {
 
   const handleExport = async () => {
     try {
-      const projectIds = Array.from(selectedProjects).join(',')
-      const url = projectIds ? `${API_BASE}/data/export?projectIds=${projectIds}` : `${API_BASE}/data/export`
-      const res = await fetch(url)
-      const data = await res.json()
+      const projectIds = Array.from(selectedProjects)
+      const data = await exportData(projectIds.length > 0 ? projectIds : undefined)
 
       // Download as JSON file
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -117,23 +234,15 @@ function DataMenu() {
       const text = await file.text()
       const data = JSON.parse(text)
 
-      const res = await fetch(`${API_BASE}/data/import?mode=merge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      const result = await importData(data, 'merge')
+      setStatus({
+        type: 'success',
+        message: `Imported ${result.projectsImported} projects, ${result.itemsImported} items`,
       })
-
-      const result = await res.json()
-      if (result.success) {
-        setStatus({ type: 'success', message: result.message })
-        // Reload page to show imported data
-        setTimeout(() => window.location.reload(), 1500)
-      } else {
-        setStatus({ type: 'error', message: result.error })
-        setTimeout(() => setStatus(null), 3000)
-      }
-    } catch {
-      setStatus({ type: 'error', message: 'Import failed: Invalid file' })
+      // Reload page to show imported data
+      setTimeout(() => window.location.reload(), 1500)
+    } catch (err) {
+      setStatus({ type: 'error', message: `Import failed: ${err}` })
       setTimeout(() => setStatus(null), 3000)
     }
 
@@ -279,9 +388,8 @@ function GitHubStars() {
 
   // Load setting from database
   useEffect(() => {
-    fetch('/api/settings/hideGitHubStars')
-      .then((res) => res.json())
-      .then((data) => setHidden(data.value === 'true'))
+    getSetting('hideGitHubStars')
+      .then((value) => setHidden(value === 'true'))
       .catch(() => setHidden(false))
   }, [])
 
@@ -308,16 +416,12 @@ function GitHubStars() {
   const hide = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    fetch('/api/settings/hideGitHubStars', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: 'true' }),
-    })
+    setSetting('hideGitHubStars', 'true')
     setHidden(true)
   }
 
   const show = () => {
-    fetch('/api/settings/hideGitHubStars', { method: 'DELETE' })
+    deleteSetting('hideGitHubStars')
     setHidden(false)
   }
 
@@ -376,7 +480,9 @@ function GitHubStars() {
 function SettingsButton() {
   const [isOpen, setIsOpen] = useState(false)
   const { value: fileCardMaxSize, updateValue: setFileCardMaxSize } = useSetting('fileCardMaxSize')
+  const { value: zoomLevel, updateValue: setZoomLevel } = useSetting('zoomLevel')
   const [inputValue, setInputValue] = useState('')
+  const [zoomInputValue, setZoomInputValue] = useState('')
 
   // Round to 1 decimal place to avoid floating point display issues
   const currentMb = Math.round((fileCardMaxSize / (1024 * 1024)) * 10) / 10
@@ -384,6 +490,7 @@ function SettingsButton() {
   const handleOpen = () => {
     setIsOpen(true)
     setInputValue(String(currentMb))
+    setZoomInputValue(String(zoomLevel))
   }
 
   const handleClose = () => {
@@ -414,6 +521,33 @@ function SettingsButton() {
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleInputBlur()
+    } else if (e.key === 'Escape') {
+      handleClose()
+    }
+  }
+
+  const handleZoomChange = (zoom: number) => {
+    const clamped = Math.max(50, Math.min(200, zoom))
+    setZoomLevel(clamped)
+    setZoomInputValue(String(clamped))
+  }
+
+  const handleZoomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setZoomInputValue(e.target.value)
+  }
+
+  const handleZoomInputBlur = () => {
+    const zoom = parseInt(zoomInputValue)
+    if (!isNaN(zoom) && zoom >= 50 && zoom <= 200) {
+      handleZoomChange(zoom)
+    } else {
+      setZoomInputValue(String(zoomLevel))
+    }
+  }
+
+  const handleZoomInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleZoomInputBlur()
     } else if (e.key === 'Escape') {
       handleClose()
     }
@@ -503,6 +637,53 @@ function SettingsButton() {
                   </button>
                 </div>
               </div>
+
+              {/* Interface Zoom */}
+              <div>
+                <label className="block text-sm text-[var(--text-primary)] mb-2">Interface zoom</label>
+                <div className="flex items-center gap-2">
+                  {/* Decrease button */}
+                  <button
+                    onClick={() => handleZoomChange(zoomLevel - 10)}
+                    disabled={zoomLevel <= 50}
+                    className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                  </button>
+
+                  {/* Input */}
+                  <div className="flex-1 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="50"
+                      max="200"
+                      step="10"
+                      value={zoomInputValue}
+                      onChange={handleZoomInputChange}
+                      onBlur={handleZoomInputBlur}
+                      onKeyDown={handleZoomInputKeyDown}
+                      className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-center text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-sm text-[var(--text-muted)] shrink-0">%</span>
+                  </div>
+
+                  {/* Increase button */}
+                  <button
+                    onClick={() => handleZoomChange(zoomLevel + 10)}
+                    disabled={zoomLevel >= 200}
+                    className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-1.5">
+                  Ctrl+Scroll or Ctrl+/- to zoom, Ctrl+0 to reset
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -532,6 +713,8 @@ function Header() {
                 <p className="text-xs font-mono text-[var(--text-muted)] -mt-0.5">v{__APP_VERSION__}</p>
               </div>
             </Link>
+            <span className="text-[var(--text-muted)]">·</span>
+            <UpdateChecker />
           </div>
 
           {/* Right side controls */}
@@ -551,11 +734,121 @@ function Header() {
   )
 }
 
+const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed'
+
 function AppContent() {
+  const { value: zoomLevel, updateValue: setZoomLevel } = useSetting('zoomLevel')
+  const [showZoomIndicator, setShowZoomIndicator] = useState(false)
+  const zoomTimeoutRef = useRef<number | null>(null)
+  const location = useLocation()
+  const isProjectPage = location.pathname.startsWith('/project/')
+
+  // Track sidebar collapsed state for layout margin
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
+  })
+
+  // Listen for sidebar toggle events
+  useEffect(() => {
+    const handleSidebarToggle = () => {
+      setSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true')
+    }
+    window.addEventListener('sidebar-toggle', handleSidebarToggle)
+    window.addEventListener('storage', handleSidebarToggle)
+    return () => {
+      window.removeEventListener('sidebar-toggle', handleSidebarToggle)
+      window.removeEventListener('storage', handleSidebarToggle)
+    }
+  }, [])
+
+  // Use ref to avoid stale closure in event handlers
+  const zoomRef = useRef(zoomLevel ?? 100)
+  useEffect(() => {
+    zoomRef.current = zoomLevel ?? 100
+  }, [zoomLevel])
+
+  // Show zoom indicator temporarily when zoom changes
+  const showZoomToast = useCallback(() => {
+    setShowZoomIndicator(true)
+    if (zoomTimeoutRef.current) {
+      clearTimeout(zoomTimeoutRef.current)
+    }
+    zoomTimeoutRef.current = window.setTimeout(() => {
+      setShowZoomIndicator(false)
+    }, 1500)
+  }, [])
+
+  // Handle zoom with Ctrl+Wheel and keyboard shortcuts
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault()
+        const currentZoom = zoomRef.current
+        const delta = e.deltaY > 0 ? -10 : 10
+        const newZoom = Math.max(50, Math.min(200, currentZoom + delta))
+        if (newZoom !== currentZoom) {
+          zoomRef.current = newZoom
+          setZoomLevel(newZoom)
+          showZoomToast()
+        }
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey) {
+        const currentZoom = zoomRef.current
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault()
+          const newZoom = Math.min(200, currentZoom + 10)
+          if (newZoom !== currentZoom) {
+            zoomRef.current = newZoom
+            setZoomLevel(newZoom)
+            showZoomToast()
+          }
+        } else if (e.key === '-') {
+          e.preventDefault()
+          const newZoom = Math.max(50, currentZoom - 10)
+          if (newZoom !== currentZoom) {
+            zoomRef.current = newZoom
+            setZoomLevel(newZoom)
+            showZoomToast()
+          }
+        } else if (e.key === '0') {
+          e.preventDefault()
+          if (currentZoom !== 100) {
+            zoomRef.current = 100
+            setZoomLevel(100)
+            showZoomToast()
+          }
+        }
+      }
+    }
+
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [setZoomLevel, showZoomToast])
+
+  const effectiveZoom = zoomLevel ?? 100
+
+  // Apply zoom to html element so it affects everything including portals
+  useEffect(() => {
+    document.documentElement.style.zoom = `${effectiveZoom / 100}`
+    return () => {
+      document.documentElement.style.zoom = ''
+    }
+  }, [effectiveZoom])
+
+  // Calculate sidebar margin for project pages
+  const sidebarMargin = isProjectPage ? (sidebarCollapsed ? 'md:ml-12' : 'md:ml-60') : ''
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className={`min-h-screen flex flex-col transition-[margin] duration-300 ${sidebarMargin}`}>
       <Header />
-      <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
+      <main className="flex-1 px-6 py-8 w-full">
         <Routes>
           <Route path="/" element={<ProjectList />} />
           <Route path="/project/:id" element={<ProjectDetail />} />
@@ -566,10 +859,31 @@ function AppContent() {
       <footer className="border-t border-[var(--border-subtle)]">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <p className="text-xs font-mono text-[var(--text-muted)] text-center">
-            Built with Bun + Hono + React // <span className="text-[var(--accent-primary)]">Neo-Terminal</span> design
+            Built with Tauri + React // <span className="text-[var(--accent-primary)]">Neo-Terminal</span> design
           </p>
         </div>
       </footer>
+
+      {/* Zoom indicator toast - rendered via portal to be above sidebar */}
+      {showZoomIndicator &&
+        createPortal(
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-visible)] rounded-lg shadow-lg z-[100] animate-fade-in flex items-center gap-3">
+            <span className="text-sm font-mono text-[var(--text-primary)]">Zoom {effectiveZoom}%</span>
+            {effectiveZoom !== 100 && (
+              <button
+                onClick={() => {
+                  zoomRef.current = 100
+                  setZoomLevel(100)
+                  showZoomToast()
+                }}
+                className="text-sm font-mono text-[var(--accent-primary)] hover:text-[var(--accent-hover)] transition-colors"
+              >
+                Reset to 100%
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

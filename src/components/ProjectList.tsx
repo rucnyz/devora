@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useProjects } from '../hooks/useProjects'
 import type { Project } from '../types'
 
 export default function ProjectList() {
   const { projects, loading, error, createProject, deleteProject } = useProjects()
+  const navigate = useNavigate()
   const [showNewForm, setShowNewForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
@@ -21,12 +22,13 @@ export default function ProjectList() {
             custom_url: newCustomUrl.trim() || undefined,
           }
         : undefined
-    await createProject(newName.trim(), newDesc.trim(), metadata)
+    const project = await createProject(newName.trim(), newDesc.trim(), metadata)
     setNewName('')
     setNewDesc('')
     setNewGithubUrl('')
     setNewCustomUrl('')
     setShowNewForm(false)
+    navigate(`/project/${project.id}`)
   }
 
   if (loading) {
@@ -51,7 +53,7 @@ export default function ProjectList() {
   }
 
   return (
-    <div>
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -164,57 +166,57 @@ function ProjectCard({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link to={`/project/${project.id}`} className="block">
-        <div className="flex items-start justify-between mb-3">
-          <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
+      <div className="flex items-start justify-between mb-3">
+        <Link to={`/project/${project.id}`} className="flex-1 min-w-0">
+          <h3 className="font-semibold text-[var(--text-primary)] hover:text-[var(--accent-primary)] transition-colors">
             {project.name}
           </h3>
-          <div className="flex gap-1">
-            {project.metadata?.github_url && (
-              <a
-                href={project.metadata.github_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
-                title="Open GitHub"
+        </Link>
+        <div className="flex gap-1 flex-shrink-0">
+          {project.metadata?.github_url && (
+            <a
+              href={project.metadata.github_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+              title="Open GitHub"
+            >
+              <svg
+                className="w-4 h-4 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                fill="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className="w-4 h-4 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-              </a>
-            )}
-            {project.metadata?.custom_url && (
-              <a
-                href={project.metadata.custom_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
-                title="Open Link"
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+              </svg>
+            </a>
+          )}
+          {project.metadata?.custom_url && (
+            <a
+              href={project.metadata.custom_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+              title="Open Link"
+            >
+              <svg
+                className="w-4 h-4 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <svg
-                  className="w-4 h-4 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-              </a>
-            )}
-          </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+          )}
         </div>
+      </div>
 
+      <Link to={`/project/${project.id}`} className="block">
         {project.description && (
           <p className="text-sm text-[var(--text-secondary)] mb-4 line-clamp-2">{project.description}</p>
         )}

@@ -1,20 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import * as api from '../api/tauri'
 
-const API_BASE = '/api'
-
-export interface FileCard {
-  id: string
-  project_id: string
-  filename: string
-  content: string
-  position_x: number
-  position_y: number
-  is_expanded: boolean
-  is_minimized: boolean
-  z_index: number
-  created_at: string
-  updated_at: string
-}
+export type { FileCard } from '../api/tauri'
+import type { FileCard } from '../api/tauri'
 
 export function useFileCards(projectId: string) {
   const [cards, setCards] = useState<FileCard[]>([])
@@ -25,9 +13,7 @@ export function useFileCards(projectId: string) {
   const fetchCards = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch(`${API_BASE}/projects/${projectId}/file-cards`)
-      if (!res.ok) throw new Error('Failed to fetch file cards')
-      const data: FileCard[] = await res.json()
+      const data = await api.getFileCards(projectId)
       setCards(data)
       setMaxZIndex(Math.max(0, ...data.map((c) => c.z_index)))
     } catch (err) {
@@ -49,23 +35,23 @@ export function useFileCards(projectId: string) {
     }
   }, [])
 
-  const addCard = async (data: { filename: string; content: string; position_x?: number; position_y?: number }) => {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/file-cards`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    if (!res.ok) throw new Error('Failed to create file card')
-    const card: FileCard = await res.json()
-    setCards((prev) => [...prev, card])
-    setMaxZIndex(card.z_index)
-    return card
-  }
+  const addCard = useCallback(
+    async (data: { filename: string; file_path: string; position_x?: number; position_y?: number }) => {
+      const card = await api.createFileCard(projectId, data.filename, data.file_path, data.position_x, data.position_y)
+      setCards((prev) => [...prev, card])
+      setMaxZIndex(card.z_index)
+      return card
+    },
+    [projectId]
+  )
 
   const updateCard = async (
     id: string,
     updates: Partial<
-      Pick<FileCard, 'filename' | 'content' | 'position_x' | 'position_y' | 'is_expanded' | 'is_minimized' | 'z_index'>
+      Pick<
+        FileCard,
+        'filename' | 'file_path' | 'position_x' | 'position_y' | 'is_expanded' | 'is_minimized' | 'z_index'
+      >
     >
   ) => {
     // Optimistic update for smooth dragging
@@ -77,20 +63,12 @@ export function useFileCards(projectId: string) {
         clearTimeout(debounceRef.current[id])
       }
       debounceRef.current[id] = setTimeout(async () => {
-        await fetch(`${API_BASE}/file-cards/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updates),
-        })
+        await api.updateFileCard(id, updates)
         delete debounceRef.current[id]
       }, 200)
     } else {
       // For non-position updates, send immediately
-      await fetch(`${API_BASE}/file-cards/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      })
+      await api.updateFileCard(id, updates)
     }
   }
 
@@ -102,7 +80,7 @@ export function useFileCards(projectId: string) {
     }
 
     setCards((prev) => prev.filter((c) => c.id !== id))
-    await fetch(`${API_BASE}/file-cards/${id}`, { method: 'DELETE' })
+    await api.deleteFileCard(id)
   }
 
   const bringToFront = async (id: string) => {

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react'
-
-const API_BASE = '/api/settings'
+import * as api from '../api/tauri'
 
 // Default settings values
 export const DEFAULT_SETTINGS = {
   fileCardMaxSize: 1024 * 1024, // 1MB in bytes
+  zoomLevel: 100, // percentage, range 50-200, step 10
 }
 
 export type SettingKey = keyof typeof DEFAULT_SETTINGS
@@ -24,15 +24,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   // Load all settings on mount
   useEffect(() => {
-    fetch(API_BASE)
-      .then((res) => res.json())
+    api
+      .getAllSettings()
       .then((data: Record<string, string>) => {
         const parsed = { ...DEFAULT_SETTINGS }
         for (const key of Object.keys(DEFAULT_SETTINGS) as SettingKey[]) {
           if (data[key] !== undefined) {
             const defaultValue = DEFAULT_SETTINGS[key]
             if (typeof defaultValue === 'number') {
-              parsed[key] = Number(data[key]) as typeof defaultValue
+              const numValue = Number(data[key])
+              // Only use parsed value if it's a valid number, otherwise keep default
+              if (!isNaN(numValue)) {
+                parsed[key] = numValue as typeof defaultValue
+              }
             }
           }
         }
@@ -44,11 +48,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const updateSetting = useCallback(async <K extends SettingKey>(key: K, value: SettingsState[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
-    await fetch(`${API_BASE}/${key}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: String(value) }),
-    })
+    await api.setSetting(key, String(value))
   }, [])
 
   return <SettingsContext.Provider value={{ settings, updateSetting, loading }}>{children}</SettingsContext.Provider>

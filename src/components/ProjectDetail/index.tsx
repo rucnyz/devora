@@ -14,6 +14,7 @@ import LinksSection from './LinksSection'
 import NotesSection from './NotesSection'
 import SortableSection from './SortableSection'
 import FileCardContainer from '../FilePreviewCard/FileCardContainer'
+import Sidebar from '../Sidebar'
 import {
   DEFAULT_SECTION_ORDER,
   type IdeType,
@@ -26,6 +27,9 @@ import {
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const { project, loading, error, addItem, updateItem, deleteItem, updateProject, reorderItems } = useProject(id!)
+
+  // Mobile sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // SSH hosts from ~/.ssh/config
   const [sshHosts, setSSHHosts] = useState<string[]>([])
@@ -67,7 +71,7 @@ export default function ProjectDetail() {
         // Special handling for Notion URLs
         if (urlObj.hostname.includes('notion.so') && lastSegment) {
           const notionMatch = lastSegment.match(/^(.+)-[a-f0-9]{32}$/i)
-          if (notionMatch) {
+          if (notionMatch?.[1]) {
             fallbackTitle = 'Notion - ' + notionMatch[1].replace(/-/g, ' ')
           }
         }
@@ -363,44 +367,63 @@ export default function ProjectDetail() {
 
   return (
     <div className="animate-card-enter relative">
+      {/* Sidebar (fixed position, doesn't affect layout) */}
+      <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
+
       {/* File Preview Cards - floating drag-drop file previews */}
       <FileCardContainer projectId={project.id} />
 
       {/* Side Navigation */}
       <SectionNavigation items={navItems} />
 
-      {/* Back navigation */}
-      <Link
-        to="/"
-        className="inline-flex items-center gap-2 text-sm font-mono text-[var(--text-muted)] hover:text-[var(--accent-primary)] mb-6 transition-colors"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        back to projects
-      </Link>
+      {/* Centered content container */}
+      <div className="max-w-5xl mx-auto">
+        {/* Back navigation with mobile menu button */}
+        <div className="flex items-center gap-3 mb-6">
+          {/* Mobile hamburger menu */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="md:hidden p-2 -ml-2 rounded-md hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            title="Open sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
 
-      {/* Project Header */}
-      <ProjectHeader
-        project={project}
-        onUpdate={updateProject}
-        onCreateNote={() => setIsCreatingNote(true)}
-        onCreateIde={() => setIsCreatingIde(true)}
-        onCreateRemoteIde={() => setIsCreatingRemoteIde(true)}
-        onCreateFile={() => setIsCreatingFile(true)}
-        onCreateCommand={() => setIsCreatingCommand(true)}
-      />
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm font-mono text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            back to projects
+          </Link>
+        </div>
 
-      {/* Sortable Sections */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
-          {sectionOrder.map((key) => (
-            <SortableSection key={key} id={key}>
-              {sectionsMap[key]}
-            </SortableSection>
-          ))}
-        </SortableContext>
-      </DndContext>
+        {/* Project Header */}
+        <ProjectHeader
+          project={project}
+          onUpdate={updateProject}
+          onCreateNote={() => setIsCreatingNote(true)}
+          onCreateIde={() => setIsCreatingIde(true)}
+          onCreateRemoteIde={() => setIsCreatingRemoteIde(true)}
+          onCreateFile={() => setIsCreatingFile(true)}
+          onCreateCommand={() => setIsCreatingCommand(true)}
+        />
+
+        {/* Sortable Sections */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
+            {sectionOrder.map((key) => (
+              <SortableSection key={key} id={key}>
+                {sectionsMap[key]}
+              </SortableSection>
+            ))}
+          </SortableContext>
+        </DndContext>
+      </div>
     </div>
   )
 }

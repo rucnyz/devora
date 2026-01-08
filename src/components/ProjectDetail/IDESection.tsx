@@ -22,9 +22,13 @@ function IDECreator({
 
   const saveCreating = useCallback(async () => {
     if (newPath.trim()) {
-      const title = getPathName(newPath, 'Project')
-      await onAdd(title, newPath.trim(), newIdeType)
-      onCreatingChange(false)
+      try {
+        const title = getPathName(newPath, 'Project')
+        await onAdd(title, newPath.trim(), newIdeType)
+        onCreatingChange(false)
+      } catch (err) {
+        alert(`Failed to add IDE: ${err}`)
+      }
     }
   }, [newPath, newIdeType, onAdd, onCreatingChange])
 

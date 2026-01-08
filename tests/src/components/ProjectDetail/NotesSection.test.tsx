@@ -14,6 +14,8 @@ describe('NotesSection', () => {
     mockOnCreatingChange.mockClear()
   })
 
+  const mockOnReorder = mock(() => Promise.resolve())
+
   const defaultProps = {
     notes: [] as Item[],
     isCreating: false,
@@ -21,6 +23,7 @@ describe('NotesSection', () => {
     onUpdate: mockOnUpdate,
     onDelete: mockOnDelete,
     onCreatingChange: mockOnCreatingChange,
+    onReorder: mockOnReorder,
   }
 
   test('renders section even when no notes', () => {
@@ -38,6 +41,7 @@ describe('NotesSection', () => {
         type: 'note',
         title: 'My Note',
         content: 'Note content here',
+        order: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -83,6 +87,7 @@ describe('NotesSection', () => {
         type: 'note',
         title: 'Empty Note',
         content: '',
+        order: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -102,6 +107,7 @@ describe('NotesSection', () => {
         type: 'note',
         title: 'Timestamped Note',
         content: 'Some content',
+        order: 0,
         created_at: now.toISOString(),
         updated_at: now.toISOString(),
       },
@@ -121,6 +127,7 @@ describe('NotesSection', () => {
         type: 'note',
         title: 'Note 1',
         content: 'Content 1',
+        order: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -130,6 +137,7 @@ describe('NotesSection', () => {
         type: 'note',
         title: 'Note 2',
         content: 'Content 2',
+        order: 1,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },

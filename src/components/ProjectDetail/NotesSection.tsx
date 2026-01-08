@@ -34,6 +34,10 @@ export default function NotesSection({
   const editContentRef = useRef('')
   const editingIdRef = useRef<string | null>(null)
 
+  // Store original values to detect changes
+  const originalTitleRef = useRef('')
+  const originalContentRef = useRef('')
+
   // DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -68,7 +72,16 @@ export default function NotesSection({
   const saveEditing = useCallback(async () => {
     if (editingIdRef.current) {
       const title = editTitleRef.current.trim() || 'Untitled'
-      await onUpdate(editingIdRef.current, { title, content: editContentRef.current.trim() || undefined })
+      const content = editContentRef.current.trim() || undefined
+
+      // Only update if content actually changed
+      const titleChanged = title !== originalTitleRef.current
+      const contentChanged = (content || '') !== originalContentRef.current
+
+      if (titleChanged || contentChanged) {
+        await onUpdate(editingIdRef.current, { title, content })
+      }
+
       setEditingId(null)
       setEditTitle('')
       setEditContent('')
@@ -105,6 +118,9 @@ export default function NotesSection({
     setEditingId(note.id)
     setEditTitle(note.title)
     setEditContent(note.content || '')
+    // Store original values to detect changes
+    originalTitleRef.current = note.title
+    originalContentRef.current = note.content || ''
   }
 
   const handleAdd = async (title: string, content?: string) => {

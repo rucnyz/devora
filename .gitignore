@@ -36,9 +36,17 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 
+# Windows reserved names
+nul
+
 # Database (created at runtime)
 data/
 
 # Release builds
 release/
 devora.exe
+
+# Tauri
+src-tauri/target/
+src-tauri/Cargo.lock
+src-tauri/gen/

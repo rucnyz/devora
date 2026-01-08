@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { Virtuoso } from 'react-virtuoso'
 import type { FileCard } from '../../hooks/useFileCards'
+import { readFileContent, getFileInfo, readFileLines } from '../../api/tauri'
+import { useSetting } from '../../hooks/useSettings'
 
 interface FilePreviewCardProps {
   card: FileCard
@@ -29,14 +32,133 @@ export default function FilePreviewCard({
   onMinimizeToggle,
   onBringToFront,
 }: FilePreviewCardProps) {
+  const { value: zoomLevel } = useSetting('zoomLevel')
   const [isDragging, setIsDragging] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [previewContent, setPreviewContent] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [loadingFull, setLoadingFull] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [fileSize, setFileSize] = useState<number>(0)
+  const [lineCount, setLineCount] = useState<number>(0)
+  const lineCache = useRef<Map<number, string>>(new Map())
+  const [, setCacheVersion] = useState(0) // Trigger re-render when cache updates
   // Local position in pixels for smooth dragging
   const [localPosition, setLocalPosition] = useState(() => percentToPixel(card.position_x, card.position_y))
   const [prevCardPos, setPrevCardPos] = useState({ x: card.position_x, y: card.position_y })
   const cardRef = useRef<HTMLDivElement>(null)
   const dragStateRef = useRef({ startMouseX: 0, startMouseY: 0, startCardX: 0, startCardY: 0, rafId: 0, active: false })
   const callbacksRef = useRef({ onPositionChange, onBringToFront })
+  // Get current zoom level for drag calculations
+  const zoomRef = useRef((zoomLevel ?? 100) / 100)
+
+  useEffect(() => {
+    zoomRef.current = (zoomLevel ?? 100) / 100
+  }, [zoomLevel])
+
+  // Load preview content (first 8KB) on mount for normal card
+  useEffect(() => {
+    let cancelled = false
+    const loadPreview = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const result = await readFileContent(card.file_path, 8 * 1024) // Only read first 8KB for preview
+        if (!cancelled) {
+          setPreviewContent(result.content)
+          setFileSize(result.file_size)
+          setLoading(false)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to load file preview:', err)
+          setError(err instanceof Error ? err.message : 'Failed to load file')
+          setLoading(false)
+        }
+      }
+    }
+    loadPreview()
+    return () => {
+      cancelled = true
+    }
+  }, [card.file_path])
+
+  // Load file info when modal opens
+  useEffect(() => {
+    if (!isModalOpen) return
+
+    let cancelled = false
+    const loadFileInfo = async () => {
+      try {
+        setLoadingFull(true)
+        lineCache.current.clear()
+
+        const info = await getFileInfo(card.file_path)
+
+        if (!cancelled) {
+          setFileSize(info.file_size)
+
+          // Preload first screen (first 100 lines) BEFORE setting lineCount
+          if (info.line_count > 0) {
+            const initialLines = Math.min(100, info.line_count)
+            const result = await readFileLines(card.file_path, 0, initialLines)
+            result.lines.forEach((line, index) => {
+              lineCache.current.set(index, line)
+            })
+          }
+
+          // Set lineCount AFTER data is loaded, so Virtuoso starts with data ready
+          setLineCount(info.line_count)
+          setLoadingFull(false)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to load file info:', err)
+          setLoadingFull(false)
+        }
+      }
+    }
+    loadFileInfo()
+    return () => {
+      cancelled = true
+    }
+  }, [isModalOpen, card.file_path])
+
+  // Load lines on demand for virtual scrolling
+  const loadLinesRange = useCallback(
+    async (startLine: number, endLine: number) => {
+      const linesToLoad: number[] = []
+
+      // Find which lines are not in cache
+      for (let i = startLine; i <= endLine; i++) {
+        if (!lineCache.current.has(i)) {
+          linesToLoad.push(i)
+        }
+      }
+
+      if (linesToLoad.length === 0) return
+
+      // Load the full requested range
+      const firstLine = startLine
+      const count = endLine - startLine + 1
+
+      try {
+        const result = await readFileLines(card.file_path, firstLine, count)
+        result.lines.forEach((line, index) => {
+          lineCache.current.set(firstLine + index, line)
+        })
+        setCacheVersion((v) => v + 1) // Trigger re-render
+      } catch (err) {
+        console.error('Failed to load lines:', err)
+      }
+    },
+    [card.file_path]
+  )
+
+  // Get line content with caching
+  const getLineContent = (lineIndex: number): string => {
+    return lineCache.current.get(lineIndex) ?? ''
+  }
 
   useEffect(() => {
     callbacksRef.current = { onPositionChange, onBringToFront }
@@ -60,14 +182,23 @@ export default function FilePreviewCard({
     return () => window.removeEventListener('resize', handleResize)
   }, [card.position_x, card.position_y, isDragging])
 
-  // Close modal on Escape key
+  // Close modal on Escape key and lock body scroll
   useEffect(() => {
     if (!isModalOpen) return
+
+    // Lock body scroll to prevent wheel events from scrolling the page
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsModalOpen(false)
     }
     document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [isModalOpen])
 
   // Sync local position with props when not dragging (convert percent to pixel)
@@ -101,10 +232,11 @@ export default function FilePreviewCard({
         if (state.rafId) cancelAnimationFrame(state.rafId)
         state.rafId = requestAnimationFrame(() => {
           if (!state.active) return
-          const { x, y } = clampPosition(
-            state.startCardX + e.clientX - state.startMouseX,
-            state.startCardY + e.clientY - state.startMouseY
-          )
+          // Divide mouse delta by zoom to match visual movement
+          const zoom = zoomRef.current
+          const deltaX = (e.clientX - state.startMouseX) / zoom
+          const deltaY = (e.clientY - state.startMouseY) / zoom
+          const { x, y } = clampPosition(state.startCardX + deltaX, state.startCardY + deltaY)
           if (cardRef.current) {
             cardRef.current.style.transform = `translate(${x - state.startCardX}px, ${y - state.startCardY}px)`
           }
@@ -120,10 +252,11 @@ export default function FilePreviewCard({
           state.rafId = 0
         }
 
-        const { x: finalX, y: finalY } = clampPosition(
-          state.startCardX + e.clientX - state.startMouseX,
-          state.startCardY + e.clientY - state.startMouseY
-        )
+        // Divide mouse delta by zoom to match visual movement
+        const zoom = zoomRef.current
+        const deltaX = (e.clientX - state.startMouseX) / zoom
+        const deltaY = (e.clientY - state.startMouseY) / zoom
+        const { x: finalX, y: finalY } = clampPosition(state.startCardX + deltaX, state.startCardY + deltaY)
 
         if (cardRef.current) {
           cardRef.current.style.left = `${finalX}px`
@@ -300,14 +433,26 @@ export default function FilePreviewCard({
         className="overflow-hidden max-h-32"
         onMouseDown={(e) => e.stopPropagation()} // Allow text selection
       >
-        <pre className="p-3 text-xs font-mono text-[var(--text-secondary)] overflow-auto whitespace-pre-wrap break-words cursor-text select-text">
-          {card.content}
-        </pre>
+        {loading ? (
+          <div className="p-3 text-xs text-[var(--text-muted)] italic">Loading preview...</div>
+        ) : error ? (
+          <div className="p-3 text-xs text-[var(--accent-danger)]">Error: {error}</div>
+        ) : (
+          <pre className="p-3 text-xs font-mono text-[var(--text-secondary)] overflow-auto whitespace-pre-wrap break-words cursor-text select-text">
+            {previewContent}
+          </pre>
+        )}
       </div>
 
       {/* Footer with file size info */}
       <div className="px-3 py-1 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
-        {(card.content.length / 1024).toFixed(1)} KB
+        {loading
+          ? '...'
+          : error
+            ? 'Error'
+            : previewContent.length >= 8 * 1024
+              ? `${(previewContent.length / 1024).toFixed(1)} KB (preview)`
+              : `${(previewContent.length / 1024).toFixed(1)} KB`}
       </div>
 
       {/* Fullscreen Modal - rendered via portal to escape parent styles */}
@@ -318,7 +463,7 @@ export default function FilePreviewCard({
             onClick={() => setIsModalOpen(false)}
           >
             <div
-              className="glass-card shadow-2xl w-[90vw] max-w-4xl max-h-[85vh] flex flex-col"
+              className="glass-card shadow-2xl w-[90vw] max-w-4xl h-[85vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -339,7 +484,11 @@ export default function FilePreviewCard({
                   </svg>
                   <span className="text-base font-mono text-[var(--text-primary)]">{card.filename}</span>
                   <span className="text-sm text-[var(--text-muted)]">
-                    ({(card.content.length / 1024).toFixed(1)} KB)
+                    {loadingFull
+                      ? '(Loading...)'
+                      : lineCount > 0
+                        ? `(${lineCount.toLocaleString()} lines, ${(fileSize / 1024).toFixed(1)} KB)`
+                        : ''}
                   </span>
                 </div>
                 <button
@@ -358,10 +507,37 @@ export default function FilePreviewCard({
                 </button>
               </div>
               {/* Modal Content */}
-              <div className="flex-1 overflow-auto p-4">
-                <pre className="text-sm font-mono text-[var(--text-secondary)] whitespace-pre-wrap break-words">
-                  {card.content}
-                </pre>
+              <div className="flex-1 overflow-hidden">
+                {loadingFull ? (
+                  <div className="p-4 text-sm text-[var(--text-muted)] italic">Loading file info...</div>
+                ) : lineCount > 0 ? (
+                  <Virtuoso
+                    style={{ height: '100%', width: '100%' }}
+                    totalCount={lineCount}
+                    overscan={500}
+                    initialTopMostItemIndex={0}
+                    rangeChanged={(range) => {
+                      // Preload a buffer around visible range
+                      const bufferSize = 200
+                      const start = Math.max(0, range.startIndex - bufferSize)
+                      const end = Math.min(lineCount - 1, range.endIndex + bufferSize)
+                      loadLinesRange(start, end)
+                    }}
+                    itemContent={(index) => {
+                      const lineContent = getLineContent(index)
+                      return (
+                        <div className="px-4 py-0.5 font-mono text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words hover:bg-[var(--bg-hover)]">
+                          <span className="inline-block w-12 text-right text-[var(--text-muted)] select-none mr-4">
+                            {index + 1}
+                          </span>
+                          {lineContent || '\u00A0'}
+                        </div>
+                      )
+                    }}
+                  />
+                ) : (
+                  <div className="p-4 text-sm text-[var(--text-muted)] italic">Empty file</div>
+                )}
               </div>
             </div>
           </div>,

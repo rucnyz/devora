@@ -31,7 +31,7 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
         // Special handling for Notion URLs - extract page title from URL
         if (urlObj.hostname.includes('notion.so') && lastSegment) {
           const notionMatch = lastSegment.match(/^(.+)-[a-f0-9]{32}$/i)
-          if (notionMatch) {
+          if (notionMatch?.[1]) {
             fallbackTitle = 'Notion - ' + notionMatch[1].replace(/-/g, ' ')
           }
         }

@@ -1,0 +1,33 @@
+[package]
+name = "devora"
+version = "0.1.0"
+description = "Local project management application"
+authors = ["Yuzhou Nie <rucnyz@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/rucnyz/devora"
+edition = "2024"
+rust-version = "1.85"
+
+[lib]
+name = "devora_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.9", features = [] }
+tauri-plugin-log = "2.7"
+tauri-plugin-dialog = "2.4"
+tauri-plugin-opener = "2.5"
+tauri-plugin-updater = "2.9"
+tauri-plugin-process = "2.3"
+rusqlite = { version = "0.38", features = ["bundled"] }
+uuid = { version = "1.19", features = ["v4"] }
+chrono = "0.4"
+dirs = "6.0"
+strum = { version = "0.27", features = ["derive"] }
+tokio = { version = "1.49", features = ["fs", "sync", "time", "process"] }
