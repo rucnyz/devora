@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { selectFolder, selectFile, openFile } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
+import { useToast } from '../../hooks/useToast'
 import { getPathName } from '../../utils/remote'
 import FileCreator from './FileCreator'
 import type { Item } from '../../types'
@@ -22,6 +23,7 @@ export default function FileSection({
   onDelete,
   onCreatingChange,
 }: FileSectionProps) {
+  const toast = useToast()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editPath, setEditPath] = useState('')
@@ -70,7 +72,7 @@ export default function FileSection({
       try {
         await openFile(item.content)
       } catch {
-        alert('Failed to open file')
+        toast.error('Failed to open file', 'The file may have been moved or deleted')
       }
     }
   }

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { selectFolder, runCommand } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
+import { useToast } from '../../hooks/useToast'
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
 import CommandCreator from './CommandCreator'
@@ -29,6 +30,7 @@ export default function CommandSection({
   onDelete,
   onCreatingChange,
 }: CommandSectionProps) {
+  const toast = useToast()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
@@ -102,7 +104,7 @@ export default function CommandSection({
           })
         }
       } catch (err) {
-        alert(`Failed to run command: ${err}`)
+        toast.error('Failed to run command', err instanceof Error ? err.message : String(err))
       }
     }
   }

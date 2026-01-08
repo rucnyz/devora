@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { selectFolder, openIde, openCustomIde } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useCustomIdes } from '../../hooks/useCustomIdes'
+import { useToast } from '../../hooks/useToast'
 import { getPathName } from '../../utils/remote'
 import { IDE_LABELS, IDE_TAG_CLASS, IDE_GROUPS, IDE_TYPES } from '../../constants/itemTypes'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
@@ -33,6 +34,7 @@ function IDECreator({
   onAdd: (title: string, path: string, ideType: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
 }) {
+  const toast = useToast()
   const [newIdeType, setNewIdeType] = useState<string>('pycharm')
   const [newPath, setNewPath] = useState('')
   const newIdeRef = useRef<HTMLDivElement>(null)
@@ -44,10 +46,10 @@ function IDECreator({
         await onAdd(title, newPath.trim(), newIdeType)
         onCreatingChange(false)
       } catch (err) {
-        alert(`Failed to add IDE: ${err}`)
+        toast.error('Failed to add IDE', err instanceof Error ? err.message : String(err))
       }
     }
-  }, [newPath, newIdeType, onAdd, onCreatingChange])
+  }, [newPath, newIdeType, onAdd, onCreatingChange, toast])
 
   useEditorHandlers({
     containerRef: newIdeRef,
@@ -129,6 +131,7 @@ export default function IDESection({
   onDelete,
   onCreatingChange,
 }: IDESectionProps) {
+  const toast = useToast()
   const { customIdes } = useCustomIdes()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editIdeType, setEditIdeType] = useState<string>('pycharm')
@@ -179,12 +182,12 @@ export default function IDESection({
           if (customIde) {
             await openCustomIde(customIde.command, item.content)
           } else {
-            alert(`Failed to open IDE: Custom IDE "${item.ide_type}" not found`)
+            toast.error('Failed to open IDE', `Custom IDE "${item.ide_type}" not found`)
             return
           }
         }
       } catch (err) {
-        alert(`Failed to open IDE: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        toast.error('Failed to open IDE', err instanceof Error ? err.message : 'Unknown error')
       }
     }
   }

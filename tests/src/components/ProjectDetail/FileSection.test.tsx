@@ -1,5 +1,5 @@
 import { describe, test, expect, mock, beforeEach } from 'bun:test'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '../../../test-utils'
 import FileSection from '../../../../src/components/ProjectDetail/FileSection'
 import type { Item } from '../../../../src/types'
 

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ============================================
    NEO-TERMINAL DESIGN SYSTEM
@@ -18,7 +18,7 @@
    DARK THEME (Default)
    ============================================ */
 :root,
-[data-theme="dark"] {
+[data-theme='dark'] {
   /* Core palette */
   --bg-void: #050508;
   --bg-deep: #0a0a0f;
@@ -32,17 +32,17 @@
   --text-muted: #5a5a6e;
 
   /* Accent colors - 4 semantic colors */
-  --accent-primary: #00ff88;        /* IDE, primary actions */
+  --accent-primary: #00ff88; /* IDE, primary actions */
   --accent-primary-dim: #00cc6a;
   --accent-primary-rgb: 0, 255, 136;
-  --accent-secondary: #00d4ff;      /* Links */
+  --accent-secondary: #00d4ff; /* Links */
   --accent-secondary-rgb: 0, 212, 255;
-  --accent-warning: #ffaa00;        /* Notes, commands */
+  --accent-warning: #ffaa00; /* Notes, commands */
   --accent-warning-rgb: 255, 170, 0;
-  --accent-remote: #e879f9;         /* Remote IDE */
+  --accent-remote: #e879f9; /* Remote IDE */
   --accent-remote-dim: #d946ef;
   --accent-remote-rgb: 232, 121, 249;
-  --accent-agent: #818cf8;          /* Coding Agent */
+  --accent-agent: #818cf8; /* Coding Agent */
   --accent-agent-rgb: 129, 140, 248;
   --accent-danger: #ff4757;
 
@@ -72,7 +72,7 @@
    LIGHT THEME
    Clean, minimal aesthetic with teal accents
    ============================================ */
-[data-theme="light"] {
+[data-theme='light'] {
   /* Core palette */
   --bg-void: #f8fafb;
   --bg-deep: #ffffff;
@@ -86,17 +86,17 @@
   --text-muted: #94a3b8;
 
   /* Accent colors - 4 semantic colors */
-  --accent-primary: #059669;        /* IDE, primary actions */
+  --accent-primary: #059669; /* IDE, primary actions */
   --accent-primary-dim: #047857;
   --accent-primary-rgb: 5, 150, 105;
-  --accent-secondary: #0891b2;      /* Links */
+  --accent-secondary: #0891b2; /* Links */
   --accent-secondary-rgb: 8, 145, 178;
-  --accent-warning: #d97706;        /* Notes, commands */
+  --accent-warning: #d97706; /* Notes, commands */
   --accent-warning-rgb: 217, 119, 6;
-  --accent-remote: #c026d3;         /* Remote IDE */
+  --accent-remote: #c026d3; /* Remote IDE */
   --accent-remote-dim: #a21caf;
   --accent-remote-rgb: 192, 38, 211;
-  --accent-agent: #6366f1;          /* Coding Agent */
+  --accent-agent: #6366f1; /* Coding Agent */
   --accent-agent-rgb: 99, 102, 241;
   --accent-danger: #dc2626;
 
@@ -174,7 +174,12 @@ body::after {
    TYPOGRAPHY
    ============================================ */
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -191,11 +196,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Glass card effect */
 .glass-card {
-  background: linear-gradient(
-    135deg,
-    rgba(26, 26, 36, 0.8) 0%,
-    rgba(18, 18, 26, 0.9) 100%
-  );
+  background: linear-gradient(135deg, rgba(26, 26, 36, 0.8) 0%, rgba(18, 18, 26, 0.9) 100%);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
@@ -209,16 +210,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Light theme glass card */
-[data-theme="light"] .glass-card {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.9) 0%,
-    rgba(248, 250, 251, 0.95) 100%
-  );
+[data-theme='light'] .glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 251, 0.95) 100%);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-[data-theme="light"] .glass-card:hover {
+[data-theme='light'] .glass-card:hover {
   box-shadow: 0 8px 30px rgba(5, 150, 105, 0.1);
 }
 
@@ -353,11 +350,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Light theme input focus */
-[data-theme="light"] .input-terminal:focus {
+[data-theme='light'] .input-terminal:focus {
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 
-[data-theme="light"] .textarea-terminal:focus {
+[data-theme='light'] .textarea-terminal:focus {
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 
@@ -530,7 +527,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-[data-theme="light"] .note-card:hover {
+[data-theme='light'] .note-card:hover {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
@@ -551,7 +548,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px rgba(255, 170, 0, 0.1);
 }
 
-[data-theme="light"] .note-card-editing .textarea-terminal:focus {
+[data-theme='light'] .note-card-editing .textarea-terminal:focus {
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
 }
 
@@ -577,17 +574,21 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Light theme modal */
-[data-theme="light"] .modal-overlay {
+[data-theme='light'] .modal-overlay {
   background: rgba(15, 23, 42, 0.4);
 }
 
-[data-theme="light"] .modal-content {
+[data-theme='light'] .modal-content {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
@@ -703,7 +704,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
 }
 
-[data-theme="light"] ::selection {
+[data-theme='light'] ::selection {
   background: rgba(5, 150, 105, 0.25);
 }
 
@@ -725,11 +726,27 @@ h1, h2, h3, h4, h5, h6 {
   text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
 }
 
-[data-theme="light"] .glow-text {
+[data-theme='light'] .glow-text {
   text-shadow: 0 0 10px rgba(5, 150, 105, 0.4);
 }
 
 /* Zoom indicator animation */
 .animate-fade-in {
   animation: fadeIn 150ms ease-out;
+}
+
+/* Toast enter animation */
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-toast-enter {
+  animation: toastEnter 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }

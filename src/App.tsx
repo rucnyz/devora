@@ -8,6 +8,7 @@ import ProjectDetail from './components/ProjectDetail'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
 import { useSetting, SettingsProvider } from './hooks/useSettings.tsx'
 import { useCustomIdes, CustomIdesProvider } from './hooks/useCustomIdes'
+import { ToastProvider } from './hooks/useToast'
 import type { CustomIde, CustomRemoteIde, TerminalType } from './types'
 import { WINDOWS_TERMINALS, MACOS_TERMINALS, LINUX_TERMINALS } from './types'
 import {
@@ -1370,9 +1371,11 @@ export default function App() {
     <ThemeProvider>
       <SettingsProvider>
         <CustomIdesProvider>
-          <BrowserRouter>
-            <AppContent />
-          </BrowserRouter>
+          <ToastProvider>
+            <BrowserRouter>
+              <AppContent />
+            </BrowserRouter>
+          </ToastProvider>
         </CustomIdesProvider>
       </SettingsProvider>
     </ThemeProvider>

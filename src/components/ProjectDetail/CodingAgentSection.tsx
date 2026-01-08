@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useMemo } from 'react'
 import { selectFolder, openCodingAgent } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useSetting } from '../../hooks/useSettings'
+import { useToast } from '../../hooks/useToast'
 import { getPathName } from '../../utils/remote'
 import { CODING_AGENT_LABELS, CODING_AGENT_TAG_CLASS, CODING_AGENT_TYPES } from '../../constants/itemTypes'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
@@ -221,6 +222,7 @@ function CodingAgentCreator({
   onAdd: (title: string, path: string, agentType: CodingAgentType, args: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
 }) {
+  const toast = useToast()
   const [newAgentType, setNewAgentType] = useState<CodingAgentType>('claude-code')
   const [newPath, setNewPath] = useState('')
   const [newArgs, setNewArgs] = useState('')
@@ -233,10 +235,10 @@ function CodingAgentCreator({
         await onAdd(title, newPath.trim(), newAgentType, newArgs.trim())
         onCreatingChange(false)
       } catch (err) {
-        alert(`Failed to add Coding Agent: ${err}`)
+        toast.error('Failed to add Coding Agent', err instanceof Error ? err.message : String(err))
       }
     }
-  }, [newPath, newAgentType, newArgs, onAdd, onCreatingChange])
+  }, [newPath, newAgentType, newArgs, onAdd, onCreatingChange, toast])
 
   useEditorHandlers({
     containerRef: newAgentRef,
@@ -328,6 +330,7 @@ export default function CodingAgentSection({
   onDelete,
   onCreatingChange,
 }: CodingAgentSectionProps) {
+  const toast = useToast()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editAgentType, setEditAgentType] = useState<CodingAgentType>('claude-code')
   const [editPath, setEditPath] = useState('')
@@ -385,7 +388,7 @@ export default function CodingAgentSection({
           item.coding_agent_args
         )
       } catch (err) {
-        alert(`Failed to open Coding Agent: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        toast.error('Failed to open Coding Agent', err instanceof Error ? err.message : 'Unknown error')
       }
     }
   }

@@ -1,5 +1,5 @@
 import { describe, test, expect, mock, beforeEach } from 'bun:test'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '../../../test-utils'
 import CommandSection from '../../../../src/components/ProjectDetail/CommandSection'
 import type { Item, WorkingDir } from '../../../../src/types'
 

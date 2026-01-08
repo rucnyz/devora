@@ -1,7 +1,6 @@
 import { describe, test, expect, mock, beforeEach } from 'bun:test'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '../../../test-utils'
 import RemoteIDESection from '../../../../src/components/ProjectDetail/RemoteIDESection'
-import { CustomIdesProvider } from '../../../../src/hooks/useCustomIdes'
 import type { Item, WorkingDir } from '../../../../src/types'
 
 // Mock Tauri API
@@ -9,11 +8,6 @@ mock.module('../../../../src/api/tauri', () => ({
   getSetting: mock(() => Promise.resolve(null)),
   setSetting: mock(() => Promise.resolve()),
 }))
-
-// Helper to wrap component with provider
-const renderWithProvider = (ui: React.ReactElement) => {
-  return render(<CustomIdesProvider>{ui}</CustomIdesProvider>)
-}
 
 describe('RemoteIDESection', () => {
   const mockOnAdd = mock(() => Promise.resolve())
@@ -38,7 +32,7 @@ describe('RemoteIDESection', () => {
   }
 
   test('returns null when no items and not creating', () => {
-    const { container } = renderWithProvider(<RemoteIDESection {...defaultProps} />)
+    const { container } = render(<RemoteIDESection {...defaultProps} />)
     expect(container.querySelector('section')).toBeNull()
   })
 
@@ -57,7 +51,7 @@ describe('RemoteIDESection', () => {
       },
     ]
 
-    renderWithProvider(<RemoteIDESection {...defaultProps} items={items} />)
+    render(<RemoteIDESection {...defaultProps} items={items} />)
 
     expect(screen.getByText('Remote IDE')).toBeTruthy()
     expect(screen.getByText('Add')).toBeTruthy()
@@ -79,7 +73,7 @@ describe('RemoteIDESection', () => {
       },
     ]
 
-    renderWithProvider(<RemoteIDESection {...defaultProps} items={items} />)
+    render(<RemoteIDESection {...defaultProps} items={items} />)
 
     const addButton = screen.getByText('Add')
     fireEvent.click(addButton)
@@ -88,7 +82,7 @@ describe('RemoteIDESection', () => {
   })
 
   test('shows creator form when isCreating is true', () => {
-    renderWithProvider(<RemoteIDESection {...defaultProps} isCreating={true} />)
+    render(<RemoteIDESection {...defaultProps} isCreating={true} />)
 
     expect(screen.getByText('Remote IDE')).toBeTruthy()
     expect(screen.getByPlaceholderText('/home/user/project')).toBeTruthy()
@@ -111,7 +105,7 @@ describe('RemoteIDESection', () => {
       },
     ]
 
-    renderWithProvider(<RemoteIDESection {...defaultProps} items={items} isCreating={true} />)
+    render(<RemoteIDESection {...defaultProps} items={items} isCreating={true} />)
 
     expect(screen.queryByRole('button', { name: 'Add' })).toBeNull()
   })
@@ -121,7 +115,7 @@ describe('RemoteIDESection', () => {
       { name: 'remote-project', path: '/home/user/project', host: 'server1' },
     ]
 
-    renderWithProvider(<RemoteIDESection {...defaultProps} isCreating={true} workingDirs={workingDirs} />)
+    render(<RemoteIDESection {...defaultProps} isCreating={true} workingDirs={workingDirs} />)
 
     expect(screen.getByText('Working dirs:')).toBeTruthy()
     expect(screen.getByText(/remote-project/)).toBeTruthy()
@@ -133,7 +127,7 @@ describe('RemoteIDESection', () => {
       { name: 'remote-project', path: '/home/user/project', host: 'server1' },
     ]
 
-    renderWithProvider(<RemoteIDESection {...defaultProps} isCreating={true} workingDirs={workingDirs} />)
+    render(<RemoteIDESection {...defaultProps} isCreating={true} workingDirs={workingDirs} />)
 
     expect(screen.getByText(/remote-project/)).toBeTruthy()
     expect(screen.queryByText(/frontend.*local/)).toBeNull()

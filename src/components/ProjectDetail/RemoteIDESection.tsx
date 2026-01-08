@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { openRemoteIde, openCustomRemoteIde } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useCustomIdes } from '../../hooks/useCustomIdes'
+import { useToast } from '../../hooks/useToast'
 import { parseRemoteContent, buildRemoteContent, getPathName } from '../../utils/remote'
 import { REMOTE_IDE_LABELS, REMOTE_IDE_TAG_CLASS, REMOTE_IDE_TYPES } from '../../constants/itemTypes'
 import RemoteDirBrowser from '../RemoteDirBrowser'
@@ -44,6 +45,7 @@ export default function RemoteIDESection({
   onDelete,
   onCreatingChange,
 }: RemoteIDESectionProps) {
+  const toast = useToast()
   const { customRemoteIdes } = useCustomIdes()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editRemoteIdeType, setEditRemoteIdeType] = useState<string>('cursor')
@@ -99,13 +101,13 @@ export default function RemoteIDESection({
             if (customIde) {
               await openCustomRemoteIde(customIde.command, host, path)
             } else {
-              alert(`Failed to open remote IDE: Custom remote IDE "${item.remote_ide_type}" not found`)
+              toast.error('Failed to open remote IDE', `Custom remote IDE "${item.remote_ide_type}" not found`)
               return
             }
           }
         }
       } catch (err) {
-        alert(`Failed to open remote IDE: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        toast.error('Failed to open remote IDE', err instanceof Error ? err.message : 'Unknown error')
       }
     }
   }
