@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'fs'
+import { execSync } from 'child_process'
 
 const type = process.argv[2]
 if (!['patch', 'minor', 'major'].includes(type)) {
@@ -27,3 +28,17 @@ tauriConf.version = newVersion
 writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(tauriConf, null, 2) + '\n')
 
 console.log(`Version bumped to ${newVersion}`)
+
+// Git commit, tag, and push
+const run = (cmd) => {
+  console.log(`> ${cmd}`)
+  execSync(cmd, { stdio: 'inherit' })
+}
+
+run('git add package.json src-tauri/tauri.conf.json')
+run(`git commit -m "chore: release v${newVersion}"`)
+run(`git tag v${newVersion}`)
+run('git push')
+run('git push --tags')
+
+console.log(`\nReleased v${newVersion}`)
