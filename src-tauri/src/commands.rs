@@ -207,6 +207,21 @@ pub fn export_data(
 }
 
 #[tauri::command]
+pub fn export_data_to_file(
+    filePath: String,
+    projectIds: Option<Vec<String>>,
+    db: State<Database>,
+) -> Result<usize, String> {
+    let data = db.export_all_data(projectIds).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&data)
+        .map_err(|e| format!("Failed to serialize data: {}", e))?;
+    let count = data.projects.len();
+    fs::write(&filePath, &json)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+    Ok(count)
+}
+
+#[tauri::command]
 pub fn import_data(
     data: ImportData,
     mode: Option<String>,

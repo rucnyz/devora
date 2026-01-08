@@ -245,6 +245,10 @@ export async function exportData(projectIds?: string[]): Promise<ExportData> {
   return invoke<ExportData>('export_data', { projectIds })
 }
 
+export async function exportDataToFile(filePath: string, projectIds?: string[]): Promise<number> {
+  return invoke<number>('export_data_to_file', { filePath, projectIds })
+}
+
 export async function importData(data: ImportData, mode?: 'merge' | 'replace'): Promise<ImportResult> {
   return invoke<ImportResult>('import_data', { data, mode })
 }

@@ -59,6 +59,7 @@ pub fn run() {
             commands::delete_setting,
             // Export/Import
             commands::export_data,
+            commands::export_data_to_file,
             commands::import_data,
             // System operations
             commands::open_ide,

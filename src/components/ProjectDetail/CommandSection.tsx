@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { selectFolder, runCommand } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import RemoteDirBrowser from '../RemoteDirBrowser'
@@ -266,45 +267,47 @@ export default function CommandSection({
         </div>
       </section>
 
-      {commandOutput && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setCommandOutput(null)}
-        >
+      {commandOutput &&
+        createPortal(
           <div
-            className="bg-[var(--bg-elevated)] border border-[var(--border-visible)] rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setCommandOutput(null)}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-[var(--text-primary)]">{commandOutput.title}</h3>
-              <button
-                onClick={() => setCommandOutput(null)}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                ×
-              </button>
+            <div
+              className="bg-[var(--bg-elevated)] border border-[var(--border-visible)] rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">{commandOutput.title}</h3>
+                <button
+                  onClick={() => setCommandOutput(null)}
+                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {commandOutput.output && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-mono text-[var(--text-muted)] mb-2">Output:</h4>
+                    <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--text-secondary)] whitespace-pre-wrap overflow-x-auto">
+                      {commandOutput.output}
+                    </pre>
+                  </div>
+                )}
+                {commandOutput.error && (
+                  <div>
+                    <h4 className="text-sm font-mono text-[var(--accent-danger)] mb-2">Error:</h4>
+                    <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--accent-danger)] whitespace-pre-wrap overflow-x-auto">
+                      {commandOutput.error}
+                    </pre>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex-1 overflow-auto">
-              {commandOutput.output && (
-                <div className="mb-4">
-                  <h4 className="text-sm font-mono text-[var(--text-muted)] mb-2">Output:</h4>
-                  <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--text-secondary)] whitespace-pre-wrap overflow-x-auto">
-                    {commandOutput.output}
-                  </pre>
-                </div>
-              )}
-              {commandOutput.error && (
-                <div>
-                  <h4 className="text-sm font-mono text-[var(--accent-danger)] mb-2">Error:</h4>
-                  <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--accent-danger)] whitespace-pre-wrap overflow-x-auto">
-                    {commandOutput.error}
-                  </pre>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {showBrowser && (
         <RemoteDirBrowser

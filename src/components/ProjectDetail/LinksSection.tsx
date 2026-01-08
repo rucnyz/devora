@@ -133,6 +133,7 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
               href={item.content}
               target="_blank"
               rel="noopener noreferrer"
+              title={item.content}
               className="tag tag-url animate-card-enter group"
               style={{ animationDelay: `${index * 30}ms` }}
             >

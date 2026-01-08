@@ -7,7 +7,15 @@ import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
 import { useSetting, SettingsProvider } from './hooks/useSettings.tsx'
-import { getProjects, exportData, importData, getSetting, setSetting, deleteSetting } from './api/tauri'
+import {
+  getProjects,
+  exportDataToFile,
+  importData,
+  getSetting,
+  setSetting,
+  deleteSetting,
+  saveFileDialog,
+} from './api/tauri'
 
 type UpdateState =
   | { status: 'idle' }
@@ -205,19 +213,19 @@ function DataMenu() {
 
   const handleExport = async () => {
     try {
+      const defaultName = `devora-backup-${new Date().toISOString().split('T')[0]}.json`
+      const filePath = await saveFileDialog(defaultName)
+
+      if (!filePath) {
+        // User cancelled
+        setShowExportDialog(false)
+        return
+      }
+
       const projectIds = Array.from(selectedProjects)
-      const data = await exportData(projectIds.length > 0 ? projectIds : undefined)
+      const count = await exportDataToFile(filePath, projectIds.length > 0 ? projectIds : undefined)
 
-      // Download as JSON file
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const blobUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = `devora-backup-${new Date().toISOString().split('T')[0]}.json`
-      a.click()
-      URL.revokeObjectURL(blobUrl)
-
-      setStatus({ type: 'success', message: `Exported ${data.projects.length} projects!` })
+      setStatus({ type: 'success', message: `Exported ${count} projects!` })
       setTimeout(() => setStatus(null), 3000)
     } catch {
       setStatus({ type: 'error', message: 'Export failed' })
@@ -302,80 +310,87 @@ function DataMenu() {
         </>
       )}
 
-      {/* Export Dialog */}
-      {showExportDialog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowExportDialog(false)}
-        >
+      {/* Export Dialog - use portal to avoid zoom issues */}
+      {showExportDialog &&
+        createPortal(
           <div
-            className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[400px] max-h-[80vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setShowExportDialog(false)}
           >
-            <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
-              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Export Projects</h3>
-              <p className="text-sm text-[var(--text-muted)] mt-1">Select projects to export</p>
-            </div>
+            <div
+              className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[400px] max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Export Projects</h3>
+                <p className="text-sm text-[var(--text-muted)] mt-1">Select projects to export</p>
+              </div>
 
-            <div className="px-5 py-3 border-b border-[var(--border-subtle)]">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedProjects.size === projects.length}
-                  onChange={toggleAll}
-                  className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
-                />
-                <span className="text-sm font-medium text-[var(--text-primary)]">
-                  Select All ({selectedProjects.size}/{projects.length})
-                </span>
-              </label>
-            </div>
-
-            <div className="max-h-[300px] overflow-y-auto px-5 py-3">
-              {projects.map((project) => (
-                <label
-                  key={project.id}
-                  className="flex items-center gap-3 py-2 cursor-pointer hover:bg-[var(--bg-surface)] -mx-2 px-2 rounded"
-                >
+              <div className="px-5 py-3 border-b border-[var(--border-subtle)]">
+                <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={selectedProjects.has(project.id)}
-                    onChange={() => toggleProject(project.id)}
+                    checked={selectedProjects.size === projects.length}
+                    onChange={toggleAll}
                     className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
                   />
-                  <span className="text-sm text-[var(--text-primary)] truncate">{project.name}</span>
+                  <span className="text-sm font-medium text-[var(--text-primary)]">
+                    Select All ({selectedProjects.size}/{projects.length})
+                  </span>
                 </label>
-              ))}
-            </div>
+              </div>
 
-            <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3">
-              <button
-                onClick={() => setShowExportDialog(false)}
-                className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleExport}
-                disabled={selectedProjects.size === 0}
-                className="px-4 py-2 text-sm bg-[var(--accent-primary)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Export {selectedProjects.size} Project{selectedProjects.size !== 1 ? 's' : ''}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="max-h-[300px] overflow-y-auto px-5 py-3">
+                {projects.map((project) => (
+                  <label
+                    key={project.id}
+                    className="flex items-center gap-3 py-2 cursor-pointer hover:bg-[var(--bg-surface)] -mx-2 px-2 rounded"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedProjects.has(project.id)}
+                      onChange={() => toggleProject(project.id)}
+                      className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
+                    />
+                    <span className="text-sm text-[var(--text-primary)] truncate">{project.name}</span>
+                  </label>
+                ))}
+              </div>
 
-      {status && (
-        <div
-          className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg text-sm z-50 ${
-            status.type === 'success' ? 'bg-[var(--accent-primary)] text-white' : 'bg-[var(--accent-error)] text-white'
-          }`}
-        >
-          {status.message}
-        </div>
-      )}
+              <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3">
+                <button
+                  onClick={() => setShowExportDialog(false)}
+                  className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExport}
+                  disabled={selectedProjects.size === 0}
+                  className="px-4 py-2 text-sm bg-[var(--accent-primary)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Export {selectedProjects.size} Project{selectedProjects.size !== 1 ? 's' : ''}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Status toast - use portal to avoid zoom issues */}
+      {status &&
+        createPortal(
+          <div
+            className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg text-sm z-50 ${
+              status.type === 'success'
+                ? 'bg-[var(--accent-primary)] text-white'
+                : 'bg-[var(--accent-error)] text-white'
+            }`}
+          >
+            {status.message}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
@@ -571,123 +586,122 @@ function SettingsButton() {
         </svg>
       </button>
 
-      {/* Modal */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center h-screen w-screen" onClick={handleClose}>
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/50 h-full w-full" />
-
-          {/* Dialog */}
-          <div
-            className="relative bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[320px] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
-              <h3 className="text-base font-semibold text-[var(--text-primary)]">Settings</h3>
-              <button
-                onClick={handleClose}
-                className="p-1 rounded hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-4 space-y-4">
-              {/* File Preview Max Size */}
-              <div>
-                <label className="block text-sm text-[var(--text-primary)] mb-2">File preview max size</label>
-                <div className="flex items-center gap-2">
-                  {/* Decrease button */}
-                  <button
-                    onClick={() => handleSizeChange(currentMb - 1)}
-                    className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                    </svg>
-                  </button>
-
-                  {/* Input */}
-                  <div className="flex-1 flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      value={inputValue}
-                      onChange={handleInputChange}
-                      onBlur={handleInputBlur}
-                      onKeyDown={handleInputKeyDown}
-                      className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-center text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-sm text-[var(--text-muted)] shrink-0">MB</span>
-                  </div>
-
-                  {/* Increase button */}
-                  <button
-                    onClick={() => handleSizeChange(currentMb + 1)}
-                    className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
-                </div>
+      {/* Modal - use portal to avoid zoom issues */}
+      {isOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleClose}>
+            {/* Dialog */}
+            <div
+              className="relative bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[320px] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
+                <h3 className="text-base font-semibold text-[var(--text-primary)]">Settings</h3>
+                <button
+                  onClick={handleClose}
+                  className="p-1 rounded hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
-              {/* Interface Zoom */}
-              <div>
-                <label className="block text-sm text-[var(--text-primary)] mb-2">Interface zoom</label>
-                <div className="flex items-center gap-2">
-                  {/* Decrease button */}
-                  <button
-                    onClick={() => handleZoomChange(zoomLevel - 10)}
-                    disabled={zoomLevel <= 50}
-                    className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                    </svg>
-                  </button>
+              {/* Content */}
+              <div className="p-4 space-y-4">
+                {/* File Preview Max Size */}
+                <div>
+                  <label className="block text-sm text-[var(--text-primary)] mb-2">File preview max size</label>
+                  <div className="flex items-center gap-2">
+                    {/* Decrease button */}
+                    <button
+                      onClick={() => handleSizeChange(currentMb - 1)}
+                      className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      </svg>
+                    </button>
 
-                  {/* Input */}
-                  <div className="flex-1 flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="50"
-                      max="200"
-                      step="10"
-                      value={zoomInputValue}
-                      onChange={handleZoomInputChange}
-                      onBlur={handleZoomInputBlur}
-                      onKeyDown={handleZoomInputKeyDown}
-                      className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-center text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-sm text-[var(--text-muted)] shrink-0">%</span>
+                    {/* Input */}
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        onBlur={handleInputBlur}
+                        onKeyDown={handleInputKeyDown}
+                        className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-center text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-sm text-[var(--text-muted)] shrink-0">MB</span>
+                    </div>
+
+                    {/* Increase button */}
+                    <button
+                      onClick={() => handleSizeChange(currentMb + 1)}
+                      className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
                   </div>
-
-                  {/* Increase button */}
-                  <button
-                    onClick={() => handleZoomChange(zoomLevel + 10)}
-                    disabled={zoomLevel >= 200}
-                    className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
                 </div>
-                <p className="text-xs text-[var(--text-muted)] mt-1.5">
-                  Ctrl+Scroll or Ctrl+/- to zoom, Ctrl+0 to reset
-                </p>
+
+                {/* Interface Zoom */}
+                <div>
+                  <label className="block text-sm text-[var(--text-primary)] mb-2">Interface zoom</label>
+                  <div className="flex items-center gap-2">
+                    {/* Decrease button */}
+                    <button
+                      onClick={() => handleZoomChange(zoomLevel - 10)}
+                      disabled={zoomLevel <= 50}
+                      className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      </svg>
+                    </button>
+
+                    {/* Input */}
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50"
+                        max="200"
+                        step="10"
+                        value={zoomInputValue}
+                        onChange={handleZoomInputChange}
+                        onBlur={handleZoomInputBlur}
+                        onKeyDown={handleZoomInputKeyDown}
+                        className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-center text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-sm text-[var(--text-muted)] shrink-0">%</span>
+                    </div>
+
+                    {/* Increase button */}
+                    <button
+                      onClick={() => handleZoomChange(zoomLevel + 10)}
+                      disabled={zoomLevel >= 200}
+                      className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)] mt-1.5">
+                    Ctrl+Scroll or Ctrl+/- to zoom, Ctrl+0 to reset
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   )
 }
