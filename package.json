@@ -13,6 +13,8 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
+    "test:e2e": "cd e2e && npm test",
+    "test:e2e:install": "cd e2e && npm install",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
