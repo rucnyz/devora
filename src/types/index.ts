@@ -1,4 +1,4 @@
-export type ItemType = 'note' | 'ide' | 'file' | 'url' | 'remote-ide' | 'command'
+export type ItemType = 'note' | 'ide' | 'file' | 'url' | 'remote-ide' | 'command' | 'coding-agent'
 export type IdeType =
   // JetBrains IDEs
   | 'idea'
@@ -18,7 +18,50 @@ export type IdeType =
   | 'zed'
   | 'antigravity'
 export type RemoteIdeType = 'cursor' | 'vscode'
+export type CodingAgentType = 'claude-code' | 'opencode' | 'gemini-cli'
 export type CommandMode = 'background' | 'output'
+
+// Terminal types for coding agents
+export type TerminalType =
+  // Windows
+  | 'cmd'
+  | 'power-shell'
+  | 'pwsh-core'
+  | 'windows-terminal'
+  | 'git-bash'
+  // macOS
+  | 'mac-terminal'
+  | 'i-term2'
+  // Linux/Cross-platform
+  | 'gnome-terminal'
+  | 'konsole'
+  | 'xterm'
+  | 'kitty'
+  | 'alacritty'
+
+// Platform-specific terminal options for UI
+export const WINDOWS_TERMINALS: { value: TerminalType; label: string }[] = [
+  { value: 'cmd', label: 'Command Prompt' },
+  { value: 'power-shell', label: 'PowerShell' },
+  { value: 'pwsh-core', label: 'PowerShell Core' },
+  { value: 'windows-terminal', label: 'Windows Terminal' },
+  { value: 'git-bash', label: 'Git Bash' },
+]
+
+export const MACOS_TERMINALS: { value: TerminalType; label: string }[] = [
+  { value: 'mac-terminal', label: 'Terminal' },
+  { value: 'i-term2', label: 'iTerm2' },
+  { value: 'kitty', label: 'Kitty' },
+  { value: 'alacritty', label: 'Alacritty' },
+]
+
+export const LINUX_TERMINALS: { value: TerminalType; label: string }[] = [
+  { value: 'gnome-terminal', label: 'GNOME Terminal' },
+  { value: 'konsole', label: 'Konsole' },
+  { value: 'xterm', label: 'XTerm' },
+  { value: 'kitty', label: 'Kitty' },
+  { value: 'alacritty', label: 'Alacritty' },
+]
 
 // Custom IDE configuration for user-defined IDEs
 export interface CustomIde {
@@ -27,13 +70,21 @@ export interface CustomIde {
   command: string // command template with {path} placeholder (e.g., "nvim {path}")
 }
 
+// Custom Remote IDE configuration for user-defined remote IDEs
+export interface CustomRemoteIde {
+  id: string // unique identifier (e.g., "remote-nvim")
+  label: string // display name (e.g., "Neovim Remote")
+  command: string // command template with {host} and {path} placeholders (e.g., "ssh {host} 'nvim {path}'")
+}
+
 // Section keys for drag-and-drop reordering
-export type SectionKey = 'workingDirs' | 'ide' | 'remoteIde' | 'file' | 'command' | 'links' | 'notes'
+export type SectionKey = 'workingDirs' | 'ide' | 'remoteIde' | 'codingAgent' | 'file' | 'command' | 'links' | 'notes'
 
 export const DEFAULT_SECTION_ORDER: SectionKey[] = [
   'workingDirs',
   'ide',
   'remoteIde',
+  'codingAgent',
   'file',
   'command',
   'links',
@@ -48,6 +99,8 @@ export interface Item {
   content: string
   ide_type?: string // Can be built-in IdeType or custom IDE id
   remote_ide_type?: string // Can be built-in RemoteIdeType or custom remote IDE id
+  coding_agent_type?: CodingAgentType
+  coding_agent_args?: string // Custom arguments for coding agent (empty string = clear)
   command_mode?: CommandMode
   command_cwd?: string
   command_host?: string // for remote commands via SSH

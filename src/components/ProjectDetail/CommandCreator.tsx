@@ -51,7 +51,7 @@ export default function CommandCreator({ workingDirs, sshHosts, onAdd, onCancel 
 
   return (
     <>
-      <div ref={formRef} className="mb-4 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-visible)]">
+      <div ref={formRef} className="mb-4 p-4 rounded-xl bg-(--bg-elevated) border border-(--border-visible)">
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <input
             type="text"
@@ -102,7 +102,7 @@ export default function CommandCreator({ workingDirs, sshHosts, onAdd, onCancel 
           }}
           className="mb-3"
         />
-        <div className="text-xs font-mono text-[var(--text-muted)]">
+        <div className="text-xs font-mono text-(--text-muted)">
           Click outside to save {host && <span className="text-[#e879f9]">(SSH: {host})</span>}
         </div>
       </div>

@@ -78,7 +78,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         ref={sidebarRef}
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
-          bg-[var(--bg-void)] border-r border-[var(--border-subtle)]
+          bg-(--bg-void) border-r border-(--border-subtle)
           ${mounted ? 'transition-[width,transform] duration-300 ease-in-out' : ''}
           ${collapsed ? 'w-12' : 'w-60'}
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -86,10 +86,10 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         `}
       >
         {/* Collapse toggle */}
-        <div className="flex items-center justify-center p-2 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-center p-2 border-b border-(--border-subtle)">
           <button
             onClick={toggleCollapse}
-            className="p-2 rounded-md hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            className="p-2 rounded-md hover:bg-(--bg-surface) text-(--text-muted) hover:text-(--text-primary) transition-colors"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <svg
@@ -118,8 +118,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                   transition-colors duration-150
                   ${
                     isActive
-                      ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                      ? 'bg-(--accent-primary)/10 text-(--accent-primary)'
+                      : 'text-(--text-secondary) hover:bg-(--bg-surface) hover:text-(--text-primary)'
                   }
                 `}
               >

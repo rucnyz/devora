@@ -8,8 +8,8 @@ import ProjectDetail from './components/ProjectDetail'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
 import { useSetting, SettingsProvider } from './hooks/useSettings.tsx'
 import { useCustomIdes, CustomIdesProvider } from './hooks/useCustomIdes'
-import { IDE_TYPES } from './constants/itemTypes'
-import type { CustomIde } from './types'
+import type { CustomIde, CustomRemoteIde, TerminalType } from './types'
+import { WINDOWS_TERMINALS, MACOS_TERMINALS, LINUX_TERMINALS } from './types'
 import {
   getProjects,
   exportDataToFile,
@@ -86,7 +86,7 @@ function UpdateChecker() {
       return (
         <button
           onClick={checkForUpdate}
-          className="text-xs font-mono text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+          className="text-xs font-mono text-(--text-muted) hover:text-(--accent-primary) transition-colors"
         >
           Check for update
         </button>
@@ -94,8 +94,8 @@ function UpdateChecker() {
 
     case 'checking':
       return (
-        <span className="text-xs font-mono text-[var(--text-muted)] flex items-center gap-1.5">
-          <span className="w-3 h-3 border border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-mono text-(--text-muted) flex items-center gap-1.5">
+          <span className="w-3 h-3 border border-(--text-muted) border-t-transparent rounded-full animate-spin" />
           Checking...
         </span>
       )
@@ -104,32 +104,32 @@ function UpdateChecker() {
       return (
         <button
           onClick={downloadAndInstall}
-          className="text-xs font-mono text-[var(--accent-primary)] hover:underline flex items-center gap-1"
+          className="text-xs font-mono text-(--accent-primary) hover:underline flex items-center gap-1"
         >
           <span>v{state.update.version} available</span>
-          <span className="px-1.5 py-0.5 rounded bg-[var(--accent-primary)] text-white text-[10px]">Update</span>
+          <span className="px-1.5 py-0.5 rounded bg-(--accent-primary) text-white text-[10px]">Update</span>
         </button>
       )
 
     case 'downloading':
       return (
-        <span className="text-xs font-mono text-[var(--accent-primary)] flex items-center gap-1.5">
-          <span className="w-3 h-3 border border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-mono text-(--accent-primary) flex items-center gap-1.5">
+          <span className="w-3 h-3 border border-(--accent-primary) border-t-transparent rounded-full animate-spin" />
           Downloading {state.progress}%
         </span>
       )
 
     case 'ready':
-      return <span className="text-xs font-mono text-[var(--accent-primary)]">Restarting...</span>
+      return <span className="text-xs font-mono text-(--accent-primary)">Restarting...</span>
 
     case 'up-to-date':
-      return <span className="text-xs font-mono text-[var(--text-muted)]">Up to date</span>
+      return <span className="text-xs font-mono text-(--text-muted)">Up to date</span>
 
     case 'error':
       return (
         <button
           onClick={checkForUpdate}
-          className="text-xs font-mono text-[var(--accent-danger)] hover:underline"
+          className="text-xs font-mono text-(--accent-danger) hover:underline"
           title={state.message}
         >
           Update failed - retry
@@ -144,11 +144,11 @@ function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] transition-all"
+      className="p-2 rounded-lg bg-(--bg-elevated) border border-(--border-subtle) hover:border-(--border-accent) transition-all"
       title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {theme === 'dark' ? (
-        <svg className="w-4 h-4 text-[var(--accent-warning)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-(--accent-warning)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -157,7 +157,7 @@ function ThemeToggle() {
           />
         </svg>
       ) : (
-        <svg className="w-4 h-4 text-[var(--accent-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-(--accent-secondary)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -266,10 +266,10 @@ function DataMenu() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] transition-all"
+        className="p-2 rounded-lg bg-(--bg-elevated) border border-(--border-subtle) hover:border-(--border-accent) transition-all"
         title="Data sync"
       >
-        <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-(--text-secondary)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -282,10 +282,10 @@ function DataMenu() {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg shadow-lg z-50 overflow-hidden">
+          <div className="absolute right-0 mt-2 w-48 bg-(--bg-elevated) border border-(--border-subtle) rounded-lg shadow-lg z-50 overflow-hidden">
             <button
               onClick={openExportDialog}
-              className="w-full px-4 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface)] flex items-center gap-2"
+              className="w-full px-4 py-2.5 text-left text-sm text-(--text-primary) hover:bg-(--bg-surface) flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -297,7 +297,7 @@ function DataMenu() {
               </svg>
               Export Data
             </button>
-            <label className="w-full px-4 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface)] flex items-center gap-2 cursor-pointer">
+            <label className="w-full px-4 py-2.5 text-left text-sm text-(--text-primary) hover:bg-(--bg-surface) flex items-center gap-2 cursor-pointer">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
@@ -321,56 +321,56 @@ function DataMenu() {
             onClick={() => setShowExportDialog(false)}
           >
             <div
-              className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[400px] max-h-[80vh] overflow-hidden"
+              className="bg-(--bg-elevated) border border-(--border-subtle) rounded-xl shadow-2xl w-100 max-h-[80vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Export Projects</h3>
-                <p className="text-sm text-[var(--text-muted)] mt-1">Select projects to export</p>
+              <div className="px-5 py-4 border-b border-(--border-subtle)">
+                <h3 className="text-lg font-semibold text-(--text-primary)">Export Projects</h3>
+                <p className="text-sm text-(--text-muted) mt-1">Select projects to export</p>
               </div>
 
-              <div className="px-5 py-3 border-b border-[var(--border-subtle)]">
+              <div className="px-5 py-3 border-b border-(--border-subtle)">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedProjects.size === projects.length}
                     onChange={toggleAll}
-                    className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
+                    className="w-4 h-4 rounded border-(--border-subtle) text-(--accent-primary) focus:ring-(--accent-primary)"
                   />
-                  <span className="text-sm font-medium text-[var(--text-primary)]">
+                  <span className="text-sm font-medium text-(--text-primary)">
                     Select All ({selectedProjects.size}/{projects.length})
                   </span>
                 </label>
               </div>
 
-              <div className="max-h-[300px] overflow-y-auto px-5 py-3">
+              <div className="max-h-75 overflow-y-auto px-5 py-3">
                 {projects.map((project) => (
                   <label
                     key={project.id}
-                    className="flex items-center gap-3 py-2 cursor-pointer hover:bg-[var(--bg-surface)] -mx-2 px-2 rounded"
+                    className="flex items-center gap-3 py-2 cursor-pointer hover:bg-(--bg-surface) -mx-2 px-2 rounded"
                   >
                     <input
                       type="checkbox"
                       checked={selectedProjects.has(project.id)}
                       onChange={() => toggleProject(project.id)}
-                      className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
+                      className="w-4 h-4 rounded border-(--border-subtle) text-(--accent-primary) focus:ring-(--accent-primary)"
                     />
-                    <span className="text-sm text-[var(--text-primary)] truncate">{project.name}</span>
+                    <span className="text-sm text-(--text-primary) truncate">{project.name}</span>
                   </label>
                 ))}
               </div>
 
-              <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3">
+              <div className="px-5 py-4 border-t border-(--border-subtle) flex justify-end gap-3">
                 <button
                   onClick={() => setShowExportDialog(false)}
-                  className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  className="px-4 py-2 text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleExport}
                   disabled={selectedProjects.size === 0}
-                  className="px-4 py-2 text-sm bg-[var(--accent-primary)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm bg-(--accent-primary) text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Export {selectedProjects.size} Project{selectedProjects.size !== 1 ? 's' : ''}
                 </button>
@@ -385,9 +385,7 @@ function DataMenu() {
         createPortal(
           <div
             className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg text-sm z-50 ${
-              status.type === 'success'
-                ? 'bg-[var(--accent-primary)] text-white'
-                : 'bg-[var(--accent-error)] text-white'
+              status.type === 'success' ? 'bg-(--accent-primary) text-white' : 'bg-(--accent-error) text-white'
             }`}
           >
             {status.message}
@@ -450,10 +448,10 @@ function GitHubStars() {
     return (
       <button
         onClick={show}
-        className="flex items-center justify-center w-8 h-8 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-accent)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface)] transition-all"
+        className="flex items-center justify-center w-8 h-8 rounded-md border border-(--border-subtle) hover:border-(--border-accent) bg-(--bg-elevated) hover:bg-(--bg-surface) transition-all"
         title="Show GitHub stars"
       >
-        <svg className="w-4 h-4 text-[var(--text-muted)]" fill="currentColor" viewBox="0 0 16 16">
+        <svg className="w-4 h-4 text-(--text-muted)" fill="currentColor" viewBox="0 0 16 16">
           <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z" />
         </svg>
       </button>
@@ -466,25 +464,25 @@ function GitHubStars() {
         href={`https://github.com/${GITHUB_REPO}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center h-8 rounded-md overflow-hidden border border-[var(--border-subtle)] hover:border-[var(--border-accent)] transition-all text-sm"
+        className="flex items-center h-8 rounded-md overflow-hidden border border-(--border-subtle) hover:border-(--border-accent) transition-all text-sm"
         title="Star on GitHub"
       >
         {/* Left: GitHub icon + Star */}
-        <span className="flex items-center gap-1.5 px-3 h-full bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface)] transition-colors">
-          <svg className="w-4 h-4 text-[var(--text-primary)]" fill="currentColor" viewBox="0 0 16 16">
+        <span className="flex items-center gap-1.5 px-3 h-full bg-(--bg-elevated) hover:bg-(--bg-surface) transition-colors">
+          <svg className="w-4 h-4 text-(--text-primary)" fill="currentColor" viewBox="0 0 16 16">
             <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z" />
           </svg>
-          <span className="font-medium text-[var(--text-primary)]">Star</span>
+          <span className="font-medium text-(--text-primary)">Star</span>
         </span>
         {/* Right: Count */}
-        <span className="flex items-center px-3 h-full bg-[var(--bg-surface)] border-l border-[var(--border-subtle)] font-medium text-[var(--text-primary)]">
+        <span className="flex items-center px-3 h-full bg-(--bg-surface) border-l border-(--border-subtle) font-medium text-(--text-primary)">
           {stars !== null ? formatStars(stars) : '-'}
         </span>
       </a>
       {/* Hide button */}
       <button
         onClick={hide}
-        className="absolute -right-2 -top-2 w-5 h-5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-center opacity-0 group-hover/stars:opacity-100 hover:bg-[var(--accent-danger)] hover:border-[var(--accent-danger)] hover:text-white transition-all"
+        className="absolute -right-2 -top-2 w-5 h-5 rounded-full bg-(--bg-elevated) border border-(--border-subtle) flex items-center justify-center opacity-0 group-hover/stars:opacity-100 hover:bg-(--accent-danger) hover:border-(--accent-danger) hover:text-white transition-all"
         title="Hide GitHub stars (no external requests)"
       >
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -495,19 +493,80 @@ function GitHubStars() {
   )
 }
 
+// Generate a unique ID from label with hash suffix
+function generateIdeId(label: string): string {
+  const base = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+  const hash = Math.random().toString(36).substring(2, 8)
+  return `${base}-${hash}`
+}
+
+// Detect platform for terminal options
+function getPlatform(): 'windows' | 'macos' | 'linux' {
+  const ua = navigator.userAgent.toLowerCase()
+  if (ua.includes('win')) return 'windows'
+  if (ua.includes('mac')) return 'macos'
+  return 'linux'
+}
+
+function getTerminalOptions() {
+  const platform = getPlatform()
+  switch (platform) {
+    case 'windows':
+      return WINDOWS_TERMINALS
+    case 'macos':
+      return MACOS_TERMINALS
+    default:
+      return LINUX_TERMINALS
+  }
+}
+
+function getDefaultTerminal(): TerminalType {
+  const platform = getPlatform()
+  switch (platform) {
+    case 'windows':
+      return 'cmd'
+    case 'macos':
+      return 'mac-terminal'
+    default:
+      return 'gnome-terminal'
+  }
+}
+
 function SettingsButton() {
   const [isOpen, setIsOpen] = useState(false)
   const { value: fileCardMaxSize, updateValue: setFileCardMaxSize } = useSetting('fileCardMaxSize')
   const { value: zoomLevel, updateValue: setZoomLevel } = useSetting('zoomLevel')
-  const { customIdes, addCustomIde, updateCustomIde, deleteCustomIde } = useCustomIdes()
+  const { value: defaultTerminalStr, updateValue: setDefaultTerminal } = useSetting('defaultTerminal')
+  const {
+    customIdes,
+    addCustomIde,
+    updateCustomIde,
+    deleteCustomIde,
+    customRemoteIdes,
+    addCustomRemoteIde,
+    updateCustomRemoteIde,
+    deleteCustomRemoteIde,
+  } = useCustomIdes()
   const [inputValue, setInputValue] = useState('')
   const [zoomInputValue, setZoomInputValue] = useState('')
 
-  // Custom IDE form state
+  // IDE tab type (local or remote)
+  const [ideTabType, setIdeTabType] = useState<'local' | 'remote'>('local')
+
+  // Custom IDE form state (local)
   const [isAddingIde, setIsAddingIde] = useState(false)
   const [editingIdeId, setEditingIdeId] = useState<string | null>(null)
   const [ideForm, setIdeForm] = useState<CustomIde>({ id: '', label: '', command: '' })
   const [ideError, setIdeError] = useState('')
+
+  // Custom Remote IDE form state
+  const [isAddingRemoteIde, setIsAddingRemoteIde] = useState(false)
+  const [editingRemoteIdeId, setEditingRemoteIdeId] = useState<string | null>(null)
+  const [remoteIdeForm, setRemoteIdeForm] = useState<CustomRemoteIde>({ id: '', label: '', command: '' })
+  const [remoteIdeError, setRemoteIdeError] = useState('')
 
   // Round to 1 decimal place to avoid floating point display issues
   const currentMb = Math.round((fileCardMaxSize / (1024 * 1024)) * 10) / 10
@@ -520,10 +579,15 @@ function SettingsButton() {
 
   const handleClose = () => {
     setIsOpen(false)
+    setIdeTabType('local')
     setIsAddingIde(false)
     setEditingIdeId(null)
     setIdeForm({ id: '', label: '', command: '' })
     setIdeError('')
+    setIsAddingRemoteIde(false)
+    setEditingRemoteIdeId(null)
+    setRemoteIdeForm({ id: '', label: '', command: '' })
+    setRemoteIdeError('')
   }
 
   // Custom IDE handlers
@@ -535,17 +599,8 @@ function SettingsButton() {
   }
 
   const handleAddIde = async () => {
-    if (!ideForm.id.trim() || !ideForm.label.trim() || !ideForm.command.trim()) {
-      setIdeError('All fields are required')
-      return
-    }
-    if (!/^[a-z0-9-]+$/.test(ideForm.id)) {
-      setIdeError('ID must be lowercase alphanumeric with hyphens only')
-      return
-    }
-    // Check for conflict with built-in IDE IDs
-    if (IDE_TYPES.some((ide) => ide.value === ideForm.id)) {
-      setIdeError(`ID "${ideForm.id}" conflicts with a built-in IDE. Choose a different ID.`)
+    if (!ideForm.label.trim() || !ideForm.command.trim()) {
+      setIdeError('Label and command are required')
       return
     }
     if (!ideForm.command.includes('{path}')) {
@@ -553,7 +608,8 @@ function SettingsButton() {
       return
     }
     try {
-      await addCustomIde(ideForm)
+      const id = generateIdeId(ideForm.label)
+      await addCustomIde({ ...ideForm, id })
       resetIdeForm()
     } catch (err) {
       setIdeError(err instanceof Error ? err.message : 'Failed to add IDE')
@@ -586,6 +642,61 @@ function SettingsButton() {
   const handleDeleteIde = async (id: string) => {
     if (confirm('Delete this custom IDE?')) {
       await deleteCustomIde(id)
+    }
+  }
+
+  // Custom Remote IDE handlers
+  const resetRemoteIdeForm = () => {
+    setIsAddingRemoteIde(false)
+    setEditingRemoteIdeId(null)
+    setRemoteIdeForm({ id: '', label: '', command: '' })
+    setRemoteIdeError('')
+  }
+
+  const handleAddRemoteIde = async () => {
+    if (!remoteIdeForm.label.trim() || !remoteIdeForm.command.trim()) {
+      setRemoteIdeError('Label and command are required')
+      return
+    }
+    if (!remoteIdeForm.command.includes('{host}') || !remoteIdeForm.command.includes('{path}')) {
+      setRemoteIdeError('Command must include both {host} and {path} placeholders')
+      return
+    }
+    try {
+      const id = generateIdeId(remoteIdeForm.label)
+      await addCustomRemoteIde({ ...remoteIdeForm, id })
+      resetRemoteIdeForm()
+    } catch (err) {
+      setRemoteIdeError(err instanceof Error ? err.message : 'Failed to add remote IDE')
+    }
+  }
+
+  const handleEditRemoteIde = (ide: CustomRemoteIde) => {
+    setEditingRemoteIdeId(ide.id)
+    setRemoteIdeForm({ ...ide })
+    setRemoteIdeError('')
+  }
+
+  const handleSaveRemoteEdit = async () => {
+    if (!remoteIdeForm.label.trim() || !remoteIdeForm.command.trim()) {
+      setRemoteIdeError('Label and command are required')
+      return
+    }
+    if (!remoteIdeForm.command.includes('{host}') || !remoteIdeForm.command.includes('{path}')) {
+      setRemoteIdeError('Command must include both {host} and {path} placeholders')
+      return
+    }
+    try {
+      await updateCustomRemoteIde(editingRemoteIdeId!, { label: remoteIdeForm.label, command: remoteIdeForm.command })
+      resetRemoteIdeForm()
+    } catch (err) {
+      setRemoteIdeError(err instanceof Error ? err.message : 'Failed to update remote IDE')
+    }
+  }
+
+  const handleDeleteRemoteIde = async (id: string) => {
+    if (confirm('Delete this custom remote IDE?')) {
+      await deleteCustomRemoteIde(id)
     }
   }
 
@@ -649,10 +760,10 @@ function SettingsButton() {
     <>
       <button
         onClick={handleOpen}
-        className="p-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] transition-all"
+        className="p-2 rounded-lg bg-(--bg-elevated) border border-(--border-subtle) hover:border-(--border-accent) transition-all"
         title="Settings"
       >
-        <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-(--text-secondary)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -669,15 +780,15 @@ function SettingsButton() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleClose}>
             {/* Dialog */}
             <div
-              className="relative bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-[400px] max-h-[80vh] overflow-hidden flex flex-col"
+              className="relative bg-(--bg-elevated) border border-(--border-subtle) rounded-xl shadow-2xl w-100 max-h-[80vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
-                <h3 className="text-base font-semibold text-[var(--text-primary)]">Settings</h3>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-(--border-subtle)">
+                <h3 className="text-base font-semibold text-(--text-primary)">Settings</h3>
                 <button
                   onClick={handleClose}
-                  className="p-1 rounded hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                  className="p-1 rounded hover:bg-(--bg-surface) text-(--text-muted) hover:text-(--text-primary) transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -689,12 +800,12 @@ function SettingsButton() {
               <div className="p-4 space-y-4 overflow-y-auto flex-1">
                 {/* File Preview Max Size */}
                 <div>
-                  <label className="block text-sm text-[var(--text-primary)] mb-2">File preview max size</label>
+                  <label className="block text-sm text-(--text-primary) mb-2">File preview max size</label>
                   <div className="flex items-center gap-2">
                     {/* Decrease button */}
                     <button
                       onClick={() => handleSizeChange(currentMb - 1)}
-                      className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                      className="p-2 rounded-lg bg-(--bg-surface) hover:bg-(--bg-surface-hover) text-(--text-muted) hover:text-(--text-primary) transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -711,15 +822,15 @@ function SettingsButton() {
                         onChange={handleInputChange}
                         onBlur={handleInputBlur}
                         onKeyDown={handleInputKeyDown}
-                        className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-center text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-full px-3 py-2 bg-(--bg-surface) border border-(--border-subtle) rounded-lg text-center text-sm font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-primary) [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <span className="text-sm text-[var(--text-muted)] shrink-0">MB</span>
+                      <span className="text-sm text-(--text-muted) shrink-0">MB</span>
                     </div>
 
                     {/* Increase button */}
                     <button
                       onClick={() => handleSizeChange(currentMb + 1)}
-                      className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                      className="p-2 rounded-lg bg-(--bg-surface) hover:bg-(--bg-surface-hover) text-(--text-muted) hover:text-(--text-primary) transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -730,13 +841,13 @@ function SettingsButton() {
 
                 {/* Interface Zoom */}
                 <div>
-                  <label className="block text-sm text-[var(--text-primary)] mb-2">Interface zoom</label>
+                  <label className="block text-sm text-(--text-primary) mb-2">Interface zoom</label>
                   <div className="flex items-center gap-2">
                     {/* Decrease button */}
                     <button
                       onClick={() => handleZoomChange(zoomLevel - 10)}
                       disabled={zoomLevel <= 50}
-                      className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 rounded-lg bg-(--bg-surface) hover:bg-(--bg-surface-hover) text-(--text-muted) hover:text-(--text-primary) transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -754,141 +865,300 @@ function SettingsButton() {
                         onChange={handleZoomInputChange}
                         onBlur={handleZoomInputBlur}
                         onKeyDown={handleZoomInputKeyDown}
-                        className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-center text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-full px-3 py-2 bg-(--bg-surface) border border-(--border-subtle) rounded-lg text-center text-sm font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-primary) [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <span className="text-sm text-[var(--text-muted)] shrink-0">%</span>
+                      <span className="text-sm text-(--text-muted) shrink-0">%</span>
                     </div>
 
                     {/* Increase button */}
                     <button
                       onClick={() => handleZoomChange(zoomLevel + 10)}
                       disabled={zoomLevel >= 200}
-                      className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 rounded-lg bg-(--bg-surface) hover:bg-(--bg-surface-hover) text-(--text-muted) hover:text-(--text-primary) transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
                     </button>
                   </div>
-                  <p className="text-xs text-[var(--text-muted)] mt-1.5">
-                    Ctrl+Scroll or Ctrl+/- to zoom, Ctrl+0 to reset
+                  <p className="text-xs text-(--text-muted) mt-1.5">Ctrl+Scroll or Ctrl+/- to zoom, Ctrl+0 to reset</p>
+                </div>
+
+                {/* Default Terminal */}
+                <div>
+                  <label className="block text-sm text-(--text-primary) mb-2">
+                    Default terminal (for Coding Agents)
+                  </label>
+                  <select
+                    value={defaultTerminalStr || getDefaultTerminal()}
+                    onChange={(e) => setDefaultTerminal(e.target.value)}
+                    className="w-full px-3 py-2 bg-(--bg-surface) border border-(--border-subtle) rounded-lg text-sm text-(--text-primary) focus:outline-none focus:border-(--accent-primary)"
+                  >
+                    {getTerminalOptions().map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-(--text-muted) mt-1.5">
+                    Terminal to use when launching coding agents (Claude, OpenCode, Gemini)
                   </p>
                 </div>
 
                 {/* Custom IDEs */}
-                <div className="border-t border-[var(--border-subtle)] pt-4">
+                <div className="border-t border-(--border-subtle) pt-4">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm text-[var(--text-primary)]">Custom IDEs</label>
-                    {!isAddingIde && !editingIdeId && (
+                    <label className="block text-sm text-(--text-primary)">Custom IDEs</label>
+                    {ideTabType === 'local' && !isAddingIde && !editingIdeId && (
                       <button
                         onClick={() => setIsAddingIde(true)}
-                        className="text-xs text-[var(--accent-primary)] hover:underline"
+                        className="text-xs text-(--accent-primary) hover:underline"
+                      >
+                        + Add
+                      </button>
+                    )}
+                    {ideTabType === 'remote' && !isAddingRemoteIde && !editingRemoteIdeId && (
+                      <button
+                        onClick={() => setIsAddingRemoteIde(true)}
+                        className="text-xs text-(--accent-remote) hover:underline"
                       >
                         + Add
                       </button>
                     )}
                   </div>
 
-                  {/* Add/Edit Form */}
-                  {(isAddingIde || editingIdeId) && (
-                    <div className="mb-3 p-3 bg-[var(--bg-surface)] rounded-lg space-y-2">
-                      {isAddingIde && (
-                        <input
-                          type="text"
-                          placeholder="ID (e.g., nvim)"
-                          value={ideForm.id}
-                          onChange={(e) => setIdeForm({ ...ideForm, id: e.target.value.toLowerCase() })}
-                          className="w-full px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
-                        />
-                      )}
-                      <input
-                        type="text"
-                        placeholder="Label (e.g., Neovim)"
-                        value={ideForm.label}
-                        onChange={(e) => setIdeForm({ ...ideForm, label: e.target.value })}
-                        className="w-full px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Command (e.g., nvim {path})"
-                        value={ideForm.command}
-                        onChange={(e) => setIdeForm({ ...ideForm, command: e.target.value })}
-                        className="w-full px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
-                      />
-                      {ideError && <p className="text-xs text-[var(--accent-danger)]">{ideError}</p>}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={isAddingIde ? handleAddIde : handleSaveEdit}
-                          className="flex-1 px-2 py-1.5 bg-[var(--accent-primary)] text-white text-xs rounded hover:opacity-90 transition-opacity"
-                        >
-                          {isAddingIde ? 'Add' : 'Save'}
-                        </button>
-                        <button
-                          onClick={resetIdeForm}
-                          className="px-2 py-1.5 bg-[var(--bg-elevated)] text-[var(--text-muted)] text-xs rounded hover:text-[var(--text-primary)] transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Tab Switcher */}
+                  <div className="flex gap-1 mb-3">
+                    <button
+                      onClick={() => setIdeTabType('local')}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        ideTabType === 'local'
+                          ? 'bg-(--accent-primary) text-white'
+                          : 'bg-(--bg-surface) text-(--text-muted) hover:text-(--text-primary)'
+                      }`}
+                    >
+                      Local
+                    </button>
+                    <button
+                      onClick={() => setIdeTabType('remote')}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        ideTabType === 'remote'
+                          ? 'bg-(--accent-remote) text-white'
+                          : 'bg-(--bg-surface) text-(--text-muted) hover:text-(--text-primary)'
+                      }`}
+                    >
+                      Remote
+                    </button>
+                  </div>
 
-                  {/* IDE List */}
-                  {customIdes.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {customIdes.map((ide) => (
-                        <div
-                          key={ide.id}
-                          className="flex items-center justify-between p-2 bg-[var(--bg-surface)] rounded-lg group"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm text-[var(--text-primary)] font-medium">{ide.label}</div>
-                            <div className="text-xs text-[var(--text-muted)] font-mono truncate">{ide.command}</div>
-                          </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Local IDE Tab */}
+                  {ideTabType === 'local' && (
+                    <>
+                      {/* Add/Edit Form */}
+                      {(isAddingIde || editingIdeId) && (
+                        <div className="mb-3 p-3 bg-(--bg-surface) rounded-lg space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Label (e.g., Neovim)"
+                            value={ideForm.label}
+                            onChange={(e) => setIdeForm({ ...ideForm, label: e.target.value })}
+                            className="w-full px-2 py-1.5 bg-(--bg-elevated) border border-(--border-subtle) rounded text-sm text-(--text-primary) focus:outline-none focus:border-(--accent-primary)"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Command (e.g., nvim {path})"
+                            value={ideForm.command}
+                            onChange={(e) => setIdeForm({ ...ideForm, command: e.target.value })}
+                            className="w-full px-2 py-1.5 bg-(--bg-elevated) border border-(--border-subtle) rounded text-sm font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-primary)"
+                          />
+                          {ideError && <p className="text-xs text-(--accent-danger)">{ideError}</p>}
+                          <div className="flex gap-2">
                             <button
-                              onClick={() => handleEditIde(ide)}
-                              className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
-                              title="Edit"
+                              onClick={isAddingIde ? handleAddIde : handleSaveEdit}
+                              className="flex-1 px-2 py-1.5 bg-(--accent-primary) text-white text-xs rounded hover:opacity-90 transition-opacity"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                />
-                              </svg>
+                              {isAddingIde ? 'Add' : 'Save'}
                             </button>
                             <button
-                              onClick={() => handleDeleteIde(ide.id)}
-                              className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-colors"
-                              title="Delete"
+                              onClick={resetIdeForm}
+                              className="px-2 py-1.5 bg-(--bg-elevated) text-(--text-muted) text-xs rounded hover:text-(--text-primary) transition-colors"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
+                              Cancel
                             </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    !isAddingIde && (
-                      <p className="text-xs text-[var(--text-muted)]">
-                        No custom IDEs. Click "+ Add" to register your own IDE.
-                      </p>
-                    )
+                      )}
+
+                      {/* IDE List */}
+                      {customIdes.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {customIdes.map((ide) => (
+                            <div
+                              key={ide.id}
+                              className="flex items-center justify-between p-2 bg-(--bg-surface) rounded-lg group"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm text-(--text-primary) font-medium">{ide.label}</div>
+                                <div className="text-xs text-(--text-muted) font-mono truncate">{ide.command}</div>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleEditIde(ide)}
+                                  className="p-1 text-(--text-muted) hover:text-(--accent-primary) transition-colors"
+                                  title="Edit"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteIde(ide.id)}
+                                  className="p-1 text-(--text-muted) hover:text-(--accent-danger) transition-colors"
+                                  title="Delete"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        !isAddingIde && (
+                          <p className="text-xs text-(--text-muted)">
+                            No custom IDEs. Click "+ Add" to register your own IDE.
+                          </p>
+                        )
+                      )}
+                      <div className="text-xs text-(--text-muted) mt-2 space-y-1">
+                        <p>
+                          Use <code className="bg-(--bg-surface) px-1 rounded">{'{path}'}</code> as placeholder for
+                          project path.
+                        </p>
+                        <p>
+                          Use quotes if path may contain spaces:{' '}
+                          <code className="bg-(--bg-surface) px-1 rounded">nvim &quot;{'{path}'}&quot;</code>
+                        </p>
+                      </div>
+                    </>
                   )}
-                  <p className="text-xs text-[var(--text-muted)] mt-2">
-                    Use <code className="bg-[var(--bg-surface)] px-1 rounded">{'{path}'}</code> as placeholder for
-                    project path.
-                  </p>
+
+                  {/* Remote IDE Tab */}
+                  {ideTabType === 'remote' && (
+                    <>
+                      {/* Add/Edit Form */}
+                      {(isAddingRemoteIde || editingRemoteIdeId) && (
+                        <div className="mb-3 p-3 bg-(--bg-surface) rounded-lg space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Label (e.g., Neovim SSH)"
+                            value={remoteIdeForm.label}
+                            onChange={(e) => setRemoteIdeForm({ ...remoteIdeForm, label: e.target.value })}
+                            className="w-full px-2 py-1.5 bg-(--bg-elevated) border border-(--border-subtle) rounded text-sm text-(--text-primary) focus:outline-none focus:border-(--accent-remote)"
+                          />
+                          <input
+                            type="text"
+                            placeholder="e.g., code --folder-uri vscode-remote://ssh-remote+{host}{path}"
+                            title="Command with {host} and {path} placeholders"
+                            value={remoteIdeForm.command}
+                            onChange={(e) => setRemoteIdeForm({ ...remoteIdeForm, command: e.target.value })}
+                            className="w-full px-2 py-1.5 bg-(--bg-elevated) border border-(--border-subtle) rounded text-sm font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-remote)"
+                          />
+                          {remoteIdeError && <p className="text-xs text-(--accent-danger)">{remoteIdeError}</p>}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={isAddingRemoteIde ? handleAddRemoteIde : handleSaveRemoteEdit}
+                              className="flex-1 px-2 py-1.5 bg-(--accent-remote) text-white text-xs rounded hover:opacity-90 transition-opacity"
+                            >
+                              {isAddingRemoteIde ? 'Add' : 'Save'}
+                            </button>
+                            <button
+                              onClick={resetRemoteIdeForm}
+                              className="px-2 py-1.5 bg-(--bg-elevated) text-(--text-muted) text-xs rounded hover:text-(--text-primary) transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Remote IDE List */}
+                      {customRemoteIdes.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {customRemoteIdes.map((ide) => (
+                            <div
+                              key={ide.id}
+                              className="flex items-center justify-between p-2 bg-(--bg-surface) rounded-lg group"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm text-(--text-primary) font-medium">{ide.label}</div>
+                                <div className="text-xs text-(--text-muted) font-mono truncate">{ide.command}</div>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleEditRemoteIde(ide)}
+                                  className="p-1 text-(--text-muted) hover:text-(--accent-remote) transition-colors"
+                                  title="Edit"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRemoteIde(ide.id)}
+                                  className="p-1 text-(--text-muted) hover:text-(--accent-danger) transition-colors"
+                                  title="Delete"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        !isAddingRemoteIde && (
+                          <p className="text-xs text-(--text-muted)">
+                            No custom remote IDEs. Click "+ Add" to register your own.
+                          </p>
+                        )
+                      )}
+                      <div className="text-xs text-(--text-muted) mt-2 space-y-1">
+                        <p>
+                          Use <code className="bg-(--bg-surface) px-1 rounded">{'{host}'}</code> and{' '}
+                          <code className="bg-(--bg-surface) px-1 rounded">{'{path}'}</code> as placeholders.
+                        </p>
+                        <p>
+                          For terminal apps (e.g., nvim), open a new window:{' '}
+                          <code className="bg-(--bg-surface) px-1 rounded">
+                            start cmd /k ssh {'{host}'} &quot;nvim {'{path}'}&quot;
+                          </code>
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -901,26 +1171,26 @@ function SettingsButton() {
 
 function Header() {
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--border-subtle)] bg-[var(--bg-void)]/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-(--border-subtle) bg-(--bg-void)/80 backdrop-blur-md">
       <div className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="group flex items-center gap-3">
               {/* Logo */}
               <div className="relative w-9 h-9 flex items-center justify-center">
-                <div className="absolute inset-0 bg-[var(--accent-primary)] rounded-lg opacity-20 group-hover:opacity-30 transition-opacity" />
-                <div className="absolute inset-0.5 bg-[var(--bg-deep)] rounded-[6px]" />
-                <span className="relative font-mono font-semibold text-[var(--accent-primary)] text-sm">DV</span>
+                <div className="absolute inset-0 bg-(--accent-primary) rounded-lg opacity-20 group-hover:opacity-30 transition-opacity" />
+                <div className="absolute inset-0.5 bg-(--bg-deep) rounded-md" />
+                <span className="relative font-mono font-semibold text-(--accent-primary) text-sm">DV</span>
               </div>
               {/* Title */}
               <div>
-                <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
+                <h1 className="text-lg font-semibold tracking-tight text-(--text-primary) group-hover:text-(--accent-primary) transition-colors">
                   Devora
                 </h1>
-                <p className="text-xs font-mono text-[var(--text-muted)] -mt-0.5">v{__APP_VERSION__}</p>
+                <p className="text-xs font-mono text-(--text-muted) -mt-0.5">v{__APP_VERSION__}</p>
               </div>
             </Link>
-            <span className="text-[var(--text-muted)]">·</span>
+            <span className="text-(--text-muted)">·</span>
             <UpdateChecker />
           </div>
 
@@ -930,9 +1200,9 @@ function Header() {
             <DataMenu />
             <SettingsButton />
             <ThemeToggle />
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
-              <span className="inline-flex rounded-full h-2 w-2 bg-[var(--text-muted)]"></span>
-              <span className="text-xs font-mono text-[var(--text-muted)]">fully offline</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-(--bg-elevated) border border-(--border-subtle)">
+              <span className="inline-flex rounded-full h-2 w-2 bg-(--text-muted)"></span>
+              <span className="text-xs font-mono text-(--text-muted)">fully offline</span>
             </div>
           </div>
         </div>
@@ -1063,10 +1333,10 @@ function AppContent() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--border-subtle)]">
+      <footer className="border-t border-(--border-subtle)">
         <div className="max-w-6xl mx-auto px-6 py-4">
-          <p className="text-xs font-mono text-[var(--text-muted)] text-center">
-            Built with Tauri + React // <span className="text-[var(--accent-primary)]">Neo-Terminal</span> design
+          <p className="text-xs font-mono text-(--text-muted) text-center">
+            Built with Tauri + React // <span className="text-(--accent-primary)">Neo-Terminal</span> design
           </p>
         </div>
       </footer>
@@ -1074,8 +1344,8 @@ function AppContent() {
       {/* Zoom indicator toast - rendered via portal to be above sidebar */}
       {showZoomIndicator &&
         createPortal(
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-visible)] rounded-lg shadow-lg z-[100] animate-fade-in flex items-center gap-3">
-            <span className="text-sm font-mono text-[var(--text-primary)]">Zoom {effectiveZoom}%</span>
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-(--bg-elevated) border border-(--border-visible) rounded-lg shadow-lg z-100 animate-fade-in flex items-center gap-3">
+            <span className="text-sm font-mono text-(--text-primary)">Zoom {effectiveZoom}%</span>
             {effectiveZoom !== 100 && (
               <button
                 onClick={() => {
@@ -1083,7 +1353,7 @@ function AppContent() {
                   setZoomLevel(100)
                   showZoomToast()
                 }}
-                className="text-sm font-mono text-[var(--accent-primary)] hover:text-[var(--accent-hover)] transition-colors"
+                className="text-sm font-mono text-(--accent-primary) hover:text-(--accent-hover) transition-colors"
               >
                 Reset to 100%
               </button>

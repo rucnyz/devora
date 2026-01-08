@@ -43,10 +43,10 @@ export default function NoteEditor({ note, onSave, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-[var(--border-subtle)]">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-(--border-subtle)">
           <div className="flex items-center gap-3">
-            <div className="w-1 h-6 bg-[var(--accent-warning)] rounded-full" />
-            <h3 className="text-lg font-semibold text-[var(--text-primary)]">{note.title}</h3>
+            <div className="w-1 h-6 bg-(--accent-warning) rounded-full" />
+            <h3 className="text-lg font-semibold text-(--text-primary)">{note.title}</h3>
           </div>
           <div className="flex gap-3">
             <button onClick={onClose} className="btn-ghost">

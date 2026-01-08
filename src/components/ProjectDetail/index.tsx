@@ -8,6 +8,7 @@ import ProjectHeader from './ProjectHeader'
 import WorkingDirsSection from './WorkingDirsSection'
 import IDESection from './IDESection'
 import RemoteIDESection from './RemoteIDESection'
+import CodingAgentSection from './CodingAgentSection'
 import FileSection from './FileSection'
 import CommandSection from './CommandSection'
 import LinksSection from './LinksSection'
@@ -17,7 +18,7 @@ import FileCardContainer from '../FilePreviewCard/FileCardContainer'
 import Sidebar from '../Sidebar'
 import {
   DEFAULT_SECTION_ORDER,
-  type RemoteIdeType,
+  type CodingAgentType,
   type CommandMode,
   type WorkingDir,
   type SectionKey,
@@ -37,6 +38,7 @@ export default function ProjectDetail() {
   const [isCreatingNote, setIsCreatingNote] = useState(false)
   const [isCreatingIde, setIsCreatingIde] = useState(false)
   const [isCreatingRemoteIde, setIsCreatingRemoteIde] = useState(false)
+  const [isCreatingCodingAgent, setIsCreatingCodingAgent] = useState(false)
   const [isCreatingFile, setIsCreatingFile] = useState(false)
   const [isCreatingCommand, setIsCreatingCommand] = useState(false)
 
@@ -52,8 +54,7 @@ export default function ProjectDetail() {
     // Unix absolute path: /home/..., /Users/...
     if (/^\/[^/]/.test(text)) return true
     // Home directory: ~/...
-    if (/^~[/\\]/.test(text)) return true
-    return false
+    return /^~[/\\]/.test(text)
   }, [])
 
   // Helper: quick add URL with metadata fetch
@@ -170,8 +171,8 @@ export default function ProjectDetail() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
-          <span className="font-mono text-[var(--text-muted)]">Loading project...</span>
+          <div className="w-5 h-5 border-2 border-(--accent-primary) border-t-transparent rounded-full animate-spin" />
+          <span className="font-mono text-(--text-muted)">Loading project...</span>
         </div>
       </div>
     )
@@ -180,8 +181,8 @@ export default function ProjectDetail() {
   if (error) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="px-4 py-3 bg-[var(--accent-danger)]/10 border border-[var(--accent-danger)]/30 rounded-lg">
-          <span className="font-mono text-[var(--accent-danger)]">Error: {error}</span>
+        <div className="px-4 py-3 bg-(--accent-danger)/10 border border-(--accent-danger)/30 rounded-lg">
+          <span className="font-mono text-(--accent-danger)">Error: {error}</span>
         </div>
       </div>
     )
@@ -190,7 +191,7 @@ export default function ProjectDetail() {
   if (!project) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="font-mono text-[var(--text-muted)]">Project not found</span>
+        <span className="font-mono text-(--text-muted)">Project not found</span>
       </div>
     )
   }
@@ -199,6 +200,7 @@ export default function ProjectDetail() {
   const notes = project.items?.filter((i) => i.type === 'note') || []
   const ideItems = project.items?.filter((i) => i.type === 'ide') || []
   const remoteIdeItems = project.items?.filter((i) => i.type === 'remote-ide') || []
+  const codingAgentItems = project.items?.filter((i) => i.type === 'coding-agent') || []
   const fileItems = project.items?.filter((i) => i.type === 'file') || []
   const urlItems = project.items?.filter((i) => i.type === 'url') || []
   const commandItems = project.items?.filter((i) => i.type === 'command') || []
@@ -223,6 +225,12 @@ export default function ProjectDetail() {
       label: 'Remote',
       show: remoteIdeItems.length > 0 || isCreatingRemoteIde,
       color: 'var(--accent-remote)',
+    },
+    codingAgent: {
+      id: 'section-coding-agent',
+      label: 'Agent',
+      show: codingAgentItems.length > 0 || isCreatingCodingAgent,
+      color: 'var(--accent-agent)',
     },
     file: {
       id: 'section-files',
@@ -252,8 +260,12 @@ export default function ProjectDetail() {
     await addItem('ide', title, path, ideType)
   }
 
-  const handleAddRemoteIde = async (title: string, content: string, remoteIdeType: RemoteIdeType) => {
+  const handleAddRemoteIde = async (title: string, content: string, remoteIdeType: string) => {
     await addItem('remote-ide', title, content, undefined, remoteIdeType)
+  }
+
+  const handleAddCodingAgent = async (title: string, path: string, agentType: CodingAgentType, args: string) => {
+    await addItem('coding-agent', title, path, undefined, undefined, agentType, args || undefined)
   }
 
   const handleAddFile = async (title: string, path: string) => {
@@ -265,7 +277,7 @@ export default function ProjectDetail() {
   }
 
   const handleAddCommand = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string) => {
-    await addItem('command', title, command, undefined, undefined, mode, cwd, host)
+    await addItem('command', title, command, undefined, undefined, undefined, undefined, mode, cwd, host)
   }
 
   const handleUpdateWorkingDirs = async (dirs: WorkingDir[]) => {
@@ -328,6 +340,17 @@ export default function ProjectDetail() {
         onCreatingChange={setIsCreatingRemoteIde}
       />
     ),
+    codingAgent: (
+      <CodingAgentSection
+        items={codingAgentItems}
+        isCreating={isCreatingCodingAgent}
+        workingDirs={project.metadata.working_dirs || []}
+        onAdd={handleAddCodingAgent}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onCreatingChange={setIsCreatingCodingAgent}
+      />
+    ),
     file: (
       <FileSection
         items={fileItems}
@@ -382,7 +405,7 @@ export default function ProjectDetail() {
           {/* Mobile hamburger menu */}
           <button
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden p-2 -ml-2 rounded-md hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            className="md:hidden p-2 -ml-2 rounded-md hover:bg-(--bg-surface) text-(--text-muted) hover:text-(--text-primary) transition-colors"
             title="Open sidebar"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -392,7 +415,7 @@ export default function ProjectDetail() {
 
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm font-mono text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-mono text-(--text-muted) hover:text-(--accent-primary) transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -408,6 +431,7 @@ export default function ProjectDetail() {
           onCreateNote={() => setIsCreatingNote(true)}
           onCreateIde={() => setIsCreatingIde(true)}
           onCreateRemoteIde={() => setIsCreatingRemoteIde(true)}
+          onCreateCodingAgent={() => setIsCreatingCodingAgent(true)}
           onCreateFile={() => setIsCreatingFile(true)}
           onCreateCommand={() => setIsCreatingCommand(true)}
         />

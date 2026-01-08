@@ -33,7 +33,7 @@ impl Database {
     fn run_migrations(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         let current_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        let target_version = 1;
+        let target_version = 3;
 
         if current_version >= target_version {
             info!("Database is up to date (version {})", current_version);
@@ -101,6 +101,28 @@ impl Database {
             )?;
         }
 
+        // v2: Add coding_agent_type column
+        if current_version < 2 {
+            info!("Adding coding_agent_type column");
+            conn.execute_batch(
+                "
+                ALTER TABLE items ADD COLUMN coding_agent_type TEXT;
+                PRAGMA user_version = 2;
+            ",
+            )?;
+        }
+
+        // v3: Add coding_agent_args column
+        if current_version < 3 {
+            info!("Adding coding_agent_args column");
+            conn.execute_batch(
+                "
+                ALTER TABLE items ADD COLUMN coding_agent_args TEXT;
+                PRAGMA user_version = 3;
+            ",
+            )?;
+        }
+
         info!("Database migration complete (version {})", target_version);
         Ok(())
     }
@@ -158,14 +180,16 @@ impl Database {
 
         match project {
             Ok(mut p) => {
-                // Get items
-                let mut stmt =
-                    conn.prepare("SELECT * FROM items WHERE project_id = ? ORDER BY \"order\" ASC")?;
+                // Get items - use explicit column names to ensure correct order
+                let mut stmt = conn.prepare(
+                    "SELECT id, project_id, type, title, content, ide_type, \"order\", created_at, updated_at, remote_ide_type, command_mode, command_cwd, command_host, coding_agent_type, coding_agent_args FROM items WHERE project_id = ? ORDER BY \"order\" ASC"
+                )?;
                 let items = stmt.query_map(params![id], |row| {
                     let item_type_str: String = row.get(2)?;
                     let ide_type_str: Option<String> = row.get(5)?;
                     let remote_ide_type_str: Option<String> = row.get(9)?;
                     let command_mode_str: Option<String> = row.get(10)?;
+                    let coding_agent_type_str: Option<String> = row.get(13)?;
 
                     Ok(Item {
                         id: row.get(0)?,
@@ -178,6 +202,8 @@ impl Database {
                         created_at: row.get(7)?,
                         updated_at: row.get(8)?,
                         remote_ide_type: remote_ide_type_str,  // Already a string
+                        coding_agent_type: coding_agent_type_str.and_then(|s| s.parse().ok()),
+                        coding_agent_args: row.get(14)?,
                         command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                         command_cwd: row.get(11)?,
                         command_host: row.get(12)?,
@@ -262,6 +288,8 @@ impl Database {
         content: &str,
         ide_type: Option<&str>,  // Changed to &str to support custom IDE IDs
         remote_ide_type: Option<&str>,  // Changed to &str to support custom remote IDE IDs
+        coding_agent_type: Option<CodingAgentType>,
+        coding_agent_args: Option<&str>,
         command_mode: Option<CommandMode>,
         command_cwd: Option<&str>,
         command_host: Option<&str>,
@@ -280,7 +308,7 @@ impl Database {
             .unwrap_or(0);
 
         conn.execute(
-            "INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, command_host, \"order\", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, coding_agent_type, coding_agent_args, command_mode, command_cwd, command_host, \"order\", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 id,
                 project_id,
@@ -289,6 +317,8 @@ impl Database {
                 content,
                 ide_type,  // Already a string, no conversion needed
                 remote_ide_type,  // Already a string, no conversion needed
+                coding_agent_type.as_ref().map(|t| t.to_string()),
+                coding_agent_args,
                 command_mode.as_ref().map(|t| t.to_string()),
                 command_cwd,
                 command_host,
@@ -312,6 +342,8 @@ impl Database {
             content: content.to_string(),
             ide_type: ide_type.map(|s| s.to_string()),
             remote_ide_type: remote_ide_type.map(|s| s.to_string()),  // Changed to string
+            coding_agent_type,
+            coding_agent_args: coding_agent_args.map(|s| s.to_string()),
             command_mode,
             command_cwd: command_cwd.map(|s| s.to_string()),
             command_host: command_host.map(|s| s.to_string()),
@@ -328,6 +360,8 @@ impl Database {
         content: Option<&str>,
         ide_type: Option<Option<String>>,  // Changed to String to support custom IDE IDs
         remote_ide_type: Option<Option<String>>,  // Changed to String to support custom remote IDE IDs
+        coding_agent_type: Option<Option<CodingAgentType>>,
+        coding_agent_args: Option<Option<&str>>,
         command_mode: Option<Option<CommandMode>>,
         command_cwd: Option<Option<&str>>,
         command_host: Option<Option<&str>>,
@@ -335,25 +369,31 @@ impl Database {
     ) -> Result<Option<Item>> {
         let conn = self.conn.lock().unwrap();
 
-        // Read existing item from database (as strings)
-        let existing: Option<(String, String, String, String, String, Option<String>, i32, String, String, Option<String>, Option<String>, Option<String>, Option<String>)> = conn
-            .query_row("SELECT * FROM items WHERE id = ?", params![id], |row| {
-                Ok((
-                    row.get(0)?,  // id
-                    row.get(1)?,  // project_id
-                    row.get(2)?,  // item_type
-                    row.get(3)?,  // title
-                    row.get(4)?,  // content
-                    row.get(5)?,  // ide_type
-                    row.get(6)?,  // order
-                    row.get(7)?,  // created_at
-                    row.get(8)?,  // updated_at
-                    row.get(9)?,  // remote_ide_type
-                    row.get(10)?, // command_mode
-                    row.get(11)?, // command_cwd
-                    row.get(12)?, // command_host
-                ))
-            })
+        // Read existing item from database (as strings) - use explicit column names
+        let existing: Option<(String, String, String, String, String, Option<String>, i32, String, String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>)> = conn
+            .query_row(
+                "SELECT id, project_id, type, title, content, ide_type, \"order\", created_at, updated_at, remote_ide_type, command_mode, command_cwd, command_host, coding_agent_type, coding_agent_args FROM items WHERE id = ?",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get(0)?,  // id
+                        row.get(1)?,  // project_id
+                        row.get(2)?,  // item_type
+                        row.get(3)?,  // title
+                        row.get(4)?,  // content
+                        row.get(5)?,  // ide_type
+                        row.get(6)?,  // order
+                        row.get(7)?,  // created_at
+                        row.get(8)?,  // updated_at
+                        row.get(9)?,  // remote_ide_type
+                        row.get(10)?, // command_mode
+                        row.get(11)?, // command_cwd
+                        row.get(12)?, // command_host
+                        row.get(13)?, // coding_agent_type
+                        row.get(14)?, // coding_agent_args
+                    ))
+                }
+            )
             .ok();
 
         if existing.is_none() {
@@ -365,12 +405,22 @@ impl Database {
         let existing_item_type: ItemType = existing.2.parse().unwrap();
         let existing_ide_type: Option<String> = existing.5.clone();  // Already a string
         let existing_remote_ide_type: Option<String> = existing.9.clone();  // Already a string
+        let existing_coding_agent_type: Option<CodingAgentType> = existing.13.as_ref().and_then(|s| s.parse().ok());
+        let existing_coding_agent_args: Option<String> = existing.14.clone();
         let existing_command_mode: Option<CommandMode> = existing.10.as_ref().and_then(|s| s.parse().ok());
 
         let title = title.unwrap_or(&existing.3);
         let content = content.unwrap_or(&existing.4);
         let ide_type = ide_type.unwrap_or(existing_ide_type);
         let remote_ide_type = remote_ide_type.unwrap_or(existing_remote_ide_type);
+        let coding_agent_type = coding_agent_type.unwrap_or(existing_coding_agent_type);
+        // Handle coding_agent_args: Some(Some("")) means clear, Some(Some(value)) means set, None means keep existing
+        let coding_agent_args = match coding_agent_args {
+            Some(Some(s)) if s.is_empty() => None, // empty string = clear the field
+            Some(Some(s)) => Some(s), // non-empty string = set the value
+            Some(None) => None, // explicit None = clear the field
+            None => existing_coding_agent_args.as_deref(), // not provided = keep existing
+        };
         let command_mode = command_mode.unwrap_or(existing_command_mode);
         let command_cwd = command_cwd.unwrap_or(existing.11.as_deref());
         let command_host = command_host.unwrap_or(existing.12.as_deref());
@@ -378,12 +428,14 @@ impl Database {
         let timestamp = Self::now();
 
         conn.execute(
-            "UPDATE items SET title = ?, content = ?, ide_type = ?, remote_ide_type = ?, command_mode = ?, command_cwd = ?, command_host = ?, \"order\" = ?, updated_at = ? WHERE id = ?",
+            "UPDATE items SET title = ?, content = ?, ide_type = ?, remote_ide_type = ?, coding_agent_type = ?, coding_agent_args = ?, command_mode = ?, command_cwd = ?, command_host = ?, \"order\" = ?, updated_at = ? WHERE id = ?",
             params![
                 title,
                 content,
                 ide_type.as_ref(),  // Already a string
                 remote_ide_type.as_ref(),  // Already a string
+                coding_agent_type.as_ref().map(|t| t.to_string()),
+                coding_agent_args,
                 command_mode.as_ref().map(|t| t.to_string()),
                 command_cwd,
                 command_host,
@@ -407,6 +459,8 @@ impl Database {
             content: content.to_string(),
             ide_type,
             remote_ide_type,
+            coding_agent_type,
+            coding_agent_args: coding_agent_args.map(|s| s.to_string()),
             command_mode,
             command_cwd: command_cwd.map(|s| s.to_string()),
             command_host: command_host.map(|s| s.to_string()),
@@ -667,7 +721,7 @@ impl Database {
                     .collect();
 
                 let mut stmt = conn.prepare(&format!(
-                    "SELECT * FROM items WHERE project_id IN ({}) ORDER BY project_id, \"order\" ASC",
+                    "SELECT id, project_id, type, title, content, ide_type, \"order\", created_at, updated_at, remote_ide_type, command_mode, command_cwd, command_host, coding_agent_type, coding_agent_args FROM items WHERE project_id IN ({}) ORDER BY project_id, \"order\" ASC",
                     placeholders
                 ))?;
                 let items: Vec<Item> = stmt
@@ -676,6 +730,7 @@ impl Database {
                         let ide_type_str: Option<String> = row.get(5)?;
                         let remote_ide_type_str: Option<String> = row.get(9)?;
                         let command_mode_str: Option<String> = row.get(10)?;
+                        let coding_agent_type_str: Option<String> = row.get(13)?;
 
                         Ok(Item {
                             id: row.get(0)?,
@@ -688,6 +743,8 @@ impl Database {
                             created_at: row.get(7)?,
                             updated_at: row.get(8)?,
                             remote_ide_type: remote_ide_type_str,  // Already a string
+                            coding_agent_type: coding_agent_type_str.and_then(|s| s.parse().ok()),
+                            coding_agent_args: row.get(14)?,
                             command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                             command_cwd: row.get(11)?,
                             command_host: row.get(12)?,
@@ -737,14 +794,16 @@ impl Database {
                 .filter_map(|r| r.ok())
                 .collect();
 
-            let mut stmt =
-                conn.prepare("SELECT * FROM items ORDER BY project_id, \"order\" ASC")?;
+            let mut stmt = conn.prepare(
+                "SELECT id, project_id, type, title, content, ide_type, \"order\", created_at, updated_at, remote_ide_type, command_mode, command_cwd, command_host, coding_agent_type, coding_agent_args FROM items ORDER BY project_id, \"order\" ASC"
+            )?;
             let items: Vec<Item> = stmt
                 .query_map([], |row| {
                     let item_type_str: String = row.get(2)?;
                     let ide_type_str: Option<String> = row.get(5)?;
                     let remote_ide_type_str: Option<String> = row.get(9)?;
                     let command_mode_str: Option<String> = row.get(10)?;
+                    let coding_agent_type_str: Option<String> = row.get(13)?;
 
                     Ok(Item {
                         id: row.get(0)?,
@@ -757,6 +816,8 @@ impl Database {
                         created_at: row.get(7)?,
                         updated_at: row.get(8)?,
                         remote_ide_type: remote_ide_type_str,  // Already a string
+                        coding_agent_type: coding_agent_type_str.and_then(|s| s.parse().ok()),
+                        coding_agent_args: row.get(14)?,
                         command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                         command_cwd: row.get(11)?,
                         command_host: row.get(12)?,
@@ -862,7 +923,7 @@ impl Database {
             }
 
             conn.execute(
-                "INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, command_mode, command_cwd, command_host, \"order\", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO items (id, project_id, type, title, content, ide_type, remote_ide_type, coding_agent_type, coding_agent_args, command_mode, command_cwd, command_host, \"order\", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 params![
                     item.id,
                     item.project_id,
@@ -871,6 +932,8 @@ impl Database {
                     item.content,
                     item.ide_type.as_ref(),  // Already a string
                     item.remote_ide_type.as_ref(),  // Already a string
+                    item.coding_agent_type.as_ref().map(|t| t.to_string()),
+                    item.coding_agent_args,
                     item.command_mode.as_ref().map(|t| t.to_string()),
                     item.command_cwd,
                     item.command_host,

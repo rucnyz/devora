@@ -27,7 +27,7 @@ export default function WorkingDirsSuggestions({
 
   return (
     <div className={className}>
-      <span className="text-xs font-mono text-[var(--text-muted)]">Working dirs:</span>
+      <span className="text-xs font-mono text-(--text-muted)">Working dirs:</span>
       <div className="flex flex-wrap gap-2 mt-1">
         {filteredDirs.map((dir) => (
           <button
@@ -37,7 +37,7 @@ export default function WorkingDirsSuggestions({
             className={`text-xs font-mono px-2 py-1 rounded border transition-colors ${
               dir.host
                 ? 'bg-[#e879f9]/10 border-[#e879f9]/30 text-[#e879f9] hover:bg-[#e879f9]/20'
-                : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+                : 'bg-(--bg-surface) border-(--border-subtle) text-(--text-secondary) hover:text-(--accent-primary) hover:border-(--accent-primary)'
             }`}
             title={dir.host ? `${dir.host}:${dir.path}` : dir.path}
           >

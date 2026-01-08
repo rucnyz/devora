@@ -1,19 +1,34 @@
 import { useState, useRef, useCallback } from 'react'
-import { openRemoteIde } from '../../hooks/useProjects'
+import { openRemoteIde, openCustomRemoteIde } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
+import { useCustomIdes } from '../../hooks/useCustomIdes'
 import { parseRemoteContent, buildRemoteContent, getPathName } from '../../utils/remote'
 import { REMOTE_IDE_LABELS, REMOTE_IDE_TAG_CLASS, REMOTE_IDE_TYPES } from '../../constants/itemTypes'
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
 import RemoteIDECreator from './RemoteIDECreator'
-import type { Item, RemoteIdeType, WorkingDir } from '../../types'
+import type { Item, RemoteIdeType, WorkingDir, CustomRemoteIde } from '../../types'
+
+// Helper to check if remote IDE type is built-in
+const isBuiltInRemoteIde = (ideType: string): ideType is RemoteIdeType => {
+  return REMOTE_IDE_TYPES.some((ide) => ide.value === ideType)
+}
+
+// Helper to get remote IDE label
+const getRemoteIdeLabel = (ideType: string, customRemoteIdes: CustomRemoteIde[]): string => {
+  if (isBuiltInRemoteIde(ideType)) {
+    return REMOTE_IDE_LABELS[ideType]
+  }
+  const custom = customRemoteIdes.find((c) => c.id === ideType)
+  return custom?.label || ideType
+}
 
 interface RemoteIDESectionProps {
   items: Item[]
   isCreating: boolean
   sshHosts: string[]
   workingDirs: WorkingDir[]
-  onAdd: (title: string, content: string, remoteIdeType: RemoteIdeType) => Promise<void>
+  onAdd: (title: string, content: string, remoteIdeType: string) => Promise<void>
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
@@ -29,8 +44,9 @@ export default function RemoteIDESection({
   onDelete,
   onCreatingChange,
 }: RemoteIDESectionProps) {
+  const { customRemoteIdes } = useCustomIdes()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editRemoteIdeType, setEditRemoteIdeType] = useState<RemoteIdeType>('cursor')
+  const [editRemoteIdeType, setEditRemoteIdeType] = useState<string>('cursor')
   const [editHost, setEditHost] = useState('')
   const [editPath, setEditPath] = useState('')
   const editRemoteIdeRef = useRef<HTMLDivElement>(null)
@@ -75,15 +91,26 @@ export default function RemoteIDESection({
       try {
         const { host, path } = parseRemoteContent(item.content)
         if (host && path) {
-          await openRemoteIde(item.remote_ide_type, host, path)
+          if (isBuiltInRemoteIde(item.remote_ide_type)) {
+            await openRemoteIde(item.remote_ide_type, host, path)
+          } else {
+            // Custom remote IDE
+            const customIde = customRemoteIdes.find((c) => c.id === item.remote_ide_type)
+            if (customIde) {
+              await openCustomRemoteIde(customIde.command, host, path)
+            } else {
+              alert(`Failed to open remote IDE: Custom remote IDE "${item.remote_ide_type}" not found`)
+              return
+            }
+          }
         }
-      } catch {
-        alert(`Failed to open remote ${item.remote_ide_type}`)
+      } catch (err) {
+        alert(`Failed to open remote IDE: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
     }
   }
 
-  const handleAdd = async (title: string, content: string, remoteIdeType: RemoteIdeType) => {
+  const handleAdd = async (title: string, content: string, remoteIdeType: string) => {
     await onAdd(title, content, remoteIdeType)
     onCreatingChange(false)
   }
@@ -110,19 +137,28 @@ export default function RemoteIDESection({
               <div
                 key={item.id}
                 ref={editRemoteIdeRef}
-                className="w-full p-4 rounded-xl bg-[var(--accent-remote)]/5 border border-[var(--accent-remote)]/30 animate-card-enter"
+                className="w-full p-4 rounded-xl bg-(--accent-remote)/5 border border-(--accent-remote)/30 animate-card-enter"
               >
                 <div className="flex flex-wrap items-center gap-3">
                   <select
                     value={editRemoteIdeType}
-                    onChange={(e) => setEditRemoteIdeType(e.target.value as RemoteIdeType)}
-                    className="input-terminal !w-auto"
+                    onChange={(e) => setEditRemoteIdeType(e.target.value)}
+                    className="input-terminal w-auto!"
                   >
                     {REMOTE_IDE_TYPES.map((ide) => (
                       <option key={ide.value} value={ide.value}>
                         {ide.label}
                       </option>
                     ))}
+                    {customRemoteIdes.length > 0 && (
+                      <optgroup label="Custom">
+                        {customRemoteIdes.map((ide) => (
+                          <option key={ide.id} value={ide.id}>
+                            {ide.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <HostInput
                     value={editHost}
@@ -150,7 +186,7 @@ export default function RemoteIDESection({
                   </div>
                 </div>
                 <div className="flex justify-between items-center mt-3">
-                  <span className="text-xs font-mono text-[var(--text-muted)]">Click outside to save</span>
+                  <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -173,21 +209,21 @@ export default function RemoteIDESection({
                   <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
-                  <span>{REMOTE_IDE_LABELS[item.remote_ide_type!] || item.remote_ide_type}</span>
+                  <span>{getRemoteIdeLabel(item.remote_ide_type!, customRemoteIdes)}</span>
                   <span className="opacity-60">{item.title}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       onDelete(item.id)
                     }}
-                    className="ml-1 opacity-0 group-hover/remote-ide:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-opacity"
+                    className="ml-1 opacity-0 group-hover/remote-ide:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
                   >
                     ×
                   </button>
                 </div>
                 <button
                   onClick={() => handleEdit(item)}
-                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--accent-remote)] hover:border-[var(--accent-remote)] opacity-0 group-hover/remote-ide:opacity-100 transition-all"
+                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-remote) hover:border-(--accent-remote) opacity-0 group-hover/remote-ide:opacity-100 transition-all"
                 >
                   Edit
                 </button>
@@ -198,7 +234,7 @@ export default function RemoteIDESection({
           {!isCreating && (
             <button
               onClick={() => onCreatingChange(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--accent-remote)] text-[var(--text-muted)] hover:text-[var(--accent-remote)] transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-remote) text-(--text-muted) hover:text-(--accent-remote) transition-all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />

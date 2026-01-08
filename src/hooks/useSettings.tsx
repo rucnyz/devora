@@ -5,6 +5,7 @@ import * as api from '../api/tauri'
 export const DEFAULT_SETTINGS = {
   fileCardMaxSize: 1024 * 1024, // 1MB in bytes
   zoomLevel: 100, // percentage, range 50-200, step 10
+  defaultTerminal: '', // empty means platform default (cmd on Windows, Terminal on macOS, gnome-terminal on Linux)
 }
 
 export type SettingKey = keyof typeof DEFAULT_SETTINGS
@@ -35,7 +36,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               const numValue = Number(data[key])
               // Only use parsed value if it's a valid number, otherwise keep default
               if (!isNaN(numValue)) {
-                parsed[key] = numValue as typeof defaultValue
+                ;(parsed as Record<string, unknown>)[key] = numValue
+              }
+            } else {
+              {
+                ;(parsed as Record<string, unknown>)[key] = data[key]
               }
             }
           }

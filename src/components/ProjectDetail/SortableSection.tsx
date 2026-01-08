@@ -35,7 +35,7 @@ export default function SortableSection({ id, children }: SortableSectionProps) 
       <button
         {...attributes}
         {...listeners}
-        className="absolute -left-6 top-2 p-1 rounded opacity-0 group-hover/sortable:opacity-50 hover:!opacity-100 focus:!opacity-100 cursor-grab active:cursor-grabbing text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-opacity z-10"
+        className="absolute -left-6 top-2 p-1 rounded opacity-0 group-hover/sortable:opacity-50 hover:!opacity-100 focus:!opacity-100 cursor-grab active:cursor-grabbing text-(--text-muted) hover:text-(--accent-primary) transition-opacity z-10"
         title="Drag to reorder"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

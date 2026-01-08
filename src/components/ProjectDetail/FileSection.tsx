@@ -89,7 +89,7 @@ export default function FileSection({
       <h3 className="section-label">
         Open
         <span
-          className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--text-muted)]/20 text-[var(--text-muted)] text-xs cursor-help"
+          className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-(--text-muted)/20 text-(--text-muted) text-xs cursor-help"
           title="Quick open files, folders, or executables with system default handler"
         >
           ?
@@ -106,7 +106,7 @@ export default function FileSection({
             <div
               key={item.id}
               ref={editFileRef}
-              className="w-full p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-visible)] animate-card-enter"
+              className="w-full p-4 rounded-xl bg-(--bg-elevated) border border-(--border-visible) animate-card-enter"
             >
               <div className="flex flex-wrap items-center gap-3">
                 <input
@@ -134,7 +134,7 @@ export default function FileSection({
                 </div>
               </div>
               <div className="flex justify-between items-center mt-3">
-                <span className="text-xs font-mono text-[var(--text-muted)]">Click outside to save</span>
+                <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -168,14 +168,14 @@ export default function FileSection({
                     e.stopPropagation()
                     onDelete(item.id)
                   }}
-                  className="ml-1 opacity-0 group-hover/file:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-opacity"
+                  className="ml-1 opacity-0 group-hover/file:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
                 >
                   ×
                 </button>
               </div>
               <button
                 onClick={() => handleEdit(item)}
-                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] opacity-0 group-hover/file:opacity-100 transition-all"
+                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--text-primary) hover:border-(--text-muted) opacity-0 group-hover/file:opacity-100 transition-all"
               >
                 Edit
               </button>
@@ -186,7 +186,7 @@ export default function FileSection({
         {!isCreating && (
           <button
             onClick={() => onCreatingChange(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--text-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--text-primary) text-(--text-muted) hover:text-(--text-primary) transition-all"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />

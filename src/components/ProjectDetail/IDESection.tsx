@@ -179,7 +179,8 @@ export default function IDESection({
           if (customIde) {
             await openCustomIde(customIde.command, item.content)
           } else {
-            throw new Error(`Custom IDE "${item.ide_type}" not found`)
+            alert(`Failed to open IDE: Custom IDE "${item.ide_type}" not found`)
+            return
           }
         }
       } catch (err) {
@@ -285,7 +286,7 @@ export default function IDESection({
               </div>
               <button
                 onClick={() => handleEdit(item)}
-                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] opacity-0 group-hover/ide:opacity-100 transition-all"
+                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-primary) hover:border-(--accent-primary) opacity-0 group-hover/ide:opacity-100 transition-all"
               >
                 Edit
               </button>
@@ -296,7 +297,7 @@ export default function IDESection({
         {!isCreating && (
           <button
             onClick={() => onCreatingChange(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-primary) text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-primary) text-(--text-muted) hover:text-(--accent-primary) transition-all"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />

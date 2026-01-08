@@ -42,6 +42,8 @@
   --accent-remote: #e879f9;         /* Remote IDE */
   --accent-remote-dim: #d946ef;
   --accent-remote-rgb: 232, 121, 249;
+  --accent-agent: #818cf8;          /* Coding Agent */
+  --accent-agent-rgb: 129, 140, 248;
   --accent-danger: #ff4757;
 
   /* Glow effects */
@@ -49,6 +51,7 @@
   --glow-secondary: 0 0 20px rgba(0, 212, 255, 0.3);
   --glow-warning: 0 0 20px rgba(255, 170, 0, 0.3);
   --glow-remote: 0 0 20px rgba(232, 121, 249, 0.3);
+  --glow-agent: 0 0 20px rgba(129, 140, 248, 0.3);
   --glow-soft: 0 0 40px rgba(0, 255, 136, 0.1);
   --glow-warning-soft: 0 0 40px rgba(255, 170, 0, 0.15);
   --glow-remote-soft: 0 0 40px rgba(232, 121, 249, 0.15);
@@ -93,6 +96,8 @@
   --accent-remote: #c026d3;         /* Remote IDE */
   --accent-remote-dim: #a21caf;
   --accent-remote-rgb: 192, 38, 211;
+  --accent-agent: #6366f1;          /* Coding Agent */
+  --accent-agent-rgb: 99, 102, 241;
   --accent-danger: #dc2626;
 
   /* Shadow effects instead of glow */
@@ -100,6 +105,7 @@
   --glow-secondary: 0 4px 14px rgba(8, 145, 178, 0.15);
   --glow-warning: 0 4px 14px rgba(217, 119, 6, 0.2);
   --glow-remote: 0 4px 14px rgba(192, 38, 211, 0.2);
+  --glow-agent: 0 4px 14px rgba(99, 102, 241, 0.2);
   --glow-soft: 0 8px 30px rgba(5, 150, 105, 0.08);
   --glow-warning-soft: 0 8px 30px rgba(217, 119, 6, 0.12);
   --glow-remote-soft: 0 8px 30px rgba(192, 38, 211, 0.12);
@@ -418,6 +424,21 @@ h1, h2, h3, h4, h5, h6 {
 .tag-remote-ide:hover {
   background: rgba(var(--accent-remote-rgb), 0.2);
   box-shadow: var(--glow-remote);
+}
+
+/* ===========================================
+   UNIFIED CODING AGENT TAG - Uses agent color (indigo)
+   All coding agent types share this style
+   =========================================== */
+.tag-coding-agent {
+  color: var(--accent-agent);
+  background: rgba(var(--accent-agent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-agent-rgb), 0.3);
+}
+
+.tag-coding-agent:hover {
+  background: rgba(var(--accent-agent-rgb), 0.2);
+  box-shadow: var(--glow-agent);
 }
 
 /* ===========================================

@@ -42,7 +42,7 @@ export default function FileCreator({ existingPaths, onAdd, onCancel }: FileCrea
   }
 
   return (
-    <div ref={formRef} className="mb-4 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-visible)]">
+    <div ref={formRef} className="mb-4 p-4 rounded-xl bg-(--bg-elevated) border border-(--border-visible)">
       <div className="flex flex-wrap items-center gap-3">
         <input
           type="text"
@@ -69,15 +69,15 @@ export default function FileCreator({ existingPaths, onAdd, onCancel }: FileCrea
         </div>
       </div>
       {existingPaths.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
-          <span className="text-xs font-mono text-[var(--text-muted)]">Existing files:</span>
+        <div className="mt-3 pt-3 border-t border-(--border-subtle)">
+          <span className="text-xs font-mono text-(--text-muted)">Existing files:</span>
           <div className="flex flex-wrap gap-2 mt-2">
             {existingPaths.map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => setPath(p)}
-                className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border-visible)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors truncate max-w-xs"
+                className="text-xs font-mono px-2 py-1 rounded bg-(--bg-surface) border border-(--border-visible) text-(--text-secondary) hover:text-(--text-primary) hover:border-(--text-muted) transition-colors truncate max-w-xs"
                 title={p}
               >
                 {p.split(/[\\/]/).pop()}
@@ -86,7 +86,7 @@ export default function FileCreator({ existingPaths, onAdd, onCancel }: FileCrea
           </div>
         </div>
       )}
-      <div className="text-xs font-mono text-[var(--text-muted)] mt-3">Click outside to save</div>
+      <div className="text-xs font-mono text-(--text-muted) mt-3">Click outside to save</div>
     </div>
   )
 }

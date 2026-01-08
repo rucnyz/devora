@@ -103,7 +103,7 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
             <div
               key={item.id}
               ref={editUrlRef}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--accent-secondary)]/10 border border-[var(--accent-secondary)]"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-(--accent-secondary)/10 border border-(--accent-secondary)"
             >
               <input
                 type="text"
@@ -117,12 +117,12 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
                     setEditingId(null)
                   }
                 }}
-                className="w-40 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)]"
+                className="w-40 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-primary) focus:outline-none focus:border-(--accent-secondary)"
                 autoFocus
               />
               <button
                 onClick={() => setEditingId(null)}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs"
+                className="text-(--text-muted) hover:text-(--text-primary) text-xs"
               >
                 ✕
               </button>
@@ -153,7 +153,7 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
                   setEditingId(item.id)
                   setEditTitle(item.title)
                 }}
-                className="ml-1 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-[var(--accent-secondary)] transition-opacity"
+                className="ml-1 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-secondary) transition-opacity"
                 title="Rename"
               >
                 ✎
@@ -164,7 +164,7 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
                   e.stopPropagation()
                   onDelete(item.id)
                 }}
-                className="ml-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-[var(--accent-danger)] transition-opacity"
+                className="ml-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-danger) transition-opacity"
               >
                 ×
               </button>
@@ -185,7 +185,7 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
               }
             }}
             placeholder="Paste URL or Ctrl+V anywhere..."
-            className="w-56 px-3 py-1.5 text-xs font-mono rounded-md bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-secondary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors"
+            className="w-56 px-3 py-1.5 text-xs font-mono rounded-md bg-(--bg-elevated) border border-(--border-visible) text-(--text-secondary) placeholder:text-(--text-muted) focus:outline-none focus:border-(--accent-secondary) transition-colors"
           />
         </div>
       </div>

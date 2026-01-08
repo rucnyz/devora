@@ -4,6 +4,7 @@ interface AddDropdownProps {
   onCreateNote: () => void
   onCreateIde: () => void
   onCreateRemoteIde: () => void
+  onCreateCodingAgent: () => void
   onCreateFile: () => void
   onCreateCommand: () => void
 }
@@ -13,6 +14,7 @@ const actions = [
   { id: 'note', label: 'Note', color: 'var(--accent-warning)' },
   { id: 'ide', label: 'IDE', color: 'var(--accent-primary)' },
   { id: 'remote', label: 'Remote IDE', color: 'var(--accent-remote)' },
+  { id: 'agent', label: 'Coding Agent', color: 'var(--accent-agent)' },
   { id: 'open', label: 'Open File', color: 'var(--text-secondary)' },
   { id: 'command', label: 'Command', color: 'var(--accent-warning)' },
 ]
@@ -21,6 +23,7 @@ export default function AddDropdown({
   onCreateNote,
   onCreateIde,
   onCreateRemoteIde,
+  onCreateCodingAgent,
   onCreateFile,
   onCreateCommand,
 }: AddDropdownProps) {
@@ -64,6 +67,9 @@ export default function AddDropdown({
       case 'remote':
         onCreateRemoteIde()
         break
+      case 'agent':
+        onCreateCodingAgent()
+        break
       case 'open':
         onCreateFile()
         break
@@ -78,7 +84,7 @@ export default function AddDropdown({
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`btn-ghost text-sm flex items-center gap-1.5 ${isOpen ? 'bg-[var(--bg-elevated)]' : ''}`}
+        className={`btn-ghost text-sm flex items-center gap-1.5 ${isOpen ? 'bg-(--bg-elevated)' : ''}`}
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -97,12 +103,12 @@ export default function AddDropdown({
 
       {/* Dropdown menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 py-2 min-w-[160px] rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-visible)] shadow-lg z-50 animate-card-enter">
+        <div className="absolute right-0 top-full mt-2 py-2 min-w-[160px] rounded-lg bg-(--bg-elevated) border border-(--border-visible) shadow-lg z-50 animate-card-enter">
           {actions.map((action) => (
             <button
               key={action.id}
               onClick={() => handleAction(action.id)}
-              className="w-full px-4 py-2 text-left text-sm font-mono hover:bg-[var(--bg-surface)] transition-colors flex items-center gap-2"
+              className="w-full px-4 py-2 text-left text-sm font-mono hover:bg-(--bg-surface) transition-colors flex items-center gap-2"
             >
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: action.color }} />
               <span style={{ color: action.color }}>{action.label}</span>

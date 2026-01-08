@@ -1,7 +1,17 @@
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { openPath } from '@tauri-apps/plugin-opener'
-import type { Project, Item, ProjectMetadata, ItemType, IdeType, RemoteIdeType, CommandMode } from '../types'
+import type {
+  CodingAgentType,
+  CommandMode,
+  IdeType,
+  Item,
+  ItemType,
+  Project,
+  ProjectMetadata,
+  RemoteIdeType,
+  TerminalType,
+} from '../types'
 
 // File card type
 export interface FileCard {
@@ -130,6 +140,8 @@ export async function createItem(
   content?: string,
   ideType?: string, // Can be built-in IdeType or custom IDE id
   remoteIdeType?: string, // Can be built-in RemoteIdeType or custom remote IDE id
+  codingAgentType?: CodingAgentType,
+  codingAgentArgs?: string,
   commandMode?: CommandMode,
   commandCwd?: string,
   commandHost?: string
@@ -141,6 +153,8 @@ export async function createItem(
     content,
     ideType,
     remoteIdeType,
+    codingAgentType,
+    codingAgentArgs,
     commandMode,
     commandCwd,
     commandHost,
@@ -152,7 +166,16 @@ export async function updateItem(
   updates: Partial<
     Pick<
       Item,
-      'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'command_host' | 'order'
+      | 'title'
+      | 'content'
+      | 'ide_type'
+      | 'remote_ide_type'
+      | 'coding_agent_type'
+      | 'coding_agent_args'
+      | 'command_mode'
+      | 'command_cwd'
+      | 'command_host'
+      | 'order'
     >
   >
 ): Promise<Item | null> {
@@ -162,6 +185,8 @@ export async function updateItem(
     content: updates.content,
     ideType: updates.ide_type !== undefined ? updates.ide_type : undefined,
     remoteIdeType: updates.remote_ide_type !== undefined ? updates.remote_ide_type : undefined,
+    codingAgentType: updates.coding_agent_type !== undefined ? updates.coding_agent_type : undefined,
+    codingAgentArgs: updates.coding_agent_args !== undefined ? updates.coding_agent_args : undefined,
     commandMode: updates.command_mode !== undefined ? updates.command_mode : undefined,
     commandCwd: updates.command_cwd !== undefined ? updates.command_cwd : undefined,
     commandHost: updates.command_host !== undefined ? updates.command_host : undefined,
@@ -267,6 +292,19 @@ export async function openRemoteIde(remoteIdeType: RemoteIdeType, host: string, 
   return invoke('open_remote_ide', { remoteIdeType, host, path })
 }
 
+export async function openCustomRemoteIde(command: string, host: string, path: string): Promise<void> {
+  return invoke('open_custom_remote_ide', { command, host, path })
+}
+
+export async function openCodingAgent(
+  codingAgentType: CodingAgentType,
+  path: string,
+  terminalType?: TerminalType,
+  args?: string
+): Promise<void> {
+  return invoke('open_coding_agent', { codingAgentType, path, terminalType, args })
+}
+
 export async function openFile(path: string): Promise<void> {
   await openPath(path)
 }
@@ -341,11 +379,10 @@ export async function fetchUrlMetadata(url: string): Promise<string> {
 // ============ File Dialog Helpers ============
 
 export async function saveFileDialog(defaultName?: string): Promise<string | null> {
-  const result = await save({
+  return await save({
     defaultPath: defaultName,
     filters: [{ name: 'JSON', extensions: ['json'] }],
   })
-  return result
 }
 
 // ============ File Read API (for drag-drop) ============

@@ -335,13 +335,13 @@ export default function WorkingDirsSection({
             editingIndex === index ? (
               <div
                 key={index}
-                className={`flex flex-col gap-2 px-3 py-2 rounded-lg border ${editIsRemote ? 'border-[var(--accent-remote)]' : 'border-[var(--accent-primary)]'} bg-[var(--bg-surface)]`}
+                className={`flex flex-col gap-2 px-3 py-2 rounded-lg border ${editIsRemote ? 'border-(--accent-remote)' : 'border-(--accent-primary)'} bg-(--bg-surface)`}
               >
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setEditIsRemote(!editIsRemote)}
-                    className={`text-xs px-2 py-0.5 rounded ${editIsRemote ? 'bg-[var(--accent-remote)]/20 text-[var(--accent-remote)]' : 'bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}
+                    className={`text-xs px-2 py-0.5 rounded ${editIsRemote ? 'bg-(--accent-remote)/20 text-(--accent-remote)' : 'bg-(--bg-elevated) text-(--text-muted)'}`}
                   >
                     {editIsRemote ? 'Remote' : 'Local'}
                   </button>
@@ -351,7 +351,7 @@ export default function WorkingDirsSection({
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, false)}
-                    className="bg-transparent font-mono text-sm text-[var(--text-primary)] outline-none w-24"
+                    className="bg-transparent font-mono text-sm text-(--text-primary) outline-none w-24"
                     placeholder="Name"
                   />
                 </div>
@@ -372,13 +372,13 @@ export default function WorkingDirsSection({
                       }
                     }}
                     onKeyDown={(e) => handleKeyDown(e, false)}
-                    className="bg-transparent font-mono text-sm text-[var(--text-secondary)] outline-none min-w-[200px]"
+                    className="bg-transparent font-mono text-sm text-(--text-secondary) outline-none min-w-[200px]"
                     placeholder={editIsRemote ? '/home/user/project' : 'Path'}
                   />
                   <button
                     onClick={() => handleBrowse(false)}
                     disabled={editIsRemote && !editHost.trim()}
-                    className="text-xs text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors disabled:opacity-50"
+                    className="text-xs text-(--text-muted) hover:text-(--accent-primary) transition-colors disabled:opacity-50"
                     title="Browse folder"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -395,25 +395,15 @@ export default function WorkingDirsSection({
             ) : (
               <div
                 key={index}
-                className={`group/dir relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${dir.host ? 'border-[var(--accent-remote)]/30 bg-[var(--accent-remote)]/5' : 'border-[var(--border-visible)] bg-[var(--bg-elevated)]'} hover:border-[var(--text-muted)] transition-all cursor-pointer mr-5`}
+                className={`group/dir relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${dir.host ? 'border-(--accent-remote)/30 bg-(--accent-remote)/5' : 'border-(--border-visible) bg-(--bg-elevated)'} hover:border-(--text-muted) transition-all cursor-pointer mr-5`}
                 onClick={() => handleEdit(index)}
               >
                 {dir.host ? (
-                  <svg
-                    className="w-4 h-4 text-[var(--accent-remote)]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
+                  <svg className="w-4 h-4 text-(--accent-remote)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
                 ) : (
-                  <svg
-                    className="w-4 h-4 text-[var(--text-muted)]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
+                  <svg className="w-4 h-4 text-(--text-muted)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -422,20 +412,16 @@ export default function WorkingDirsSection({
                     />
                   </svg>
                 )}
-                <span
-                  className={`font-mono text-sm ${dir.host ? 'text-[var(--accent-remote)]' : 'text-[var(--text-primary)]'}`}
-                >
+                <span className={`font-mono text-sm ${dir.host ? 'text-(--accent-remote)' : 'text-(--text-primary)'}`}>
                   {dir.name}
                 </span>
-                <span className="font-mono text-xs text-[var(--text-muted)]">
-                  {dir.host ? `@${dir.host}` : 'local'}
-                </span>
+                <span className="font-mono text-xs text-(--text-muted)">{dir.host ? `@${dir.host}` : 'local'}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     handleDelete(index)
                   }}
-                  className="ml-1 opacity-0 group-hover/dir:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-opacity"
+                  className="ml-1 opacity-0 group-hover/dir:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
                 >
                   x
                 </button>
@@ -446,13 +432,13 @@ export default function WorkingDirsSection({
           {/* New dir input (dashed box) */}
           {isAddingNew ? (
             <div
-              className={`flex flex-col gap-2 px-3 py-2 rounded-lg border ${isRemote ? 'border-[var(--accent-remote)]' : 'border-[var(--accent-primary)]'} bg-[var(--bg-surface)]`}
+              className={`flex flex-col gap-2 px-3 py-2 rounded-lg border ${isRemote ? 'border-(--accent-remote)' : 'border-(--accent-primary)'} bg-(--bg-surface)`}
             >
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsRemote(!isRemote)}
-                  className={`text-xs px-2 py-0.5 rounded ${isRemote ? 'bg-[var(--accent-remote)]/20 text-[var(--accent-remote)]' : 'bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}
+                  className={`text-xs px-2 py-0.5 rounded ${isRemote ? 'bg-(--accent-remote)/20 text-(--accent-remote)' : 'bg-(--bg-elevated) text-(--text-muted)'}`}
                 >
                   {isRemote ? 'Remote' : 'Local'}
                 </button>
@@ -462,7 +448,7 @@ export default function WorkingDirsSection({
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, true)}
-                  className="bg-transparent font-mono text-sm text-[var(--text-primary)] outline-none w-24"
+                  className="bg-transparent font-mono text-sm text-(--text-primary) outline-none w-24"
                   placeholder="Name"
                 />
               </div>
@@ -483,13 +469,13 @@ export default function WorkingDirsSection({
                     }
                   }}
                   onKeyDown={(e) => handleKeyDown(e, true)}
-                  className="bg-transparent font-mono text-sm text-[var(--text-secondary)] outline-none min-w-[200px]"
+                  className="bg-transparent font-mono text-sm text-(--text-secondary) outline-none min-w-[200px]"
                   placeholder={isRemote ? '/home/user/project' : 'Path'}
                 />
                 <button
                   onClick={() => handleBrowse(true)}
                   disabled={isRemote && !newHost.trim()}
-                  className="text-xs text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors disabled:opacity-50"
+                  className="text-xs text-(--text-muted) hover:text-(--accent-primary) transition-colors disabled:opacity-50"
                   title="Browse folder"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -504,8 +490,8 @@ export default function WorkingDirsSection({
               </div>
               {/* Suggestions from project items, grouped by source */}
               {(isRemote ? suggestedPaths.remote : suggestedPaths.local).map((group) => (
-                <div key={group.source} className="mt-2 pt-2 border-t border-[var(--border-subtle)]">
-                  <span className="text-xs font-mono text-[var(--text-muted)]">From {group.source}:</span>
+                <div key={group.source} className="mt-2 pt-2 border-t border-(--border-subtle)">
+                  <span className="text-xs font-mono text-(--text-muted)">From {group.source}:</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {group.items.map((suggestion) => (
                       <button
@@ -528,8 +514,8 @@ export default function WorkingDirsSection({
                         }}
                         className={`text-xs font-mono px-2 py-0.5 rounded border transition-colors ${
                           isRemote
-                            ? 'bg-[var(--accent-remote)]/10 border-[var(--accent-remote)]/30 text-[var(--accent-remote)] hover:bg-[var(--accent-remote)]/20'
-                            : 'bg-[var(--bg-elevated)] border-[var(--border-visible)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+                            ? 'bg-(--accent-remote)/10 border-(--accent-remote)/30 text-(--accent-remote) hover:bg-(--accent-remote)/20'
+                            : 'bg-(--bg-elevated) border-(--border-visible) text-(--text-secondary) hover:text-(--accent-primary) hover:border-(--accent-primary)'
                         }`}
                         title={suggestion.host ? `${suggestion.host}:${suggestion.path}` : suggestion.path}
                       >
@@ -544,7 +530,7 @@ export default function WorkingDirsSection({
           ) : (
             <button
               onClick={handleStartAdding}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--accent-primary)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-primary) text-(--text-muted) hover:text-(--accent-primary) transition-all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />

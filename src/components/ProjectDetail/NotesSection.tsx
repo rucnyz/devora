@@ -153,7 +153,7 @@ export default function NotesSection({
                         }
                       }}
                       placeholder="Note title..."
-                      className="w-full text-lg font-medium text-[var(--text-primary)] bg-transparent mb-3 pb-2 border-b border-[var(--border-visible)] focus:outline-none"
+                      className="w-full text-lg font-medium text-(--text-primary) bg-transparent mb-3 pb-2 border-b border-(--border-visible) focus:outline-none"
                       autoFocus
                     />
                     <textarea
@@ -163,7 +163,7 @@ export default function NotesSection({
                       className="textarea-terminal"
                     />
                     <div className="flex justify-between items-center mt-3">
-                      <span className="text-xs font-mono text-[var(--text-muted)]">Click outside to save</span>
+                      <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -187,15 +187,15 @@ export default function NotesSection({
                         e.stopPropagation()
                         onDelete(note.id)
                       }}
-                      className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--accent-danger)] hover:bg-[var(--accent-danger)]/10 opacity-0 group-hover:opacity-100 transition-all"
+                      className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-(--text-muted) hover:text-(--accent-danger) hover:bg-(--accent-danger)/10 opacity-0 group-hover:opacity-100 transition-all"
                     >
                       ×
                     </button>
-                    <h4 className="font-medium text-[var(--text-primary)] mb-2 pr-6">{note.title}</h4>
-                    <div className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap">
-                      {note.content || <span className="text-[var(--text-muted)] italic">Empty note</span>}
+                    <h4 className="font-medium text-(--text-primary) mb-2 pr-6">{note.title}</h4>
+                    <div className="text-sm text-(--text-secondary) whitespace-pre-wrap">
+                      {note.content || <span className="text-(--text-muted) italic">Empty note</span>}
                     </div>
-                    <div className="mt-3 pt-2 border-t border-[var(--border-subtle)] flex gap-4 text-xs font-mono text-[var(--text-muted)]">
+                    <div className="mt-3 pt-2 border-t border-(--border-subtle) flex gap-4 text-xs font-mono text-(--text-muted)">
                       <span>
                         Created:{' '}
                         {new Date(note.created_at).toLocaleString('zh-CN', {
@@ -226,7 +226,7 @@ export default function NotesSection({
             {!isCreating && (
               <button
                 onClick={() => onCreatingChange(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--accent-warning)] text-[var(--text-muted)] hover:text-[var(--accent-warning)] transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-warning) text-(--text-muted) hover:text-(--accent-warning) transition-all"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />

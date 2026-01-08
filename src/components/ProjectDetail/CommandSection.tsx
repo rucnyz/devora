@@ -134,7 +134,7 @@ export default function CommandSection({
               <div
                 key={item.id}
                 ref={editCommandRef}
-                className="w-full p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-visible)] animate-card-enter"
+                className="w-full p-4 rounded-xl bg-(--bg-elevated) border border-(--border-visible) animate-card-enter"
               >
                 <div className="flex flex-wrap items-center gap-3 mb-3">
                   <input
@@ -191,7 +191,7 @@ export default function CommandSection({
                   className="mb-3"
                 />
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-mono text-[var(--text-muted)]">
+                  <span className="text-xs font-mono text-(--text-muted)">
                     Click outside to save {editHost && <span className="text-[#e879f9]">(SSH: {editHost})</span>}
                   </span>
                   <button
@@ -238,14 +238,14 @@ export default function CommandSection({
                       e.stopPropagation()
                       onDelete(item.id)
                     }}
-                    className="ml-1 opacity-0 group-hover/command:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-opacity"
+                    className="ml-1 opacity-0 group-hover/command:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
                   >
                     ×
                   </button>
                 </div>
                 <button
                   onClick={() => handleEdit(item)}
-                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-[var(--bg-elevated)] border border-[var(--border-visible)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] opacity-0 group-hover/command:opacity-100 transition-all"
+                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--text-primary) hover:border-(--text-muted) opacity-0 group-hover/command:opacity-100 transition-all"
                 >
                   Edit
                 </button>
@@ -256,7 +256,7 @@ export default function CommandSection({
           {!isCreating && (
             <button
               onClick={() => onCreatingChange(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-[var(--text-muted)] hover:border-[var(--accent-warning)] text-[var(--text-muted)] hover:text-[var(--accent-warning)] transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-warning) text-(--text-muted) hover:text-(--accent-warning) transition-all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
@@ -274,14 +274,14 @@ export default function CommandSection({
             onClick={() => setCommandOutput(null)}
           >
             <div
-              className="bg-[var(--bg-elevated)] border border-[var(--border-visible)] rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col"
+              className="bg-(--bg-elevated) border border-(--border-visible) rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">{commandOutput.title}</h3>
+                <h3 className="text-lg font-semibold text-(--text-primary)">{commandOutput.title}</h3>
                 <button
                   onClick={() => setCommandOutput(null)}
-                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  className="text-(--text-muted) hover:text-(--text-primary)"
                 >
                   ×
                 </button>
@@ -289,16 +289,16 @@ export default function CommandSection({
               <div className="flex-1 overflow-auto">
                 {commandOutput.output && (
                   <div className="mb-4">
-                    <h4 className="text-sm font-mono text-[var(--text-muted)] mb-2">Output:</h4>
-                    <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--text-secondary)] whitespace-pre-wrap overflow-x-auto">
+                    <h4 className="text-sm font-mono text-(--text-muted) mb-2">Output:</h4>
+                    <pre className="bg-(--bg-surface) p-3 rounded-lg text-sm font-mono text-(--text-secondary) whitespace-pre-wrap overflow-x-auto">
                       {commandOutput.output}
                     </pre>
                   </div>
                 )}
                 {commandOutput.error && (
                   <div>
-                    <h4 className="text-sm font-mono text-[var(--accent-danger)] mb-2">Error:</h4>
-                    <pre className="bg-[var(--bg-surface)] p-3 rounded-lg text-sm font-mono text-[var(--accent-danger)] whitespace-pre-wrap overflow-x-auto">
+                    <h4 className="text-sm font-mono text-(--accent-danger) mb-2">Error:</h4>
+                    <pre className="bg-(--bg-surface) p-3 rounded-lg text-sm font-mono text-(--accent-danger) whitespace-pre-wrap overflow-x-auto">
                       {commandOutput.error}
                     </pre>
                   </div>

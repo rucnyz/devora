@@ -28,6 +28,11 @@ const tauriConf = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf-8'))
 tauriConf.version = newVersion
 writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(tauriConf, null, 2) + '\n')
 
+// Update Cargo.toml
+const cargoToml = readFileSync('src-tauri/Cargo.toml', 'utf-8')
+const updatedCargoToml = cargoToml.replace(/^version = ".*"$/m, `version = "${newVersion}"`)
+writeFileSync('src-tauri/Cargo.toml', updatedCargoToml)
+
 console.log(`Version bumped to ${newVersion}`)
 
 // Git commit, tag, and push
@@ -36,7 +41,7 @@ const run = (cmd) => {
   execSync(cmd, { stdio: 'inherit' })
 }
 
-run('git add package.json src-tauri/tauri.conf.json')
+run('git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml')
 run(`git commit -m "chore: release v${newVersion}"`)
 run(`git tag v${newVersion}`)
 run('git push')

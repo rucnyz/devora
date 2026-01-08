@@ -1,21 +1,23 @@
 import { useState, useRef, useCallback } from 'react'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
+import { useCustomIdes } from '../../hooks/useCustomIdes'
 import { buildRemoteContent, getPathName } from '../../utils/remote'
 import { REMOTE_IDE_TYPES } from '../../constants/itemTypes'
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
-import type { RemoteIdeType, WorkingDir } from '../../types'
+import type { WorkingDir } from '../../types'
 
 interface RemoteIDECreatorProps {
   sshHosts: string[]
   workingDirs: WorkingDir[]
-  onAdd: (title: string, content: string, remoteIdeType: RemoteIdeType) => Promise<void>
+  onAdd: (title: string, content: string, remoteIdeType: string) => Promise<void>
   onCancel: () => void
 }
 
 export default function RemoteIDECreator({ sshHosts, workingDirs, onAdd, onCancel }: RemoteIDECreatorProps) {
-  const [ideType, setIdeType] = useState<RemoteIdeType>('cursor')
+  const { customRemoteIdes } = useCustomIdes()
+  const [ideType, setIdeType] = useState<string>('cursor')
   const [host, setHost] = useState('')
   const [path, setPath] = useState('')
   const [showBrowser, setShowBrowser] = useState(false)
@@ -42,21 +44,23 @@ export default function RemoteIDECreator({ sshHosts, workingDirs, onAdd, onCance
 
   return (
     <>
-      <div
-        ref={formRef}
-        className="mb-4 p-4 rounded-xl bg-[var(--accent-remote)]/5 border border-[var(--accent-remote)]/30"
-      >
+      <div ref={formRef} className="mb-4 p-4 rounded-xl bg-(--accent-remote)/5 border border-(--accent-remote)/30">
         <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={ideType}
-            onChange={(e) => setIdeType(e.target.value as RemoteIdeType)}
-            className="input-terminal !w-auto"
-          >
+          <select value={ideType} onChange={(e) => setIdeType(e.target.value)} className="input-terminal !w-auto">
             {REMOTE_IDE_TYPES.map((ide) => (
               <option key={ide.value} value={ide.value}>
                 {ide.label}
               </option>
             ))}
+            {customRemoteIdes.length > 0 && (
+              <optgroup label="Custom">
+                {customRemoteIdes.map((ide) => (
+                  <option key={ide.id} value={ide.id}>
+                    {ide.label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
           <HostInput value={host} onChange={setHost} suggestions={sshHosts} className="w-40" autoFocus />
           <div className="flex-1 flex gap-2">
@@ -84,9 +88,9 @@ export default function RemoteIDECreator({ sshHosts, workingDirs, onAdd, onCance
             setHost(dirHost || '')
             setPath(dirPath)
           }}
-          className="mt-3 pt-3 border-t border-[var(--border-subtle)]"
+          className="mt-3 pt-3 border-t border-(--border-subtle)"
         />
-        <div className="text-xs font-mono text-[var(--text-muted)] mt-3">Click outside to save</div>
+        <div className="text-xs font-mono text-(--text-muted) mt-3">Click outside to save</div>
       </div>
 
       {showBrowser && (

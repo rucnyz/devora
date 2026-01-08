@@ -43,7 +43,7 @@ export default function NoteCreator({ onAdd, onCancel }: NoteCreatorProps) {
           }
         }}
         placeholder="Note title..."
-        className="w-full text-lg font-medium text-[var(--text-primary)] bg-transparent mb-3 pb-2 border-b border-[var(--border-visible)] focus:outline-none"
+        className="w-full text-lg font-medium text-(--text-primary) bg-transparent mb-3 pb-2 border-b border-(--border-visible) focus:outline-none"
         autoFocus
       />
       <textarea
@@ -52,7 +52,7 @@ export default function NoteCreator({ onAdd, onCancel }: NoteCreatorProps) {
         placeholder="Write your note here..."
         className="textarea-terminal"
       />
-      <div className="text-xs font-mono text-[var(--text-muted)] mt-3">
+      <div className="text-xs font-mono text-(--text-muted) mt-3">
         Click outside to {hasContent ? 'save' : 'cancel'}
       </div>
     </div>

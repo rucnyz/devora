@@ -35,8 +35,8 @@ export default function ProjectList() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
-          <span className="font-mono text-[var(--text-muted)]">Loading projects...</span>
+          <div className="w-5 h-5 border-2 border-(--accent-primary) border-t-transparent rounded-full animate-spin" />
+          <span className="font-mono text-(--text-muted)">Loading projects...</span>
         </div>
       </div>
     )
@@ -45,8 +45,8 @@ export default function ProjectList() {
   if (error) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="px-4 py-3 bg-[var(--accent-danger)]/10 border border-[var(--accent-danger)]/30 rounded-lg">
-          <span className="font-mono text-[var(--accent-danger)]">Error: {error}</span>
+        <div className="px-4 py-3 bg-(--accent-danger)/10 border border-(--accent-danger)/30 rounded-lg">
+          <span className="font-mono text-(--accent-danger)">Error: {error}</span>
         </div>
       </div>
     )
@@ -57,8 +57,8 @@ export default function ProjectList() {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Projects</h2>
-          <p className="text-sm text-[var(--text-muted)] mt-1 font-mono">
+          <h2 className="text-2xl font-semibold text-(--text-primary)">Projects</h2>
+          <p className="text-sm text-(--text-muted) mt-1 font-mono">
             {projects.length} {projects.length === 1 ? 'project' : 'projects'} in workspace
           </p>
         </div>
@@ -71,9 +71,9 @@ export default function ProjectList() {
       {showNewForm && (
         <form
           onSubmit={handleCreate}
-          className="mb-8 p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-accent)] animate-card-enter"
+          className="mb-8 p-6 rounded-xl bg-(--bg-surface) border border-(--border-accent) animate-card-enter"
         >
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Create New Project</h3>
+          <h3 className="text-lg font-semibold text-(--text-primary) mb-4">Create New Project</h3>
           <div className="space-y-4">
             <input
               type="text"
@@ -119,8 +119,8 @@ export default function ProjectList() {
       {/* Projects Grid */}
       {projects.length === 0 ? (
         <div className="text-center py-20">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] mb-4">
-            <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-(--bg-surface) border border-(--border-subtle) mb-4">
+            <svg className="w-8 h-8 text-(--text-muted)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -129,8 +129,8 @@ export default function ProjectList() {
               />
             </svg>
           </div>
-          <p className="text-[var(--text-muted)] font-mono mb-2">No projects yet</p>
-          <p className="text-sm text-[var(--text-muted)]">Create your first project to get started</p>
+          <p className="text-(--text-muted) font-mono mb-2">No projects yet</p>
+          <p className="text-sm text-(--text-muted)">Create your first project to get started</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -168,7 +168,7 @@ function ProjectCard({
     >
       <div className="flex items-start justify-between mb-3">
         <Link to={`/project/${project.id}`} className="flex-1 min-w-0">
-          <h3 className="font-semibold text-[var(--text-primary)] hover:text-[var(--accent-primary)] transition-colors">
+          <h3 className="font-semibold text-(--text-primary) hover:text-(--accent-primary) transition-colors">
             {project.name}
           </h3>
         </Link>
@@ -178,11 +178,11 @@ function ProjectCard({
               href={project.metadata.github_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+              className="p-1.5 rounded-md hover:bg-(--bg-hover) transition-colors"
               title="Open GitHub"
             >
               <svg
-                className="w-4 h-4 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                className="w-4 h-4 text-(--text-muted) hover:text-(--text-primary)"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -195,11 +195,11 @@ function ProjectCard({
               href={project.metadata.custom_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+              className="p-1.5 rounded-md hover:bg-(--bg-hover) transition-colors"
               title="Open Link"
             >
               <svg
-                className="w-4 h-4 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                className="w-4 h-4 text-(--text-muted) hover:text-(--text-primary)"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -218,12 +218,12 @@ function ProjectCard({
 
       <Link to={`/project/${project.id}`} className="block">
         {project.description && (
-          <p className="text-sm text-[var(--text-secondary)] mb-4 line-clamp-2">{project.description}</p>
+          <p className="text-sm text-(--text-secondary) mb-4 line-clamp-2">{project.description}</p>
         )}
       </Link>
 
-      <div className="flex justify-between items-center pt-3 border-t border-[var(--border-subtle)]">
-        <span className="text-xs font-mono text-[var(--text-muted)]">
+      <div className="flex justify-between items-center pt-3 border-t border-(--border-subtle)">
+        <span className="text-xs font-mono text-(--text-muted)">
           {new Date(project.updated_at).toLocaleString('zh-CN', {
             year: 'numeric',
             month: '2-digit',

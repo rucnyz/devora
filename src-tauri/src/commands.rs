@@ -59,6 +59,8 @@ pub fn create_item(
     content: Option<String>,
     ideType: Option<String>,  // Changed to String to support custom IDE IDs
     remoteIdeType: Option<String>,  // Changed to String to support custom remote IDE IDs
+    codingAgentType: Option<CodingAgentType>,
+    codingAgentArgs: Option<String>,
     commandMode: Option<CommandMode>,
     commandCwd: Option<String>,
     commandHost: Option<String>,
@@ -71,6 +73,8 @@ pub fn create_item(
         &content.unwrap_or_default(),
         ideType.as_deref(),
         remoteIdeType.as_deref(),  // Changed to string
+        codingAgentType,
+        codingAgentArgs.as_deref(),
         commandMode,
         commandCwd.as_deref(),
         commandHost.as_deref(),
@@ -85,6 +89,8 @@ pub fn update_item(
     content: Option<String>,
     ideType: Option<Option<String>>,  // Changed to String to support custom IDE IDs
     remoteIdeType: Option<Option<String>>,  // Changed to String to support custom remote IDE IDs
+    codingAgentType: Option<Option<CodingAgentType>>,
+    codingAgentArgs: Option<Option<String>>,
     commandMode: Option<Option<CommandMode>>,
     commandCwd: Option<Option<String>>,
     commandHost: Option<Option<String>>,
@@ -97,6 +103,8 @@ pub fn update_item(
         content.as_deref(),
         ideType.map(|o| o.as_deref().map(|s| s.to_string())),
         remoteIdeType.map(|o| o.as_deref().map(|s| s.to_string())),  // Changed to string
+        codingAgentType,
+        codingAgentArgs.as_ref().map(|o| o.as_deref()),
         commandMode,
         commandCwd.as_ref().map(|o| o.as_deref()),
         commandHost.as_ref().map(|o| o.as_deref()),
@@ -281,9 +289,8 @@ pub fn open_ide(ideType: IdeType, path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn open_custom_ide(command: String, path: String) -> Result<(), String> {
-    // Replace {path} placeholder with quoted path to handle spaces
-    let quoted_path = format!("\"{}\"", path);
-    let full_command = command.replace("{path}", &quoted_path);
+    // Replace {path} placeholder - no auto-quoting, user controls quoting in template
+    let full_command = command.replace("{path}", &path);
 
     #[cfg(windows)]
     {
@@ -291,8 +298,6 @@ pub fn open_custom_ide(command: String, path: String) -> Result<(), String> {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
 
-        // Use raw_arg to prevent Rust from adding extra quotes around the command
-        // This ensures the command is passed to cmd.exe exactly as we built it
         Command::new("cmd")
             .raw_arg(format!("/c {}", full_command))
             .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
@@ -344,6 +349,225 @@ pub fn open_remote_ide(
             .args(["--folder-uri", &folder_uri])
             .spawn()
             .map_err(|e| format!("Failed to open remote IDE: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_custom_remote_ide(command: String, host: String, path: String) -> Result<(), String> {
+    // Replace {host} and {path} placeholders - no auto-quoting, user controls quoting in template
+    let full_command = command.replace("{host}", &host).replace("{path}", &path);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+
+        // For terminal apps like nvim, user should include 'start cmd /k' in their command template
+        Command::new("cmd")
+            .raw_arg(format!("/c {}", full_command))
+            .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
+            .spawn()
+            .map_err(|e| format!("Failed to open custom remote IDE: {}", e))?;
+    }
+
+    #[cfg(not(windows))]
+    {
+        Command::new("sh")
+            .args(["-c", &full_command])
+            .spawn()
+            .map_err(|e| format!("Failed to open custom remote IDE: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_coding_agent(
+    codingAgentType: CodingAgentType,
+    path: String,
+    terminalType: Option<TerminalType>,
+    args: Option<String>,
+) -> Result<(), String> {
+    let base_cmd = match codingAgentType {
+        CodingAgentType::ClaudeCode => "claude",
+        CodingAgentType::Opencode => "opencode",
+        CodingAgentType::GeminiCli => "gemini",
+    };
+
+    // Build full command with args
+    let agent_cmd = match &args {
+        Some(a) if !a.trim().is_empty() => format!("{} {}", base_cmd, a.trim()),
+        _ => base_cmd.to_string(),
+    };
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let terminal = terminalType.unwrap_or(TerminalType::Cmd);
+
+        match terminal {
+            TerminalType::Cmd => {
+                Command::new("cmd")
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" cmd /k {}", agent_cmd, path, agent_cmd))
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::PowerShell => {
+                Command::new("cmd")
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" powershell -NoExit -Command {}", agent_cmd, path, agent_cmd))
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::PwshCore => {
+                Command::new("cmd")
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" pwsh -NoExit -Command {}", agent_cmd, path, agent_cmd))
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::WindowsTerminal => {
+                Command::new("cmd")
+                    .raw_arg(format!("/c wt -d \"{}\" cmd /k {}", path, agent_cmd))
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::GitBash => {
+                Command::new("cmd")
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" \"C:\\Program Files\\Git\\bin\\bash.exe\" -c \"{} ; exec bash\"", agent_cmd, path, agent_cmd))
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            _ => {
+                // Fallback to cmd for unsupported terminals on Windows
+                Command::new("cmd")
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" cmd /k {}", agent_cmd, path, agent_cmd))
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let terminal = terminalType.unwrap_or(TerminalType::MacTerminal);
+
+        match terminal {
+            TerminalType::ITerm2 => {
+                Command::new("osascript")
+                    .args([
+                        "-e",
+                        &format!(
+                            "tell application \"iTerm\" to create window with default profile command \"cd '{}' && {}\"",
+                            path, agent_cmd
+                        ),
+                    ])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::Kitty => {
+                Command::new("kitty")
+                    .args(["--directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", agent_cmd)])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::Alacritty => {
+                Command::new("alacritty")
+                    .args(["--working-directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", agent_cmd)])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            _ => {
+                // Default to Terminal.app
+                Command::new("osascript")
+                    .args([
+                        "-e",
+                        &format!(
+                            "tell application \"Terminal\" to do script \"cd '{}' && {}\"",
+                            path, agent_cmd
+                        ),
+                    ])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+        }
+    }
+
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    {
+        let terminal = terminalType.unwrap_or(TerminalType::GnomeTerminal);
+        let shell_cmd = format!("cd '{}' && {} ; exec $SHELL", path, agent_cmd);
+
+        match terminal {
+            TerminalType::GnomeTerminal => {
+                Command::new("gnome-terminal")
+                    .args(["--", "sh", "-c", &shell_cmd])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::Konsole => {
+                Command::new("konsole")
+                    .args(["-e", "sh", "-c", &shell_cmd])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::Xterm => {
+                Command::new("xterm")
+                    .args(["-e", "sh", "-c", &shell_cmd])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::Kitty => {
+                Command::new("kitty")
+                    .args(["--directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", agent_cmd)])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::Alacritty => {
+                Command::new("alacritty")
+                    .args(["--working-directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", agent_cmd)])
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            _ => {
+                // Fallback: try common terminals
+                let terminals = [
+                    ("gnome-terminal", vec!["--", "sh", "-c", &shell_cmd]),
+                    ("konsole", vec!["-e", "sh", "-c", &shell_cmd]),
+                    ("xterm", vec!["-e", "sh", "-c", &shell_cmd]),
+                ];
+
+                let mut launched = false;
+                for (term, args) in terminals {
+                    if Command::new("which")
+                        .arg(term)
+                        .output()
+                        .map(|o| o.status.success())
+                        .unwrap_or(false)
+                    {
+                        Command::new(term)
+                            .args(&args)
+                            .spawn()
+                            .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+                        launched = true;
+                        break;
+                    }
+                }
+
+                if !launched {
+                    return Err("No supported terminal emulator found".to_string());
+                }
+            }
+        }
     }
 
     Ok(())

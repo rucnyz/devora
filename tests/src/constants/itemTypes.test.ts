@@ -13,7 +13,19 @@ import type { IdeType } from '../../../src/types'
 describe('IDE Constants', () => {
   describe('IDE_LABELS', () => {
     test('contains all IDE types', () => {
-      const jetbrainsIdes: IdeType[] = ['idea', 'pycharm', 'webstorm', 'phpstorm', 'rubymine', 'clion', 'goland', 'rider', 'datagrip', 'rustrover', 'aqua']
+      const jetbrainsIdes: IdeType[] = [
+        'idea',
+        'pycharm',
+        'webstorm',
+        'phpstorm',
+        'rubymine',
+        'clion',
+        'goland',
+        'rider',
+        'datagrip',
+        'rustrover',
+        'aqua',
+      ]
       const otherIdes: IdeType[] = ['cursor', 'vscode', 'zed', 'antigravity']
       const allIdes = [...jetbrainsIdes, ...otherIdes]
       for (const type of allIdes) {
@@ -38,7 +50,7 @@ describe('IDE Constants', () => {
     })
 
     test('does not contain obsolete obsidian type', () => {
-      expect((IDE_LABELS as any).obsidian).toBeUndefined()
+      expect('obsidian' in IDE_LABELS).toBe(false)
     })
   })
 
@@ -51,16 +63,16 @@ describe('IDE Constants', () => {
   describe('IDE_GROUPS', () => {
     test('has JetBrains and Other groups', () => {
       expect(IDE_GROUPS.length).toBe(2)
-      expect(IDE_GROUPS[0].group).toBe('JetBrains')
-      expect(IDE_GROUPS[1].group).toBe('Other')
+      expect(IDE_GROUPS[0]!.group).toBe('JetBrains')
+      expect(IDE_GROUPS[1]!.group).toBe('Other')
     })
 
     test('JetBrains group contains 11 IDEs', () => {
-      expect(IDE_GROUPS[0].items.length).toBe(11)
+      expect(IDE_GROUPS[0]!.items.length).toBe(11)
     })
 
     test('Other group contains 4 IDEs', () => {
-      expect(IDE_GROUPS[1].items.length).toBe(4)
+      expect(IDE_GROUPS[1]!.items.length).toBe(4)
     })
   })
 
@@ -70,7 +82,7 @@ describe('IDE Constants', () => {
     })
 
     test('contains all expected IDE types', () => {
-      const values = IDE_TYPES.map(t => t.value)
+      const values = IDE_TYPES.map((t) => t.value)
       // JetBrains
       expect(values).toContain('idea')
       expect(values).toContain('pycharm')
@@ -84,7 +96,7 @@ describe('IDE Constants', () => {
     })
 
     test('does not contain obsolete obsidian type', () => {
-      const values = IDE_TYPES.map(t => t.value)
+      const values = IDE_TYPES.map((t) => t.value)
       expect(values).not.toContain('obsidian')
     })
 
@@ -122,7 +134,7 @@ describe('Remote IDE Constants', () => {
     })
 
     test('contains only cursor and vscode', () => {
-      const values = REMOTE_IDE_TYPES.map(t => t.value)
+      const values = REMOTE_IDE_TYPES.map((t) => t.value)
       expect(values).toContain('cursor')
       expect(values).toContain('vscode')
       expect(values.length).toBe(2)

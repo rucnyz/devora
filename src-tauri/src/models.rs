@@ -12,6 +12,7 @@ pub enum ItemType {
     Url,
     RemoteIde,
     Command,
+    CodingAgent,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
@@ -43,6 +44,36 @@ pub enum IdeType {
 pub enum RemoteIdeType {
     Cursor,
     Vscode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum CodingAgentType {
+    ClaudeCode,
+    Opencode,
+    GeminiCli,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum TerminalType {
+    // Windows
+    Cmd,
+    PowerShell,
+    PwshCore,
+    WindowsTerminal,
+    GitBash,
+    // macOS
+    MacTerminal,
+    ITerm2,
+    // Linux/Cross-platform
+    GnomeTerminal,
+    Konsole,
+    Xterm,
+    Kitty,
+    Alacritty,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
@@ -97,6 +128,10 @@ pub struct Item {
     pub ide_type: Option<String>,  // Changed to String to support custom IDE IDs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_ide_type: Option<String>,  // Changed to String to support custom remote IDE IDs
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coding_agent_type: Option<CodingAgentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coding_agent_args: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_mode: Option<CommandMode>,
     #[serde(skip_serializing_if = "Option::is_none")]

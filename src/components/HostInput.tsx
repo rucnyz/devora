@@ -82,7 +82,7 @@ export default function HostInput({
         autoFocus={autoFocus}
       />
       {showSuggestions && filteredSuggestions.length > 0 && (
-        <div className="absolute top-1/2 -translate-y-1/2 left-full ml-1 z-50 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-visible)] shadow-lg overflow-hidden min-w-[120px] max-h-80 overflow-y-auto">
+        <div className="absolute top-1/2 -translate-y-1/2 left-full ml-1 z-50 rounded-lg bg-(--bg-surface) border border-(--border-visible) shadow-lg overflow-hidden min-w-[120px] max-h-80 overflow-y-auto">
           {filteredSuggestions.map((host, index) => (
             <button
               key={host}
@@ -90,8 +90,8 @@ export default function HostInput({
               onClick={() => handleSelect(host)}
               className={`w-full px-3 py-1.5 text-left text-sm font-mono whitespace-nowrap transition-colors ${
                 index === highlightIndex
-                  ? 'bg-[var(--accent-remote)]/20 text-[var(--accent-remote)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
+                  ? 'bg-(--accent-remote)/20 text-(--accent-remote)'
+                  : 'text-(--text-secondary) hover:bg-(--bg-elevated)'
               }`}
             >
               {host}

@@ -266,8 +266,8 @@ export default function FileCardContainer({ projectId }: FileCardContainerProps)
         <div
           className={`absolute inset-4 border-2 border-dashed rounded-xl flex items-center justify-center transition-all duration-150 ${
             isReady
-              ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 backdrop-blur-sm'
-              : 'border-[var(--text-muted)] bg-[var(--bg-tertiary)]/50'
+              ? 'border-(--accent-primary) bg-(--accent-primary)/10 backdrop-blur-sm'
+              : 'border-(--text-muted) bg-(--bg-tertiary)/50'
           }`}
         >
           <div className="text-center">
@@ -275,22 +275,22 @@ export default function FileCardContainer({ projectId }: FileCardContainerProps)
               <>
                 {/* Ready state - can drop now */}
                 <svg
-                  className="w-12 h-12 mx-auto mb-3 text-[var(--accent-primary)]"
+                  className="w-12 h-12 mx-auto mb-3 text-(--accent-primary)"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="text-lg font-mono text-[var(--accent-primary)]">Release to drop</span>
-                <p className="text-sm text-[var(--text-muted)] mt-1">Max {formatFileSize(maxFileSize)}</p>
+                <span className="text-lg font-mono text-(--accent-primary)">Release to drop</span>
+                <p className="text-sm text-(--text-muted) mt-1">Max {formatFileSize(maxFileSize)}</p>
               </>
             ) : (
               <>
                 {/* Hovering state - waiting for system to recognize */}
-                <div className="w-8 h-8 mx-auto mb-3 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
-                <span className="text-lg font-mono text-[var(--text-muted)]">Hold to prepare drop...</span>
-                <p className="text-xs text-[var(--text-muted)] mt-1">Wait for confirmation</p>
+                <div className="w-8 h-8 mx-auto mb-3 border-2 border-(--text-muted) border-t-transparent rounded-full animate-spin" />
+                <span className="text-lg font-mono text-(--text-muted)">Hold to prepare drop...</span>
+                <p className="text-xs text-(--text-muted) mt-1">Wait for confirmation</p>
               </>
             )}
           </div>
@@ -299,7 +299,7 @@ export default function FileCardContainer({ projectId }: FileCardContainerProps)
 
       {/* Error toast */}
       {dragError && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 bg-[var(--accent-danger)] text-white rounded-lg shadow-lg animate-card-enter">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 bg-(--accent-danger) text-white rounded-lg shadow-lg animate-card-enter">
           {dragError}
         </div>
       )}

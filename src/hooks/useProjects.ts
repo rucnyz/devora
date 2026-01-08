@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Project, Item, ItemType, CommandMode, ProjectMetadata } from '../types'
+import type { Project, Item, ItemType, CodingAgentType, CommandMode, ProjectMetadata } from '../types'
 import * as api from '../api/tauri'
 
 export function useProjects() {
@@ -77,6 +77,8 @@ export function useProject(id: string) {
     content?: string,
     ideType?: string, // Can be built-in IdeType or custom IDE id
     remoteIdeType?: string, // Can be built-in RemoteIdeType or custom remote IDE id
+    codingAgentType?: CodingAgentType,
+    codingAgentArgs?: string,
     commandMode?: CommandMode,
     commandCwd?: string,
     commandHost?: string
@@ -88,6 +90,8 @@ export function useProject(id: string) {
       content,
       ideType,
       remoteIdeType,
+      codingAgentType,
+      codingAgentArgs,
       commandMode,
       commandCwd,
       commandHost
@@ -99,7 +103,18 @@ export function useProject(id: string) {
   const updateItem = async (
     itemId: string,
     updates: Partial<
-      Pick<Item, 'title' | 'content' | 'ide_type' | 'remote_ide_type' | 'command_mode' | 'command_cwd' | 'command_host'>
+      Pick<
+        Item,
+        | 'title'
+        | 'content'
+        | 'ide_type'
+        | 'remote_ide_type'
+        | 'coding_agent_type'
+        | 'coding_agent_args'
+        | 'command_mode'
+        | 'command_cwd'
+        | 'command_host'
+      >
     >
   ) => {
     await api.updateItem(itemId, updates)
@@ -146,6 +161,8 @@ export const openFile = api.openFile
 export const selectFolder = api.selectFolder
 export const selectFile = api.selectFile
 export const openRemoteIde = api.openRemoteIde
+export const openCustomRemoteIde = api.openCustomRemoteIde
+export const openCodingAgent = api.openCodingAgent
 export const fetchSSHHosts = api.getSSHHosts
 export const fetchUrlMetadata = api.fetchUrlMetadata
 
