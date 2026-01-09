@@ -29,6 +29,7 @@ export type TerminalType =
   | 'pwsh-core'
   | 'windows-terminal'
   | 'git-bash'
+  | 'nushell'
   // macOS
   | 'mac-terminal'
   | 'i-term2'
@@ -46,6 +47,7 @@ export const WINDOWS_TERMINALS: { value: TerminalType; label: string }[] = [
   { value: 'pwsh-core', label: 'PowerShell Core' },
   { value: 'windows-terminal', label: 'Windows Terminal' },
   { value: 'git-bash', label: 'Git Bash' },
+  { value: 'nushell', label: 'Nushell' },
 ]
 
 export const MACOS_TERMINALS: { value: TerminalType; label: string }[] = [
@@ -101,6 +103,7 @@ export interface Item {
   remote_ide_type?: string // Can be built-in RemoteIdeType or custom remote IDE id
   coding_agent_type?: CodingAgentType
   coding_agent_args?: string // Custom arguments for coding agent (empty string = clear)
+  coding_agent_env?: string // JSON string of environment variables for coding agent
   command_mode?: CommandMode
   command_cwd?: string
   command_host?: string // for remote commands via SSH

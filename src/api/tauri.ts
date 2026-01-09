@@ -142,6 +142,7 @@ export async function createItem(
   remoteIdeType?: string, // Can be built-in RemoteIdeType or custom remote IDE id
   codingAgentType?: CodingAgentType,
   codingAgentArgs?: string,
+  codingAgentEnv?: string,
   commandMode?: CommandMode,
   commandCwd?: string,
   commandHost?: string
@@ -155,6 +156,7 @@ export async function createItem(
     remoteIdeType,
     codingAgentType,
     codingAgentArgs,
+    codingAgentEnv,
     commandMode,
     commandCwd,
     commandHost,
@@ -172,6 +174,7 @@ export async function updateItem(
       | 'remote_ide_type'
       | 'coding_agent_type'
       | 'coding_agent_args'
+      | 'coding_agent_env'
       | 'command_mode'
       | 'command_cwd'
       | 'command_host'
@@ -187,6 +190,7 @@ export async function updateItem(
     remoteIdeType: updates.remote_ide_type !== undefined ? updates.remote_ide_type : undefined,
     codingAgentType: updates.coding_agent_type !== undefined ? updates.coding_agent_type : undefined,
     codingAgentArgs: updates.coding_agent_args !== undefined ? updates.coding_agent_args : undefined,
+    codingAgentEnv: updates.coding_agent_env !== undefined ? updates.coding_agent_env : undefined,
     commandMode: updates.command_mode !== undefined ? updates.command_mode : undefined,
     commandCwd: updates.command_cwd !== undefined ? updates.command_cwd : undefined,
     commandHost: updates.command_host !== undefined ? updates.command_host : undefined,
@@ -300,9 +304,11 @@ export async function openCodingAgent(
   codingAgentType: CodingAgentType,
   path: string,
   terminalType?: TerminalType,
-  args?: string
+  args?: string,
+  globalEnv?: string,
+  agentEnv?: string
 ): Promise<void> {
-  return invoke('open_coding_agent', { codingAgentType, path, terminalType, args })
+  return invoke('open_coding_agent', { codingAgentType, path, terminalType, args, globalEnv, agentEnv })
 }
 
 export async function openFile(path: string): Promise<void> {

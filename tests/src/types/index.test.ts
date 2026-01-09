@@ -5,13 +5,14 @@ import type { SectionKey } from '../../../src/types'
 describe('Type Constants', () => {
   describe('WINDOWS_TERMINALS', () => {
     test('contains expected Windows terminal options', () => {
-      expect(WINDOWS_TERMINALS.length).toBe(5)
+      expect(WINDOWS_TERMINALS.length).toBe(6)
       const values = WINDOWS_TERMINALS.map((t) => t.value)
       expect(values).toContain('cmd')
       expect(values).toContain('power-shell')
       expect(values).toContain('pwsh-core')
       expect(values).toContain('windows-terminal')
       expect(values).toContain('git-bash')
+      expect(values).toContain('nushell')
     })
 
     test('has correct labels for Windows terminals', () => {

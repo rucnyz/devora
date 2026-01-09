@@ -79,6 +79,7 @@ export function useProject(id: string) {
     remoteIdeType?: string, // Can be built-in RemoteIdeType or custom remote IDE id
     codingAgentType?: CodingAgentType,
     codingAgentArgs?: string,
+    codingAgentEnv?: string,
     commandMode?: CommandMode,
     commandCwd?: string,
     commandHost?: string
@@ -92,6 +93,7 @@ export function useProject(id: string) {
       remoteIdeType,
       codingAgentType,
       codingAgentArgs,
+      codingAgentEnv,
       commandMode,
       commandCwd,
       commandHost
@@ -111,6 +113,7 @@ export function useProject(id: string) {
         | 'remote_ide_type'
         | 'coding_agent_type'
         | 'coding_agent_args'
+        | 'coding_agent_env'
         | 'command_mode'
         | 'command_cwd'
         | 'command_host'

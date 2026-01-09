@@ -6,6 +6,7 @@ import { useToast } from '../../hooks/useToast'
 import { getPathName } from '../../utils/remote'
 import { IDE_LABELS, IDE_TAG_CLASS, IDE_GROUPS, IDE_TYPES } from '../../constants/itemTypes'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
+import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
 import type { Item, IdeType, WorkingDir, CustomIde } from '../../types'
 
 // Check if IDE type is a built-in IDE
@@ -202,6 +203,14 @@ export default function IDESection({
     }
   }
 
+  const handleDuplicate = async (item: Item) => {
+    try {
+      await onAdd(`${item.title} COPY`, item.content || '', item.ide_type || 'pycharm')
+    } catch (err) {
+      toast.error('Failed to duplicate', err instanceof Error ? err.message : String(err))
+    }
+  }
+
   if (!isCreating && items.length === 0) return null
 
   return (
@@ -279,31 +288,41 @@ export default function IDESection({
               </div>
             </div>
           ) : (
-            <div
+            <ItemContextMenu
               key={item.id}
-              className="group/ide relative animate-card-enter mr-12"
-              style={{ animationDelay: `${index * 30}ms` }}
+              items={[
+                {
+                  label: 'Duplicate',
+                  icon: <DuplicateIcon className="w-4 h-4" />,
+                  onClick: () => handleDuplicate(item),
+                },
+              ]}
             >
-              <div className={`tag ${IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
-                <span>{getIdeLabel(item.ide_type!, customIdes)}</span>
-                <span className="opacity-60">{item.title}</span>
+              <div
+                className="group/ide relative animate-card-enter mr-12"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                <div className={`tag ${IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
+                  <span>{getIdeLabel(item.ide_type!, customIdes)}</span>
+                  <span className="opacity-60">{item.title}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(item.id)
+                    }}
+                    className="ml-1 opacity-0 group-hover/ide:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(item.id)
-                  }}
-                  className="ml-1 opacity-0 group-hover/ide:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                  onClick={() => handleEdit(item)}
+                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-primary) hover:border-(--accent-primary) opacity-0 group-hover/ide:opacity-100 transition-all"
                 >
-                  ×
+                  Edit
                 </button>
               </div>
-              <button
-                onClick={() => handleEdit(item)}
-                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-primary) hover:border-(--accent-primary) opacity-0 group-hover/ide:opacity-100 transition-all"
-              >
-                Edit
-              </button>
-            </div>
+            </ItemContextMenu>
           )
         )}
 

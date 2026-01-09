@@ -63,6 +63,7 @@ pub fn create_item(
     remoteIdeType: Option<String>,  // Changed to String to support custom remote IDE IDs
     codingAgentType: Option<CodingAgentType>,
     codingAgentArgs: Option<String>,
+    codingAgentEnv: Option<String>,
     commandMode: Option<CommandMode>,
     commandCwd: Option<String>,
     commandHost: Option<String>,
@@ -77,6 +78,7 @@ pub fn create_item(
         remoteIdeType.as_deref(),  // Changed to string
         codingAgentType,
         codingAgentArgs.as_deref(),
+        codingAgentEnv.as_deref(),
         commandMode,
         commandCwd.as_deref(),
         commandHost.as_deref(),
@@ -93,6 +95,7 @@ pub fn update_item(
     remoteIdeType: Option<Option<String>>,  // Changed to String to support custom remote IDE IDs
     codingAgentType: Option<Option<CodingAgentType>>,
     codingAgentArgs: Option<Option<String>>,
+    codingAgentEnv: Option<Option<String>>,
     commandMode: Option<Option<CommandMode>>,
     commandCwd: Option<Option<String>>,
     commandHost: Option<Option<String>>,
@@ -107,6 +110,7 @@ pub fn update_item(
         remoteIdeType.map(|o| o.as_deref().map(|s| s.to_string())),  // Changed to string
         codingAgentType,
         codingAgentArgs.as_ref().map(|o| o.as_deref()),
+        codingAgentEnv.as_ref().map(|o| o.as_deref()),
         commandMode,
         commandCwd.as_ref().map(|o| o.as_deref()),
         commandHost.as_ref().map(|o| o.as_deref()),
@@ -386,12 +390,40 @@ pub fn open_custom_remote_ide(command: String, host: String, path: String) -> Re
     Ok(())
 }
 
+// Helper function to merge environment variables
+// Agent env overrides global env for same keys
+fn merge_env_vars(global_env: Option<&str>, agent_env: Option<&str>) -> HashMap<String, String> {
+    let mut result = HashMap::new();
+
+    // Parse global env vars first
+    if let Some(json) = global_env {
+        if !json.is_empty() {
+            if let Ok(vars) = serde_json::from_str::<HashMap<String, String>>(json) {
+                result.extend(vars);
+            }
+        }
+    }
+
+    // Parse agent env vars (overrides global)
+    if let Some(json) = agent_env {
+        if !json.is_empty() {
+            if let Ok(vars) = serde_json::from_str::<HashMap<String, String>>(json) {
+                result.extend(vars);
+            }
+        }
+    }
+
+    result
+}
+
 #[tauri::command]
 pub fn open_coding_agent(
     codingAgentType: CodingAgentType,
     path: String,
     terminalType: Option<TerminalType>,
     args: Option<String>,
+    globalEnv: Option<String>,
+    agentEnv: Option<String>,
 ) -> Result<(), String> {
     let base_cmd = match codingAgentType {
         CodingAgentType::ClaudeCode => "claude",
@@ -405,6 +437,35 @@ pub fn open_coding_agent(
         _ => base_cmd.to_string(),
     };
 
+    // Merge environment variables
+    let env_vars = merge_env_vars(globalEnv.as_deref(), agentEnv.as_deref());
+
+    // Build environment variable prefix for shell commands
+    let env_prefix = if env_vars.is_empty() {
+        String::new()
+    } else {
+        #[cfg(windows)]
+        {
+            // For Windows cmd: set VAR=value && set VAR2=value2 &&
+            env_vars
+                .iter()
+                .map(|(k, v)| format!("set {}={}", k, v))
+                .collect::<Vec<_>>()
+                .join(" && ")
+                + " && "
+        }
+        #[cfg(not(windows))]
+        {
+            // For Unix shells: VAR=value VAR2=value2
+            env_vars
+                .iter()
+                .map(|(k, v)| format!("{}='{}'", k, v.replace("'", "'\\''")))
+                .collect::<Vec<_>>()
+                .join(" ")
+                + " "
+        }
+    };
+
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -412,38 +473,96 @@ pub fn open_coding_agent(
 
         let terminal = terminalType.unwrap_or(TerminalType::Cmd);
 
+        // Build the full command with env prefix
+        let full_cmd = format!("{}{}", env_prefix, agent_cmd);
+
         match terminal {
             TerminalType::Cmd => {
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" cmd /k {}", agent_cmd, path, agent_cmd))
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" cmd /k {}", agent_cmd, path, full_cmd))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::PowerShell => {
+                // For PowerShell, set env vars using $env:VAR = 'value' syntax
+                let ps_env_prefix = if env_vars.is_empty() {
+                    String::new()
+                } else {
+                    env_vars
+                        .iter()
+                        .map(|(k, v)| format!("$env:{}='{}'", k, v.replace("'", "''")))
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                        + "; "
+                };
+                let ps_cmd = format!("{}{}", ps_env_prefix, agent_cmd);
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" powershell -NoExit -Command {}", agent_cmd, path, agent_cmd))
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" powershell -NoExit -Command \"{}\"", agent_cmd, path, ps_cmd))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::PwshCore => {
+                // For PowerShell Core, same as PowerShell
+                let ps_env_prefix = if env_vars.is_empty() {
+                    String::new()
+                } else {
+                    env_vars
+                        .iter()
+                        .map(|(k, v)| format!("$env:{}='{}'", k, v.replace("'", "''")))
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                        + "; "
+                };
+                let ps_cmd = format!("{}{}", ps_env_prefix, agent_cmd);
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" pwsh -NoExit -Command {}", agent_cmd, path, agent_cmd))
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" pwsh -NoExit -Command \"{}\"", agent_cmd, path, ps_cmd))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::WindowsTerminal => {
                 Command::new("cmd")
-                    .raw_arg(format!("/c wt -d \"{}\" cmd /k {}", path, agent_cmd))
+                    .raw_arg(format!("/c wt -d \"{}\" cmd /k {}", path, full_cmd))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::GitBash => {
+                // For Git Bash, use export VAR=value syntax
+                let bash_env_prefix = if env_vars.is_empty() {
+                    String::new()
+                } else {
+                    env_vars
+                        .iter()
+                        .map(|(k, v)| format!("export {}='{}'", k, v.replace("'", "'\\''")))
+                        .collect::<Vec<_>>()
+                        .join(" && ")
+                        + " && "
+                };
+                let bash_cmd = format!("{}{}", bash_env_prefix, agent_cmd);
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" \"C:\\Program Files\\Git\\bin\\bash.exe\" -c \"{} ; exec bash\"", agent_cmd, path, agent_cmd))
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" \"C:\\Program Files\\Git\\bin\\bash.exe\" -c \"{} ; exec bash\"", agent_cmd, path, bash_cmd))
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open coding agent: {}", e))?;
+            }
+            TerminalType::Nushell => {
+                // For Nushell, use $env.VAR = 'value' syntax
+                let nu_env_prefix = if env_vars.is_empty() {
+                    String::new()
+                } else {
+                    env_vars
+                        .iter()
+                        .map(|(k, v)| format!("$env.{} = '{}'", k, v.replace("'", "''")))
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                        + "; "
+                };
+                let nu_cmd = format!("{}{}", nu_env_prefix, agent_cmd);
+                Command::new("cmd")
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" nu -e \"{}\"", agent_cmd, path, nu_cmd))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -451,7 +570,7 @@ pub fn open_coding_agent(
             _ => {
                 // Fallback to cmd for unsupported terminals on Windows
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" cmd /k {}", agent_cmd, path, agent_cmd))
+                    .raw_arg(format!("/c start \"{}\" /d \"{}\" cmd /k {}", agent_cmd, path, full_cmd))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -463,6 +582,9 @@ pub fn open_coding_agent(
     {
         let terminal = terminalType.unwrap_or(TerminalType::MacTerminal);
 
+        // Build the full command with env prefix for Unix
+        let full_cmd = format!("{}{}", env_prefix, agent_cmd);
+
         match terminal {
             TerminalType::ITerm2 => {
                 Command::new("osascript")
@@ -470,7 +592,7 @@ pub fn open_coding_agent(
                         "-e",
                         &format!(
                             "tell application \"iTerm\" to create window with default profile command \"cd '{}' && {}\"",
-                            path, agent_cmd
+                            path, full_cmd
                         ),
                     ])
                     .spawn()
@@ -478,13 +600,15 @@ pub fn open_coding_agent(
             }
             TerminalType::Kitty => {
                 Command::new("kitty")
-                    .args(["--directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", agent_cmd)])
+                    .args(["--directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", full_cmd)])
+                    .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::Alacritty => {
                 Command::new("alacritty")
-                    .args(["--working-directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", agent_cmd)])
+                    .args(["--working-directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", full_cmd)])
+                    .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
@@ -495,7 +619,7 @@ pub fn open_coding_agent(
                         "-e",
                         &format!(
                             "tell application \"Terminal\" to do script \"cd '{}' && {}\"",
-                            path, agent_cmd
+                            path, full_cmd
                         ),
                     ])
                     .spawn()
@@ -507,36 +631,44 @@ pub fn open_coding_agent(
     #[cfg(all(not(windows), not(target_os = "macos")))]
     {
         let terminal = terminalType.unwrap_or(TerminalType::GnomeTerminal);
-        let shell_cmd = format!("cd '{}' && {} ; exec $SHELL", path, agent_cmd);
+
+        // Build the full command with env prefix for Unix
+        let full_cmd = format!("{}{}", env_prefix, agent_cmd);
+        let shell_cmd = format!("cd '{}' && {} ; exec $SHELL", path, full_cmd);
 
         match terminal {
             TerminalType::GnomeTerminal => {
                 Command::new("gnome-terminal")
                     .args(["--", "sh", "-c", &shell_cmd])
+                    .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::Konsole => {
                 Command::new("konsole")
                     .args(["-e", "sh", "-c", &shell_cmd])
+                    .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::Xterm => {
                 Command::new("xterm")
                     .args(["-e", "sh", "-c", &shell_cmd])
+                    .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::Kitty => {
                 Command::new("kitty")
-                    .args(["--directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", agent_cmd)])
+                    .args(["--directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", full_cmd)])
+                    .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::Alacritty => {
                 Command::new("alacritty")
-                    .args(["--working-directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", agent_cmd)])
+                    .args(["--working-directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", full_cmd)])
+                    .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
@@ -558,6 +690,7 @@ pub fn open_coding_agent(
                     {
                         Command::new(term)
                             .args(&args)
+                            .envs(&env_vars)
                             .spawn()
                             .map_err(|e| format!("Failed to open coding agent: {}", e))?;
                         launched = true;

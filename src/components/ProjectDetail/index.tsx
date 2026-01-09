@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useProject, fetchSSHHosts, fetchUrlMetadata } from '../../hooks/useProjects'
+import { useSetting } from '../../hooks/useSettings'
 import SectionNavigation from './SectionNavigation'
 import ProjectHeader from './ProjectHeader'
 import WorkingDirsSection from './WorkingDirsSection'
@@ -27,6 +28,7 @@ import {
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const { project, loading, error, addItem, updateItem, deleteItem, updateProject, reorderItems } = useProject(id!)
+  const { value: codingAgentGlobalEnv } = useSetting('codingAgentGlobalEnv')
 
   // Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -264,8 +266,14 @@ export default function ProjectDetail() {
     await addItem('remote-ide', title, content, undefined, remoteIdeType)
   }
 
-  const handleAddCodingAgent = async (title: string, path: string, agentType: CodingAgentType, args: string) => {
-    await addItem('coding-agent', title, path, undefined, undefined, agentType, args || undefined)
+  const handleAddCodingAgent = async (
+    title: string,
+    path: string,
+    agentType: CodingAgentType,
+    args: string,
+    env: string
+  ) => {
+    await addItem('coding-agent', title, path, undefined, undefined, agentType, args || undefined, env || undefined)
   }
 
   const handleAddFile = async (title: string, path: string) => {
@@ -345,6 +353,7 @@ export default function ProjectDetail() {
         items={codingAgentItems}
         isCreating={isCreatingCodingAgent}
         workingDirs={project.metadata.working_dirs || []}
+        globalEnv={codingAgentGlobalEnv}
         onAdd={handleAddCodingAgent}
         onUpdate={updateItem}
         onDelete={deleteItem}

@@ -65,6 +65,7 @@ pub enum TerminalType {
     PwshCore,
     WindowsTerminal,
     GitBash,
+    Nushell,
     // macOS
     MacTerminal,
     ITerm2,
@@ -132,6 +133,8 @@ pub struct Item {
     pub coding_agent_type: Option<CodingAgentType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub coding_agent_args: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coding_agent_env: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_mode: Option<CommandMode>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -8,6 +8,7 @@ import { REMOTE_IDE_LABELS, REMOTE_IDE_TAG_CLASS, REMOTE_IDE_TYPES } from '../..
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
 import RemoteIDECreator from './RemoteIDECreator'
+import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
 import type { Item, RemoteIdeType, WorkingDir, CustomRemoteIde } from '../../types'
 
 // Helper to check if remote IDE type is built-in
@@ -117,6 +118,14 @@ export default function RemoteIDESection({
     onCreatingChange(false)
   }
 
+  const handleDuplicate = async (item: Item) => {
+    try {
+      await onAdd(`${item.title} COPY`, item.content || '', item.remote_ide_type || 'cursor')
+    } catch (err) {
+      toast.error('Failed to duplicate', err instanceof Error ? err.message : String(err))
+    }
+  }
+
   if (!isCreating && items.length === 0) return null
 
   return (
@@ -202,34 +211,44 @@ export default function RemoteIDESection({
                 </div>
               </div>
             ) : (
-              <div
+              <ItemContextMenu
                 key={item.id}
-                className="group/remote-ide relative animate-card-enter mr-7"
-                style={{ animationDelay: `${index * 30}ms` }}
+                items={[
+                  {
+                    label: 'Duplicate',
+                    icon: <DuplicateIcon className="w-4 h-4" />,
+                    onClick: () => handleDuplicate(item),
+                  },
+                ]}
               >
-                <div className={`tag ${REMOTE_IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
-                  <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
-                  <span>{getRemoteIdeLabel(item.remote_ide_type!, customRemoteIdes)}</span>
-                  <span className="opacity-60">{item.title}</span>
+                <div
+                  className="group/remote-ide relative animate-card-enter mr-7"
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <div className={`tag ${REMOTE_IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
+                    <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                    <span>{getRemoteIdeLabel(item.remote_ide_type!, customRemoteIdes)}</span>
+                    <span className="opacity-60">{item.title}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDelete(item.id)
+                      }}
+                      className="ml-1 opacity-0 group-hover/remote-ide:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(item.id)
-                    }}
-                    className="ml-1 opacity-0 group-hover/remote-ide:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                    onClick={() => handleEdit(item)}
+                    className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-remote) hover:border-(--accent-remote) opacity-0 group-hover/remote-ide:opacity-100 transition-all"
                   >
-                    ×
+                    Edit
                   </button>
                 </div>
-                <button
-                  onClick={() => handleEdit(item)}
-                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-remote) hover:border-(--accent-remote) opacity-0 group-hover/remote-ide:opacity-100 transition-all"
-                >
-                  Edit
-                </button>
-              </div>
+              </ItemContextMenu>
             )
           )}
 

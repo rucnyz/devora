@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { fetchUrlMetadata } from '../../hooks/useProjects'
+import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
 import type { Item } from '../../types'
 
 interface LinksSectionProps {
@@ -93,6 +94,10 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
   }, [editingId, editTitle, saveEditing])
 
+  const handleDuplicate = async (item: Item) => {
+    await onAdd(`${item.title} COPY`, item.content || '')
+  }
+
   return (
     <section id="section-links" className="scroll-mt-6">
       <h3 className="section-label">Links</h3>
@@ -128,47 +133,57 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
               </button>
             </div>
           ) : (
-            <a
+            <ItemContextMenu
               key={item.id}
-              href={item.content}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={item.content}
-              className="tag tag-url animate-card-enter group"
-              style={{ animationDelay: `${index * 30}ms` }}
+              items={[
+                {
+                  label: 'Duplicate',
+                  icon: <DuplicateIcon className="w-4 h-4" />,
+                  onClick: () => handleDuplicate(item),
+                },
+              ]}
             >
-              <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-              <span>{item.title}</span>
-              <button
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setEditingId(item.id)
-                  setEditTitle(item.title)
-                }}
-                className="ml-1 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-secondary) transition-opacity"
-                title="Rename"
+              <a
+                href={item.content}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={item.content}
+                className="tag tag-url animate-card-enter group"
+                style={{ animationDelay: `${index * 30}ms` }}
               >
-                ✎
-              </button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  onDelete(item.id)
-                }}
-                className="ml-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-danger) transition-opacity"
-              >
-                ×
-              </button>
-            </a>
+                <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+                <span>{item.title}</span>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setEditingId(item.id)
+                    setEditTitle(item.title)
+                  }}
+                  className="ml-1 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-secondary) transition-opacity"
+                  title="Rename"
+                >
+                  ✎
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onDelete(item.id)
+                  }}
+                  className="ml-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-danger) transition-opacity"
+                >
+                  ×
+                </button>
+              </a>
+            </ItemContextMenu>
           )
         )}
         {/* Quick URL input */}

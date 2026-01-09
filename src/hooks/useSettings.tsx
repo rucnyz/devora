@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = {
   fileCardMaxSize: 1024 * 1024, // 1MB in bytes
   zoomLevel: 100, // percentage, range 50-200, step 10
   defaultTerminal: '', // empty means platform default (cmd on Windows, Terminal on macOS, gnome-terminal on Linux)
+  codingAgentGlobalEnv: '', // JSON string of global environment variables for coding agents
 }
 
 export type SettingKey = keyof typeof DEFAULT_SETTINGS

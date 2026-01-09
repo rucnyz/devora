@@ -546,6 +546,7 @@ function SettingsButton() {
   const { value: fileCardMaxSize, updateValue: setFileCardMaxSize } = useSetting('fileCardMaxSize')
   const { value: zoomLevel, updateValue: setZoomLevel } = useSetting('zoomLevel')
   const { value: defaultTerminalStr, updateValue: setDefaultTerminal } = useSetting('defaultTerminal')
+  const { value: codingAgentGlobalEnv, updateValue: setCodingAgentGlobalEnv } = useSetting('codingAgentGlobalEnv')
   const {
     customIdes,
     addCustomIde,
@@ -581,13 +582,28 @@ function SettingsButton() {
   const [dbExists, setDbExists] = useState(false)
   const [dbPathError, setDbPathError] = useState('')
 
+  // Global environment variables state - initialized when modal opens
+  const [globalEnvEntries, setGlobalEnvEntries] = useState<Array<{ key: string; value: string }>>([])
+
   // Round to 1 decimal place to avoid floating point display issues
   const currentMb = Math.round((fileCardMaxSize / (1024 * 1024)) * 10) / 10
 
-  const handleOpen = () => {
+  // Initialize env entries when modal opens (not in effect to avoid cascading renders)
+  const handleOpenWithEnvInit = () => {
     setIsOpen(true)
     setInputValue(String(currentMb))
     setZoomInputValue(String(zoomLevel))
+    // Initialize env entries from settings
+    if (codingAgentGlobalEnv) {
+      try {
+        const parsed = JSON.parse(codingAgentGlobalEnv)
+        setGlobalEnvEntries(Object.entries(parsed).map(([key, value]) => ({ key, value: value as string })))
+      } catch {
+        setGlobalEnvEntries([])
+      }
+    } else {
+      setGlobalEnvEntries([])
+    }
   }
 
   // Load database paths when modal opens
@@ -817,10 +833,37 @@ function SettingsButton() {
     }
   }
 
+  // Global environment variables handlers
+  const updateGlobalEnvEntry = (index: number, field: 'key' | 'value', newValue: string) => {
+    const newEntries = [...globalEnvEntries]
+    newEntries[index] = { ...newEntries[index], [field]: newValue }
+    setGlobalEnvEntries(newEntries)
+  }
+
+  const addGlobalEnvEntry = () => {
+    setGlobalEnvEntries([...globalEnvEntries, { key: '', value: '' }])
+  }
+
+  const removeGlobalEnvEntry = (index: number) => {
+    const newEntries = globalEnvEntries.filter((_, i) => i !== index)
+    setGlobalEnvEntries(newEntries)
+  }
+
+  const saveGlobalEnvVars = () => {
+    const obj: Record<string, string> = {}
+    globalEnvEntries
+      .filter((e) => e.key.trim())
+      .forEach((e) => {
+        obj[e.key.trim()] = e.value
+      })
+    const json = Object.keys(obj).length > 0 ? JSON.stringify(obj) : ''
+    setCodingAgentGlobalEnv(json)
+  }
+
   return (
     <>
       <button
-        onClick={handleOpen}
+        onClick={handleOpenWithEnvInit}
         className="p-2 rounded-lg bg-(--bg-elevated) border border-(--border-subtle) hover:border-(--border-accent) transition-all"
         title="Settings"
       >
@@ -963,6 +1006,68 @@ function SettingsButton() {
                   </select>
                   <p className="text-xs text-(--text-muted) mt-1.5">
                     Terminal to use when launching coding agents (Claude, OpenCode, Gemini)
+                  </p>
+                </div>
+
+                {/* Global Environment Variables for Coding Agents */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-(--text-primary)">
+                      Global environment variables (Coding Agents)
+                    </label>
+                    <button onClick={addGlobalEnvEntry} className="text-xs text-(--accent-primary) hover:underline">
+                      + Add
+                    </button>
+                  </div>
+                  {globalEnvEntries.length > 0 ? (
+                    <div className="space-y-2 mb-2">
+                      {globalEnvEntries.map((entry, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            placeholder="KEY"
+                            value={entry.key}
+                            onChange={(e) => updateGlobalEnvEntry(idx, 'key', e.target.value)}
+                            onBlur={saveGlobalEnvVars}
+                            className="flex-1 px-2 py-1.5 bg-(--bg-surface) border border-(--border-subtle) rounded text-sm font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-primary)"
+                          />
+                          <input
+                            type="text"
+                            placeholder="value"
+                            value={entry.value}
+                            onChange={(e) => updateGlobalEnvEntry(idx, 'value', e.target.value)}
+                            onBlur={saveGlobalEnvVars}
+                            className="flex-2 px-2 py-1.5 bg-(--bg-surface) border border-(--border-subtle) rounded text-sm font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-primary)"
+                          />
+                          <button
+                            onClick={() => {
+                              removeGlobalEnvEntry(idx)
+                              // Save after removal (useEffect won't catch this since we're modifying state directly)
+                              setTimeout(saveGlobalEnvVars, 0)
+                            }}
+                            className="p-1 text-(--text-muted) hover:text-(--accent-danger) transition-colors"
+                            title="Remove"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-(--text-muted) mb-2">
+                      No global environment variables set. These will be passed to all coding agents.
+                    </p>
+                  )}
+                  <p className="text-xs text-(--text-muted)">
+                    Environment variables set here will be available to all coding agents. Agent-specific variables can
+                    override these.
                   </p>
                 </div>
 

@@ -3,6 +3,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import NoteCreator from './NoteCreator'
 import SortableNote from './SortableNote'
+import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
 import type { Item } from '../../types'
 
 interface NotesSectionProps {
@@ -128,6 +129,10 @@ export default function NotesSection({
     onCreatingChange(false)
   }
 
+  const handleDuplicate = async (note: Item) => {
+    await onAdd(`${note.title} COPY`, note.content || undefined)
+  }
+
   return (
     <section id="section-notes" className="scroll-mt-6">
       <h3 className="section-label">Notes</h3>
@@ -177,47 +182,57 @@ export default function NotesSection({
                     </div>
                   </div>
                 ) : (
-                  <div
-                    onClick={() => handleEdit(note)}
-                    className="note-card animate-card-enter group relative"
-                    style={{ animationDelay: `${index * 50}ms` }}
+                  <ItemContextMenu
+                    items={[
+                      {
+                        label: 'Duplicate',
+                        icon: <DuplicateIcon className="w-4 h-4" />,
+                        onClick: () => handleDuplicate(note),
+                      },
+                    ]}
                   >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDelete(note.id)
-                      }}
-                      className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-(--text-muted) hover:text-(--accent-danger) hover:bg-(--accent-danger)/10 opacity-0 group-hover:opacity-100 transition-all"
+                    <div
+                      onClick={() => handleEdit(note)}
+                      className="note-card animate-card-enter group relative"
+                      style={{ animationDelay: `${index * 50}ms` }}
                     >
-                      ×
-                    </button>
-                    <h4 className="font-medium text-(--text-primary) mb-2 pr-6">{note.title}</h4>
-                    <div className="text-sm text-(--text-secondary) whitespace-pre-wrap">
-                      {note.content || <span className="text-(--text-muted) italic">Empty note</span>}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDelete(note.id)
+                        }}
+                        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-(--text-muted) hover:text-(--accent-danger) hover:bg-(--accent-danger)/10 opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        ×
+                      </button>
+                      <h4 className="font-medium text-(--text-primary) mb-2 pr-6">{note.title}</h4>
+                      <div className="text-sm text-(--text-secondary) whitespace-pre-wrap">
+                        {note.content || <span className="text-(--text-muted) italic">Empty note</span>}
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-(--border-subtle) flex gap-4 text-xs font-mono text-(--text-muted)">
+                        <span>
+                          Created:{' '}
+                          {new Date(note.created_at).toLocaleString('zh-CN', {
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                          })}
+                        </span>
+                        <span>
+                          Updated:{' '}
+                          {new Date(note.updated_at).toLocaleString('zh-CN', {
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                          })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="mt-3 pt-2 border-t border-(--border-subtle) flex gap-4 text-xs font-mono text-(--text-muted)">
-                      <span>
-                        Created:{' '}
-                        {new Date(note.created_at).toLocaleString('zh-CN', {
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      </span>
-                      <span>
-                        Updated:{' '}
-                        {new Date(note.updated_at).toLocaleString('zh-CN', {
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                  </div>
+                  </ItemContextMenu>
                 )}
               </SortableNote>
             ))}

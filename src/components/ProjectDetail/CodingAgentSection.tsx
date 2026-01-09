@@ -6,6 +6,7 @@ import { useToast } from '../../hooks/useToast'
 import { getPathName } from '../../utils/remote'
 import { CODING_AGENT_LABELS, CODING_AGENT_TAG_CLASS, CODING_AGENT_TYPES } from '../../constants/itemTypes'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
+import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
 import type { Item, CodingAgentType, WorkingDir, TerminalType } from '../../types'
 
 // Helper to quote a path if it contains spaces (for shell compatibility)
@@ -147,6 +148,87 @@ function AgentOptions({
   return null
 }
 
+// Helper component for editing environment variables inline
+function EnvVarsEditor({
+  entries,
+  onChange,
+}: {
+  entries: Array<{ key: string; value: string }>
+  onChange: (entries: Array<{ key: string; value: string }>) => void
+}) {
+  const updateEntry = (index: number, field: 'key' | 'value', newValue: string) => {
+    const newEntries = [...entries]
+    newEntries[index] = { ...newEntries[index], [field]: newValue }
+    onChange(newEntries)
+  }
+
+  const addEntry = () => {
+    onChange([...entries, { key: '', value: '' }])
+  }
+
+  const removeEntry = (index: number) => {
+    onChange(entries.filter((_, i) => i !== index))
+  }
+
+  return (
+    <div className="space-y-2">
+      {entries.map((entry, idx) => (
+        <div key={idx} className="flex gap-2 items-center">
+          <input
+            type="text"
+            placeholder="KEY"
+            value={entry.key}
+            onChange={(e) => updateEntry(idx, 'key', e.target.value)}
+            className="flex-1 px-2 py-1.5 bg-(--bg-elevated) border border-(--border-subtle) rounded text-xs font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-agent)"
+          />
+          <input
+            type="text"
+            placeholder="value"
+            value={entry.value}
+            onChange={(e) => updateEntry(idx, 'value', e.target.value)}
+            className="flex-2 px-2 py-1.5 bg-(--bg-elevated) border border-(--border-subtle) rounded text-xs font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-agent)"
+          />
+          <button
+            type="button"
+            onClick={() => removeEntry(idx)}
+            className="p-1 text-(--text-muted) hover:text-(--accent-danger) transition-colors"
+            title="Remove"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={addEntry} className="text-xs text-(--accent-agent) hover:underline">
+        + Add Variable
+      </button>
+    </div>
+  )
+}
+
+// Helper to convert env entries to JSON string
+function envEntriesToJson(entries: Array<{ key: string; value: string }>): string {
+  const obj: Record<string, string> = {}
+  entries
+    .filter((e) => e.key.trim())
+    .forEach((e) => {
+      obj[e.key.trim()] = e.value
+    })
+  return Object.keys(obj).length > 0 ? JSON.stringify(obj) : ''
+}
+
+// Helper to parse JSON to env entries
+function jsonToEnvEntries(json: string | undefined): Array<{ key: string; value: string }> {
+  if (!json) return []
+  try {
+    const parsed = JSON.parse(json)
+    return Object.entries(parsed).map(([key, value]) => ({ key, value: value as string }))
+  } catch {
+    return []
+  }
+}
+
 // Extracted creator component to reset state on mount
 function CodingAgentCreator({
   workingDirs,
@@ -154,26 +236,29 @@ function CodingAgentCreator({
   onCreatingChange,
 }: {
   workingDirs: WorkingDir[]
-  onAdd: (title: string, path: string, agentType: CodingAgentType, args: string) => Promise<void>
+  onAdd: (title: string, path: string, agentType: CodingAgentType, args: string, env: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
 }) {
   const toast = useToast()
   const [newAgentType, setNewAgentType] = useState<CodingAgentType>('claude-code')
   const [newPath, setNewPath] = useState('')
   const [newArgs, setNewArgs] = useState('')
+  const [newEnvEntries, setNewEnvEntries] = useState<Array<{ key: string; value: string }>>([])
+  const [showEnvVars, setShowEnvVars] = useState(false)
   const newAgentRef = useRef<HTMLDivElement>(null)
 
   const saveCreating = useCallback(async () => {
     if (newPath.trim()) {
       try {
         const title = getPathName(newPath, 'Project')
-        await onAdd(title, newPath.trim(), newAgentType, newArgs.trim())
+        const envJson = envEntriesToJson(newEnvEntries)
+        await onAdd(title, newPath.trim(), newAgentType, newArgs.trim(), envJson)
         onCreatingChange(false)
       } catch (err) {
         toast.error('Failed to add Coding Agent', err instanceof Error ? err.message : String(err))
       }
     }
-  }, [newPath, newAgentType, newArgs, onAdd, onCreatingChange, toast])
+  }, [newPath, newAgentType, newArgs, newEnvEntries, onAdd, onCreatingChange, toast])
 
   useEditorHandlers({
     containerRef: newAgentRef,
@@ -241,6 +326,24 @@ function CodingAgentCreator({
       {/* Agent-specific options */}
       <AgentOptions agentType={newAgentType} args={newArgs} onArgsChange={setNewArgs} workingDirs={workingDirs} />
 
+      {/* Environment Variables */}
+      <div className="mt-3 pt-3 border-t border-(--border-subtle)">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-mono text-(--text-muted)">Environment Variables</label>
+          <button
+            type="button"
+            onClick={() => setShowEnvVars(!showEnvVars)}
+            className="text-xs text-(--accent-agent) hover:underline"
+          >
+            {showEnvVars ? 'Hide' : newEnvEntries.length > 0 ? `Show (${newEnvEntries.length})` : 'Add'}
+          </button>
+        </div>
+        {showEnvVars && <EnvVarsEditor entries={newEnvEntries} onChange={setNewEnvEntries} />}
+        {!showEnvVars && newEnvEntries.length > 0 && (
+          <p className="text-xs text-(--text-muted)">{newEnvEntries.length} variable(s) configured</p>
+        )}
+      </div>
+
       <div className="text-xs font-mono text-(--text-muted) mt-3">Click outside to save</div>
     </div>
   )
@@ -250,7 +353,8 @@ interface CodingAgentSectionProps {
   items: Item[]
   isCreating: boolean
   workingDirs: WorkingDir[]
-  onAdd: (title: string, path: string, agentType: CodingAgentType, args: string) => Promise<void>
+  globalEnv: string
+  onAdd: (title: string, path: string, agentType: CodingAgentType, args: string, env: string) => Promise<void>
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
@@ -260,6 +364,7 @@ export default function CodingAgentSection({
   items,
   isCreating,
   workingDirs,
+  globalEnv,
   onAdd,
   onUpdate,
   onDelete,
@@ -270,6 +375,8 @@ export default function CodingAgentSection({
   const [editAgentType, setEditAgentType] = useState<CodingAgentType>('claude-code')
   const [editPath, setEditPath] = useState('')
   const [editArgs, setEditArgs] = useState('')
+  const [editEnvEntries, setEditEnvEntries] = useState<Array<{ key: string; value: string }>>([])
+  const [showEditEnvVars, setShowEditEnvVars] = useState(false)
   const editAgentRef = useRef<HTMLDivElement>(null)
   const { value: defaultTerminal } = useSetting('defaultTerminal')
 
@@ -278,20 +385,24 @@ export default function CodingAgentSection({
     setEditPath('')
     setEditArgs('')
     setEditAgentType('claude-code')
+    setEditEnvEntries([])
+    setShowEditEnvVars(false)
   }, [])
 
   const saveEditing = useCallback(async () => {
     if (editingId && editPath.trim()) {
       const title = getPathName(editPath, 'Project')
+      const envJson = envEntriesToJson(editEnvEntries)
       await onUpdate(editingId, {
         title,
         content: editPath.trim(),
         coding_agent_type: editAgentType,
         coding_agent_args: editArgs.trim(), // empty string will clear the field in Rust
+        coding_agent_env: envJson, // empty string will clear the field in Rust
       })
       resetEditState()
     }
-  }, [editingId, editPath, editAgentType, editArgs, onUpdate, resetEditState])
+  }, [editingId, editPath, editAgentType, editArgs, editEnvEntries, onUpdate, resetEditState])
 
   useEditorHandlers({
     containerRef: editAgentRef,
@@ -311,6 +422,8 @@ export default function CodingAgentSection({
     setEditAgentType(item.coding_agent_type || 'claude-code')
     setEditPath(item.content || '')
     setEditArgs(item.coding_agent_args || '')
+    setEditEnvEntries(jsonToEnvEntries(item.coding_agent_env))
+    setShowEditEnvVars(!!item.coding_agent_env)
   }
 
   const handleOpen = async (item: Item) => {
@@ -320,11 +433,27 @@ export default function CodingAgentSection({
           item.coding_agent_type,
           item.content,
           defaultTerminal as TerminalType | undefined,
-          item.coding_agent_args
+          item.coding_agent_args,
+          globalEnv,
+          item.coding_agent_env
         )
       } catch (err) {
         toast.error('Failed to open Coding Agent', err instanceof Error ? err.message : 'Unknown error')
       }
+    }
+  }
+
+  const handleDuplicate = async (item: Item) => {
+    try {
+      await onAdd(
+        `${item.title} COPY`,
+        item.content || '',
+        item.coding_agent_type || 'claude-code',
+        item.coding_agent_args || '',
+        item.coding_agent_env || ''
+      )
+    } catch (err) {
+      toast.error('Failed to duplicate', err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -400,6 +529,24 @@ export default function CodingAgentSection({
                 workingDirs={workingDirs}
               />
 
+              {/* Environment Variables */}
+              <div className="mt-3 pt-3 border-t border-(--border-subtle)">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-mono text-(--text-muted)">Environment Variables</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditEnvVars(!showEditEnvVars)}
+                    className="text-xs text-(--accent-agent) hover:underline"
+                  >
+                    {showEditEnvVars ? 'Hide' : editEnvEntries.length > 0 ? `Show (${editEnvEntries.length})` : 'Add'}
+                  </button>
+                </div>
+                {showEditEnvVars && <EnvVarsEditor entries={editEnvEntries} onChange={setEditEnvEntries} />}
+                {!showEditEnvVars && editEnvEntries.length > 0 && (
+                  <p className="text-xs text-(--text-muted)">{editEnvEntries.length} variable(s) configured</p>
+                )}
+              </div>
+
               <div className="flex justify-between items-center mt-3">
                 <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
                 <button
@@ -415,36 +562,51 @@ export default function CodingAgentSection({
               </div>
             </div>
           ) : (
-            <div
+            <ItemContextMenu
               key={item.id}
-              className="group/agent relative animate-card-enter mr-12"
-              style={{ animationDelay: `${index * 30}ms` }}
+              items={[
+                {
+                  label: 'Duplicate',
+                  icon: <DuplicateIcon className="w-4 h-4" />,
+                  onClick: () => handleDuplicate(item),
+                },
+              ]}
             >
-              <div className={`tag ${CODING_AGENT_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
-                <span>{CODING_AGENT_LABELS[item.coding_agent_type!]}</span>
-                <span className="opacity-60">{item.title}</span>
-                {item.coding_agent_args && (
-                  <span className="opacity-40 text-xs ml-1" title={item.coding_agent_args}>
-                    [args]
-                  </span>
-                )}
+              <div
+                className="group/agent relative animate-card-enter mr-12"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                <div className={`tag ${CODING_AGENT_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
+                  <span>{CODING_AGENT_LABELS[item.coding_agent_type!]}</span>
+                  <span className="opacity-60">{item.title}</span>
+                  {item.coding_agent_args && (
+                    <span className="opacity-40 text-xs ml-1" title={item.coding_agent_args}>
+                      [args]
+                    </span>
+                  )}
+                  {item.coding_agent_env && (
+                    <span className="opacity-40 text-xs ml-1" title="Has environment variables">
+                      [env]
+                    </span>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(item.id)
+                    }}
+                    className="ml-1 opacity-0 group-hover/agent:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(item.id)
-                  }}
-                  className="ml-1 opacity-0 group-hover/agent:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                  onClick={() => handleEdit(item)}
+                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-agent) hover:border-(--accent-agent) opacity-0 group-hover/agent:opacity-100 transition-all"
                 >
-                  ×
+                  Edit
                 </button>
               </div>
-              <button
-                onClick={() => handleEdit(item)}
-                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-agent) hover:border-(--accent-agent) opacity-0 group-hover/agent:opacity-100 transition-all"
-              >
-                Edit
-              </button>
-            </div>
+            </ItemContextMenu>
           )
         )}
 

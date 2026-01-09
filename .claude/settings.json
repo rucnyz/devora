@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run lint:fix && bun run format"
+          },
+          {
+            "type": "prompt",
+            "prompt": "Check if documentation should be written to CLAUDE.md. If this task involved new features, architecture changes, important development commands, or conventions, consider updating CLAUDE.md."
+          }
+        ]
+      }
+    ]
+  }
+}

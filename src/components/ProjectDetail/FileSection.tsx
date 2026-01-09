@@ -4,6 +4,7 @@ import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useToast } from '../../hooks/useToast'
 import { getPathName } from '../../utils/remote'
 import FileCreator from './FileCreator'
+import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
 import type { Item } from '../../types'
 
 interface FileSectionProps {
@@ -82,6 +83,14 @@ export default function FileSection({
     onCreatingChange(false)
   }
 
+  const handleDuplicate = async (item: Item) => {
+    try {
+      await onAdd(`${item.title} COPY`, item.content || '')
+    } catch (err) {
+      toast.error('Failed to duplicate', err instanceof Error ? err.message : String(err))
+    }
+  }
+
   if (!isCreating && items.length === 0) return null
 
   const existingPaths = [...new Set(items.map((i) => i.content).filter(Boolean))] as string[]
@@ -150,38 +159,48 @@ export default function FileSection({
               </div>
             </div>
           ) : (
-            <div
+            <ItemContextMenu
               key={item.id}
-              className="group/file relative animate-card-enter mr-7"
-              style={{ animationDelay: `${index * 30}ms` }}
+              items={[
+                {
+                  label: 'Duplicate',
+                  icon: <DuplicateIcon className="w-4 h-4" />,
+                  onClick: () => handleDuplicate(item),
+                },
+              ]}
             >
-              <div className="tag tag-file cursor-pointer" onClick={() => handleOpen(item)}>
-                <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                  />
-                </svg>
-                <span>{item.title}</span>
+              <div
+                className="group/file relative animate-card-enter mr-7"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                <div className="tag tag-file cursor-pointer" onClick={() => handleOpen(item)}>
+                  <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <span>{item.title}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(item.id)
+                    }}
+                    className="ml-1 opacity-0 group-hover/file:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(item.id)
-                  }}
-                  className="ml-1 opacity-0 group-hover/file:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                  onClick={() => handleEdit(item)}
+                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--text-primary) hover:border-(--text-muted) opacity-0 group-hover/file:opacity-100 transition-all"
                 >
-                  ×
+                  Edit
                 </button>
               </div>
-              <button
-                onClick={() => handleEdit(item)}
-                className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--text-primary) hover:border-(--text-muted) opacity-0 group-hover/file:opacity-100 transition-all"
-              >
-                Edit
-              </button>
-            </div>
+            </ItemContextMenu>
           )
         )}
 
