@@ -1,24 +1,37 @@
 mod commands;
 mod db;
 mod models;
+mod settings;
 
 use db::Database;
+use settings::SettingsFile;
+use std::fs;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            // Initialize database in ~/.devora/
-            // Cross-platform: Windows, macOS, Linux all use ~/.devora/
-            let data_dir = dirs::home_dir()
+            // Get config directory (~/.devora/)
+            let config_dir = dirs::home_dir()
                 .expect("Failed to get home directory")
                 .join(".devora");
 
-            let database = Database::new(data_dir)
+            // Ensure config directory exists
+            fs::create_dir_all(&config_dir).expect("Failed to create config directory");
+
+            // Load settings from JSON file (read before database init)
+            let settings_file = SettingsFile::new(config_dir.clone());
+
+            // Get database path from settings, or use default
+            let db_dir = settings_file.get_database_path(&config_dir);
+
+            // Initialize database in the configured directory
+            let database = Database::new(db_dir)
                 .expect("Failed to initialize database");
 
             app.manage(database);
+            app.manage(settings_file);
 
             // Setup logging in debug mode
             if cfg!(debug_assertions) {
@@ -73,6 +86,12 @@ pub fn run() {
             commands::read_file_content,
             commands::get_file_info,
             commands::read_file_lines,
+            // Database path management
+            commands::get_database_path,
+            commands::get_default_database_path,
+            commands::set_database_path,
+            commands::check_database_exists,
+            commands::validate_database_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -19,6 +19,11 @@ import {
   setSetting,
   deleteSetting,
   saveFileDialog,
+  getDatabasePath,
+  getDefaultDatabasePath,
+  setDatabasePath,
+  checkDatabaseExists,
+  selectFolder,
 } from './api/tauri'
 
 type UpdateState =
@@ -569,6 +574,13 @@ function SettingsButton() {
   const [remoteIdeForm, setRemoteIdeForm] = useState<CustomRemoteIde>({ id: '', label: '', command: '' })
   const [remoteIdeError, setRemoteIdeError] = useState('')
 
+  // Database path state
+  const [dbPath, setDbPath] = useState('')
+  const [defaultDbPath, setDefaultDbPath] = useState('')
+  const [pendingDbPath, setPendingDbPath] = useState<string | null>(null)
+  const [dbExists, setDbExists] = useState(false)
+  const [dbPathError, setDbPathError] = useState('')
+
   // Round to 1 decimal place to avoid floating point display issues
   const currentMb = Math.round((fileCardMaxSize / (1024 * 1024)) * 10) / 10
 
@@ -577,6 +589,25 @@ function SettingsButton() {
     setInputValue(String(currentMb))
     setZoomInputValue(String(zoomLevel))
   }
+
+  // Load database paths when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      Promise.all([getDatabasePath(), getDefaultDatabasePath()]).then(([current, defaultPath]) => {
+        setDbPath(current)
+        setDefaultDbPath(defaultPath)
+        setPendingDbPath(null)
+        setDbPathError('')
+      })
+    }
+  }, [isOpen])
+
+  // Check if database exists when pending path changes
+  useEffect(() => {
+    if (pendingDbPath) {
+      checkDatabaseExists(pendingDbPath).then(setDbExists)
+    }
+  }, [pendingDbPath])
 
   const handleClose = () => {
     setIsOpen(false)
@@ -754,6 +785,35 @@ function SettingsButton() {
       handleZoomInputBlur()
     } else if (e.key === 'Escape') {
       handleClose()
+    }
+  }
+
+  // Database path handlers
+  const handleSelectDbPath = async () => {
+    const selected = await selectFolder()
+    if (selected) {
+      setPendingDbPath(selected)
+      setDbPathError('')
+    }
+  }
+
+  const handleApplyDbPath = async () => {
+    if (!pendingDbPath) return
+    try {
+      await setDatabasePath(pendingDbPath)
+      // Restart the app to apply changes
+      await relaunch()
+    } catch (err) {
+      setDbPathError(err instanceof Error ? err.message : 'Failed to set database path')
+    }
+  }
+
+  const handleResetDbPath = async () => {
+    try {
+      await setDatabasePath('')
+      await relaunch()
+    } catch (err) {
+      setDbPathError(err instanceof Error ? err.message : 'Failed to reset database path')
     }
   }
 
@@ -1160,6 +1220,68 @@ function SettingsButton() {
                       </div>
                     </>
                   )}
+                </div>
+
+                {/* Database Location */}
+                <div className="border-t border-(--border-subtle) pt-4">
+                  <label className="block text-sm text-(--text-primary) mb-2">Database location</label>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={pendingDbPath ?? dbPath}
+                      readOnly
+                      className="flex-1 px-3 py-2 text-sm bg-(--bg-surface) border border-(--border-subtle) rounded-lg text-(--text-primary) font-mono truncate"
+                      title={pendingDbPath ?? dbPath}
+                    />
+                    <button
+                      onClick={handleSelectDbPath}
+                      className="px-3 py-2 bg-(--bg-surface) hover:bg-(--bg-surface-hover) border border-(--border-subtle) rounded-lg text-sm text-(--text-primary) transition-colors shrink-0"
+                    >
+                      Browse
+                    </button>
+                  </div>
+
+                  {/* Status message */}
+                  {pendingDbPath && (
+                    <p className={`text-xs mb-2 ${dbExists ? 'text-(--accent-success)' : 'text-(--text-muted)'}`}>
+                      {dbExists
+                        ? 'Existing database found at this location'
+                        : 'A new database will be created at this location'}
+                    </p>
+                  )}
+
+                  {/* Error message */}
+                  {dbPathError && <p className="text-xs text-(--accent-danger) mb-2">{dbPathError}</p>}
+
+                  {/* Action buttons */}
+                  {pendingDbPath && pendingDbPath !== dbPath && (
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        onClick={handleApplyDbPath}
+                        className="flex-1 px-3 py-2 bg-(--accent-primary) text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
+                      >
+                        Apply & Restart
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPendingDbPath(null)
+                          setDbPathError('')
+                        }}
+                        className="px-3 py-2 bg-(--bg-surface) text-(--text-muted) text-sm rounded-lg hover:text-(--text-primary) transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Reset to default */}
+                  {dbPath !== defaultDbPath && !pendingDbPath && (
+                    <button onClick={handleResetDbPath} className="text-xs text-(--accent-primary) hover:underline">
+                      Reset to default location
+                    </button>
+                  )}
+
+                  <p className="text-xs text-(--text-muted) mt-2">Changes require a restart to take effect.</p>
                 </div>
               </div>
             </div>

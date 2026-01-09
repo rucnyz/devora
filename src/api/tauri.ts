@@ -420,3 +420,30 @@ export async function getFileInfo(path: string): Promise<FileInfo> {
 export async function readFileLines(path: string, startLine: number, count: number): Promise<FileLinesResult> {
   return invoke<FileLinesResult>('read_file_lines', { path, startLine, count })
 }
+
+// ============ Database Path API ============
+
+export interface ValidateDatabasePathResult {
+  is_valid: boolean
+  database_exists: boolean
+}
+
+export async function getDatabasePath(): Promise<string> {
+  return invoke<string>('get_database_path')
+}
+
+export async function getDefaultDatabasePath(): Promise<string> {
+  return invoke<string>('get_default_database_path')
+}
+
+export async function setDatabasePath(path: string): Promise<void> {
+  return invoke('set_database_path', { path })
+}
+
+export async function checkDatabaseExists(path: string): Promise<boolean> {
+  return invoke<boolean>('check_database_exists', { path })
+}
+
+export async function validateDatabasePath(path: string): Promise<ValidateDatabasePathResult> {
+  return invoke<ValidateDatabasePathResult>('validate_database_path', { path })
+}

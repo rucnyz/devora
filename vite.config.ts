@@ -41,6 +41,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     outDir: 'dist',
     // Tauri uses Chromium on Windows and WebKit on macOS and Linux
     target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari14',

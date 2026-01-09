@@ -273,3 +273,10 @@ pub struct FileLinesResult {
     pub lines: Vec<String>,
     pub start_line: usize,
 }
+
+// Database path validation result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidateDatabasePathResult {
+    pub is_valid: bool,
+    pub database_exists: bool,
+}

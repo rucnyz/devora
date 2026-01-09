@@ -2,8 +2,10 @@
 
 use crate::db::Database;
 use crate::models::*;
+use crate::settings::SettingsFile;
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 use tauri::State;
 
@@ -922,6 +924,67 @@ pub async fn read_file_lines(
     Ok(FileLinesResult {
         lines: result_lines,
         start_line,
+    })
+}
+
+// Database Path Management
+#[tauri::command]
+pub fn get_database_path(settings_file: State<SettingsFile>) -> String {
+    let home_dir = dirs::home_dir().expect("Failed to get home directory");
+    let default_dir = home_dir.join(".devora");
+    settings_file
+        .get_database_path(&default_dir)
+        .to_string_lossy()
+        .to_string()
+}
+
+#[tauri::command]
+pub fn get_default_database_path() -> String {
+    let home_dir = dirs::home_dir().expect("Failed to get home directory");
+    home_dir
+        .join(".devora")
+        .to_string_lossy()
+        .to_string()
+}
+
+#[tauri::command]
+pub fn set_database_path(path: String, settings_file: State<SettingsFile>) -> Result<(), String> {
+    // Empty path means use default
+    let path_option = if path.is_empty() { None } else { Some(path) };
+    settings_file.set_database_path(path_option)
+}
+
+#[tauri::command]
+pub fn check_database_exists(path: String) -> bool {
+    let db_path = Path::new(&path).join("projects.db");
+    db_path.exists()
+}
+
+#[tauri::command]
+pub fn validate_database_path(path: String) -> Result<ValidateDatabasePathResult, String> {
+    let path = Path::new(&path);
+
+    // Check if it's a file (should be a directory)
+    if path.exists() && !path.is_dir() {
+        return Err("Path must be a directory, not a file".to_string());
+    }
+
+    // Try to create directory if it doesn't exist
+    if !path.exists() {
+        fs::create_dir_all(path).map_err(|e| format!("Cannot create directory: {}", e))?;
+    }
+
+    // Check write permissions by creating a test file
+    let test_file = path.join(".devora_write_test");
+    fs::write(&test_file, "test").map_err(|e| format!("Cannot write to directory: {}", e))?;
+    fs::remove_file(&test_file).ok();
+
+    // Check if database already exists
+    let db_exists = path.join("projects.db").exists();
+
+    Ok(ValidateDatabasePathResult {
+        is_valid: true,
+        database_exists: db_exists,
     })
 }
 
