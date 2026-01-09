@@ -27,7 +27,14 @@ export default function NoteCreator({ onAdd, onCancel }: NoteCreatorProps) {
   })
 
   return (
-    <div ref={formRef} className="note-card note-card-editing mb-4">
+    <div ref={formRef} className="note-card note-card-editing mb-4 relative">
+      <button
+        onClick={onCancel}
+        className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center rounded-full text-(--text-muted) hover:text-(--text-primary) hover:bg-(--bg-surface) transition-colors"
+        title="Cancel"
+      >
+        ×
+      </button>
       <input
         type="text"
         value={title}

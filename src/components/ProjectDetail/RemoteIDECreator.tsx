@@ -44,8 +44,18 @@ export default function RemoteIDECreator({ sshHosts, workingDirs, onAdd, onCance
 
   return (
     <>
-      <div ref={formRef} className="mb-4 p-4 rounded-xl bg-(--accent-remote)/5 border border-(--accent-remote)/30">
-        <div className="flex flex-wrap items-center gap-3">
+      <div
+        ref={formRef}
+        className="mb-4 p-4 rounded-xl bg-(--accent-remote)/5 border border-(--accent-remote)/30 relative"
+      >
+        <button
+          onClick={onCancel}
+          className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-(--text-muted) hover:text-(--text-primary) hover:bg-(--bg-elevated) transition-colors"
+          title="Cancel"
+        >
+          ×
+        </button>
+        <div className="flex flex-wrap items-center gap-3 pr-6">
           <select value={ideType} onChange={(e) => setIdeType(e.target.value)} className="input-terminal !w-auto">
             {REMOTE_IDE_TYPES.map((ide) => (
               <option key={ide.value} value={ide.value}>

@@ -33,8 +33,8 @@ strum = { version = "0.27", features = ["derive"] }
 tokio = { version = "1.49", features = ["fs", "sync", "time", "process"] }
 
 [profile.release]
-lto = true              # 链接时优化
-codegen-units = 1       # 单代码生成单元
-panic = "abort"         # 不保留 panic 展开代码
-strip = "symbols"       # 移除调试符号
-opt-level = "z"         # 优化体积
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+opt-level = "z"

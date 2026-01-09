@@ -42,8 +42,15 @@ export default function FileCreator({ existingPaths, onAdd, onCancel }: FileCrea
   }
 
   return (
-    <div ref={formRef} className="mb-4 p-4 rounded-xl bg-(--bg-elevated) border border-(--border-visible)">
-      <div className="flex flex-wrap items-center gap-3">
+    <div ref={formRef} className="mb-4 p-4 rounded-xl bg-(--bg-elevated) border border-(--border-visible) relative">
+      <button
+        onClick={onCancel}
+        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-(--text-muted) hover:text-(--text-primary) hover:bg-(--bg-surface) transition-colors"
+        title="Cancel"
+      >
+        ×
+      </button>
+      <div className="flex flex-wrap items-center gap-3 pr-6">
         <input
           type="text"
           value={title}

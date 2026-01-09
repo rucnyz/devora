@@ -561,7 +561,7 @@ h6 {
   justify-content: center;
   background: rgba(5, 5, 8, 0.85);
   backdrop-filter: blur(4px);
-  z-index: 50;
+  z-index: 60;
   animation: fadeIn 200ms ease-out;
 }
 

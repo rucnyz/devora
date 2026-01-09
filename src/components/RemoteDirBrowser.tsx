@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { listRemoteDir, type RemoteDirEntry } from '../hooks/useProjects'
 
 interface RemoteDirBrowserProps {
@@ -110,9 +111,9 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
   // Directories only (for selection)
   const directories = entries.filter((e) => e.isDir)
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal-content w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-(--text-primary)">
             Browse Remote: <span className="text-(--accent-remote)">{host}</span>
@@ -207,6 +208,7 @@ export default function RemoteDirBrowser({ host, initialPath = '~', onSelect, on
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -432,9 +432,22 @@ export default function WorkingDirsSection({
           {/* New dir input (dashed box) */}
           {isAddingNew ? (
             <div
-              className={`flex flex-col gap-2 px-3 py-2 rounded-lg border ${isRemote ? 'border-(--accent-remote)' : 'border-(--accent-primary)'} bg-(--bg-surface)`}
+              className={`relative flex flex-col gap-2 px-3 py-2 rounded-lg border ${isRemote ? 'border-(--accent-remote)' : 'border-(--accent-primary)'} bg-(--bg-surface)`}
             >
-              <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setIsAddingNew(false)
+                  setNewName('')
+                  setNewPath('')
+                  setNewHost('')
+                  setIsRemote(false)
+                }}
+                className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full text-(--text-muted) hover:text-(--text-primary) hover:bg-(--bg-elevated) transition-colors text-sm"
+                title="Cancel"
+              >
+                ×
+              </button>
+              <div className="flex items-center gap-2 pr-4">
                 <button
                   type="button"
                   onClick={() => setIsRemote(!isRemote)}

@@ -65,8 +65,18 @@ function IDECreator({
   }
 
   return (
-    <div ref={newIdeRef} className="mb-4 p-4 rounded-xl bg-(--accent-primary)/5 border border-(--accent-primary)/30">
-      <div className="flex flex-wrap items-center gap-3">
+    <div
+      ref={newIdeRef}
+      className="mb-4 p-4 rounded-xl bg-(--accent-primary)/5 border border-(--accent-primary)/30 relative"
+    >
+      <button
+        onClick={() => onCreatingChange(false)}
+        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-(--text-muted) hover:text-(--text-primary) hover:bg-(--bg-elevated) transition-colors"
+        title="Cancel"
+      >
+        ×
+      </button>
+      <div className="flex flex-wrap items-center gap-3 pr-6">
         <select value={newIdeType} onChange={(e) => setNewIdeType(e.target.value)} className="input-terminal w-auto!">
           {IDE_GROUPS.map((group) => (
             <optgroup key={group.group} label={group.group}>
