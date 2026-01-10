@@ -135,3 +135,23 @@ export interface Project {
   updated_at: string
   items?: Item[]
 }
+
+// Todo item
+export interface TodoItem {
+  id: string
+  project_id: string
+  content: string
+  completed: boolean
+  order: number
+  indent_level: number
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
+// Todo progress statistics
+export interface TodoProgress {
+  total: number
+  completed: number
+  percentage: number
+}

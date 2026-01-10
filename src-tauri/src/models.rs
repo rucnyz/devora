@@ -283,3 +283,26 @@ pub struct ValidateDatabasePathResult {
     pub is_valid: bool,
     pub database_exists: bool,
 }
+
+// Todo item
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TodoItem {
+    pub id: String,
+    pub project_id: String,
+    pub content: String,
+    pub completed: bool,
+    pub order: i32,
+    pub indent_level: i32,
+    pub created_at: String,
+    pub updated_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<String>,
+}
+
+// Todo progress statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TodoProgress {
+    pub total: i32,
+    pub completed: i32,
+    pub percentage: f32,
+}

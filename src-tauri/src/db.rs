@@ -33,7 +33,7 @@ impl Database {
     fn run_migrations(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         let current_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        let target_version = 4;
+        let target_version = 5;
 
         if current_version >= target_version {
             info!("Database is up to date (version {})", current_version);
@@ -130,6 +130,31 @@ impl Database {
                 "
                 ALTER TABLE items ADD COLUMN coding_agent_env TEXT;
                 PRAGMA user_version = 4;
+            ",
+            )?;
+        }
+
+        // v5: Add todos table
+        if current_version < 5 {
+            info!("Creating todos table");
+            conn.execute_batch(
+                "
+                CREATE TABLE IF NOT EXISTS todos (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    completed INTEGER DEFAULT 0,
+                    \"order\" INTEGER DEFAULT 0,
+                    indent_level INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_todos_project ON todos(project_id);
+
+                PRAGMA user_version = 5;
             ",
             )?;
         }
@@ -1017,6 +1042,183 @@ impl Database {
             items_imported,
             file_cards_imported,
             skipped,
+        })
+    }
+
+    // Todos CRUD
+    pub fn get_todos_by_project(&self, project_id: &str) -> Result<Vec<TodoItem>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, content, completed, \"order\", indent_level, created_at, updated_at, completed_at FROM todos WHERE project_id = ? ORDER BY \"order\" ASC"
+        )?;
+        let rows = stmt.query_map(params![project_id], |row| {
+            Ok(TodoItem {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                content: row.get(2)?,
+                completed: row.get::<_, i32>(3)? == 1,
+                order: row.get(4)?,
+                indent_level: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+                completed_at: row.get(8)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn create_todo(
+        &self,
+        project_id: &str,
+        content: &str,
+        indent_level: i32,
+    ) -> Result<TodoItem> {
+        let conn = self.conn.lock().unwrap();
+        let id = Self::new_id();
+        let timestamp = Self::now();
+
+        // Get next order
+        let order: i32 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(\"order\"), -1) + 1 FROM todos WHERE project_id = ?",
+                params![project_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        conn.execute(
+            "INSERT INTO todos (id, project_id, content, completed, \"order\", indent_level, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
+            params![id, project_id, content, order, indent_level, timestamp, timestamp],
+        )?;
+
+        Ok(TodoItem {
+            id,
+            project_id: project_id.to_string(),
+            content: content.to_string(),
+            completed: false,
+            order,
+            indent_level,
+            created_at: timestamp.clone(),
+            updated_at: timestamp,
+            completed_at: None,
+        })
+    }
+
+    pub fn update_todo(
+        &self,
+        id: &str,
+        content: Option<&str>,
+        completed: Option<bool>,
+        indent_level: Option<i32>,
+        order: Option<i32>,
+    ) -> Result<Option<TodoItem>> {
+        let conn = self.conn.lock().unwrap();
+
+        // Read existing todo
+        let existing: Option<(String, String, String, i32, i32, i32, String, String, Option<String>)> = conn
+            .query_row(
+                "SELECT id, project_id, content, completed, \"order\", indent_level, created_at, updated_at, completed_at FROM todos WHERE id = ?",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                        row.get(8)?,
+                    ))
+                }
+            )
+            .ok();
+
+        if existing.is_none() {
+            return Ok(None);
+        }
+        let existing = existing.unwrap();
+
+        let content = content.unwrap_or(&existing.2);
+        let new_completed = completed.unwrap_or(existing.3 == 1);
+        let indent_level = indent_level.unwrap_or(existing.5);
+        let order = order.unwrap_or(existing.4);
+        let timestamp = Self::now();
+
+        // Set completed_at if completing for the first time
+        let completed_at = if new_completed && existing.3 == 0 {
+            Some(timestamp.clone())
+        } else if !new_completed {
+            None
+        } else {
+            existing.8.clone()
+        };
+
+        conn.execute(
+            "UPDATE todos SET content = ?, completed = ?, \"order\" = ?, indent_level = ?, updated_at = ?, completed_at = ? WHERE id = ?",
+            params![
+                content,
+                if new_completed { 1 } else { 0 },
+                order,
+                indent_level,
+                timestamp,
+                completed_at,
+                id
+            ],
+        )?;
+
+        Ok(Some(TodoItem {
+            id: existing.0,
+            project_id: existing.1,
+            content: content.to_string(),
+            completed: new_completed,
+            order,
+            indent_level,
+            created_at: existing.6,
+            updated_at: timestamp,
+            completed_at,
+        }))
+    }
+
+    pub fn delete_todo(&self, id: &str) -> Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        let changes = conn.execute("DELETE FROM todos WHERE id = ?", params![id])?;
+        Ok(changes > 0)
+    }
+
+    pub fn reorder_todos(&self, project_id: &str, todo_ids: Vec<String>) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let timestamp = Self::now();
+
+        for (index, id) in todo_ids.iter().enumerate() {
+            conn.execute(
+                "UPDATE todos SET \"order\" = ?, updated_at = ? WHERE id = ? AND project_id = ?",
+                params![index as i32, timestamp, id, project_id],
+            )?;
+        }
+
+        Ok(())
+    }
+
+    pub fn get_todo_progress(&self, project_id: &str) -> Result<TodoProgress> {
+        let conn = self.conn.lock().unwrap();
+        let (total, completed): (i32, i32) = conn.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(completed), 0) FROM todos WHERE project_id = ?",
+            params![project_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+
+        let percentage = if total > 0 {
+            (completed as f32 / total as f32) * 100.0
+        } else {
+            0.0
+        };
+
+        Ok(TodoProgress {
+            total,
+            completed,
+            percentage,
         })
     }
 }

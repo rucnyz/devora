@@ -10,7 +10,7 @@
           },
           {
             "type": "prompt",
-            "prompt": "Check if documentation should be written to CLAUDE.md. If this task involved new features, architecture changes, important development commands, or conventions, consider updating CLAUDE.md."
+            "prompt": "Check if this task involved new features, architecture changes, important development commands, or conventions that should be documented in CLAUDE.md. If documentation updates are needed but CLAUDE.md was not updated during this session, respond with: {\"ok\": false, \"reason\": \"CLAUDE.md should be updated to document [specific changes]\"} Otherwise, respond with: {\"ok\": true}"
           }
         ]
       }

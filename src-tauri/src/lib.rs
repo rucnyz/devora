@@ -92,6 +92,13 @@ pub fn run() {
             commands::set_database_path,
             commands::check_database_exists,
             commands::validate_database_path,
+            // Todos
+            commands::get_todos,
+            commands::create_todo,
+            commands::update_todo,
+            commands::delete_todo,
+            commands::reorder_todos,
+            commands::get_todo_progress,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

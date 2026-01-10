@@ -17,6 +17,8 @@ import NotesSection from './NotesSection'
 import SortableSection from './SortableSection'
 import FileCardContainer from '../FilePreviewCard/FileCardContainer'
 import Sidebar from '../Sidebar'
+import TodoDrawer from '../TodoDrawer'
+import { useTodos } from '../../hooks/useTodos'
 import {
   DEFAULT_SECTION_ORDER,
   type CodingAgentType,
@@ -32,6 +34,20 @@ export default function ProjectDetail() {
 
   // Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Todo drawer state
+  const [todoDrawerOpen, setTodoDrawerOpen] = useState(false)
+  const {
+    todos,
+    progress: todoProgress,
+    loading: todosLoading,
+    addTodo,
+    toggleComplete,
+    deleteTodo: removeTodo,
+    reorderTodos,
+    changeIndent,
+    updateTodo,
+  } = useTodos(id!)
 
   // SSH hosts from ~/.ssh/config
   const [sshHosts, setSSHHosts] = useState<string[]>([])
@@ -443,6 +459,8 @@ export default function ProjectDetail() {
           onCreateCodingAgent={() => setIsCreatingCodingAgent(true)}
           onCreateFile={() => setIsCreatingFile(true)}
           onCreateCommand={() => setIsCreatingCommand(true)}
+          onOpenTodos={() => setTodoDrawerOpen(true)}
+          todoProgress={todoProgress}
         />
 
         {/* Sortable Sections */}
@@ -456,6 +474,21 @@ export default function ProjectDetail() {
           </SortableContext>
         </DndContext>
       </div>
+
+      {/* Todo Drawer */}
+      <TodoDrawer
+        isOpen={todoDrawerOpen}
+        onClose={() => setTodoDrawerOpen(false)}
+        todos={todos}
+        progress={todoProgress}
+        loading={todosLoading}
+        onAdd={addTodo}
+        onToggle={toggleComplete}
+        onDelete={removeTodo}
+        onReorder={reorderTodos}
+        onIndent={changeIndent}
+        onUpdate={updateTodo}
+      />
     </div>
   )
 }

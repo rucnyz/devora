@@ -70,6 +70,75 @@ Tests use Bun's built-in test runner with `@testing-library/react` and `happy-do
 ## Rust Backend Notes
 
 - Uses Tauri plugins: dialog, opener, updater, process, log
-- Database migrations are version-controlled (current: v3)
+- Database migrations are version-controlled (current: v5)
 - Commands use `State<Database>` for thread-safe database access
 - Windows-specific code uses `creation_flags` to hide console windows
+
+## TODO Feature
+
+Each project has an associated TODO list accessible via a slide-out drawer.
+
+### Architecture Decision
+Uses **hybrid storage + Markdown content** approach:
+- Each TODO is stored as an independent database record (enables drag-and-drop sorting, progress stats)
+- Content field supports inline Markdown (URLs auto-rendered as clickable links)
+
+### Database Schema (v5)
+```sql
+CREATE TABLE todos (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    completed INTEGER DEFAULT 0,
+    "order" INTEGER DEFAULT 0,
+    indent_level INTEGER DEFAULT 0,  -- 0-3 levels
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+```
+
+### Tauri Commands
+- `get_todos(projectId)` - Get all TODOs for a project
+- `create_todo(projectId, content, indentLevel?)` - Create new TODO
+- `update_todo(id, content?, completed?, indentLevel?, order?)` - Update TODO
+- `delete_todo(id)` - Delete TODO
+- `reorder_todos(projectId, todoIds)` - Batch reorder TODOs
+- `get_todo_progress(projectId)` - Get completion stats (total, completed, percentage)
+
+### Frontend Components
+```
+src/components/TodoDrawer/
+  index.tsx          # Main drawer (right-side slide-in, uses createPortal)
+  TodoList.tsx       # DnD container (@dnd-kit/core + sortable)
+  TodoItem.tsx       # Single item (checkbox, content, indent, edit)
+  TodoCreator.tsx    # Bottom input for adding TODOs
+  TodoProgress.tsx   # Progress bar (3/10 completed)
+  SortableTodo.tsx   # DnD wrapper
+```
+
+### Hook: useTodos
+`src/hooks/useTodos.ts` manages TODO state:
+```typescript
+const {
+  todos,           // TodoItem[]
+  progress,        // TodoProgress
+  loading,
+  addTodo,         // (content: string, indentLevel?: number) => Promise
+  updateTodo,      // (id: string, updates: Partial) => Promise
+  toggleComplete,  // (id: string) => Promise
+  deleteTodo,      // (id: string) => Promise
+  reorderTodos,    // (todoIds: string[]) => Promise
+  changeIndent,    // (id: string, delta: number) => Promise
+  refreshTodos,    // () => Promise
+} = useTodos(projectId)
+```
+
+### Features
+- Click checkbox to toggle completion
+- Tab/Shift+Tab for indent/outdent (0-3 levels)
+- URLs in content auto-rendered as clickable links
+- Drag handle for reordering
+- Inline editing (click content to edit)
+- Progress indicator in project header

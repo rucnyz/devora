@@ -50,3 +50,6 @@ devora.exe
 src-tauri/target/
 src-tauri/Cargo.lock
 src-tauri/gen/
+
+# Rust analyzer
+target/

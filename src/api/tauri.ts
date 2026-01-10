@@ -453,3 +453,40 @@ export async function checkDatabaseExists(path: string): Promise<boolean> {
 export async function validateDatabasePath(path: string): Promise<ValidateDatabasePathResult> {
   return invoke<ValidateDatabasePathResult>('validate_database_path', { path })
 }
+
+// ============ Todos API ============
+
+import type { TodoItem, TodoProgress } from '../types'
+
+export async function getTodos(projectId: string): Promise<TodoItem[]> {
+  return invoke<TodoItem[]>('get_todos', { projectId })
+}
+
+export async function createTodo(projectId: string, content: string, indentLevel?: number): Promise<TodoItem> {
+  return invoke<TodoItem>('create_todo', { projectId, content, indentLevel })
+}
+
+export async function updateTodo(
+  id: string,
+  updates: Partial<Pick<TodoItem, 'content' | 'completed' | 'indent_level' | 'order'>>
+): Promise<TodoItem | null> {
+  return invoke<TodoItem | null>('update_todo', {
+    id,
+    content: updates.content,
+    completed: updates.completed,
+    indentLevel: updates.indent_level,
+    order: updates.order,
+  })
+}
+
+export async function deleteTodo(id: string): Promise<boolean> {
+  return invoke<boolean>('delete_todo', { id })
+}
+
+export async function reorderTodos(projectId: string, todoIds: string[]): Promise<void> {
+  return invoke('reorder_todos', { projectId, todoIds })
+}
+
+export async function getTodoProgress(projectId: string): Promise<TodoProgress> {
+  return invoke<TodoProgress>('get_todo_progress', { projectId })
+}

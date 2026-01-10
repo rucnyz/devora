@@ -1121,3 +1121,53 @@ pub fn validate_database_path(path: String) -> Result<ValidateDatabasePathResult
     })
 }
 
+// Todos
+#[tauri::command]
+pub fn get_todos(projectId: String, db: State<Database>) -> Result<Vec<TodoItem>, String> {
+    db.get_todos_by_project(&projectId).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn create_todo(
+    projectId: String,
+    content: String,
+    indentLevel: Option<i32>,
+    db: State<Database>,
+) -> Result<TodoItem, String> {
+    db.create_todo(&projectId, &content, indentLevel.unwrap_or(0))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_todo(
+    id: String,
+    content: Option<String>,
+    completed: Option<bool>,
+    indentLevel: Option<i32>,
+    order: Option<i32>,
+    db: State<Database>,
+) -> Result<Option<TodoItem>, String> {
+    db.update_todo(&id, content.as_deref(), completed, indentLevel, order)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_todo(id: String, db: State<Database>) -> Result<bool, String> {
+    db.delete_todo(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn reorder_todos(
+    projectId: String,
+    todoIds: Vec<String>,
+    db: State<Database>,
+) -> Result<(), String> {
+    db.reorder_todos(&projectId, todoIds)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_todo_progress(projectId: String, db: State<Database>) -> Result<TodoProgress, String> {
+    db.get_todo_progress(&projectId).map_err(|e| e.to_string())
+}
+
