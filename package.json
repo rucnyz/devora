@@ -54,6 +54,9 @@
     "src/**/*.{ts,tsx}": [
       "eslint --fix",
       "prettier --write"
+    ],
+    "src-tauri/**/*.rs": [
+      "bash -c 'cd src-tauri && cargo clippy -- -D warnings -A clippy::too_many_arguments -A clippy::type_complexity -A clippy::manual_flatten'"
     ]
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 /// Application settings stored in ~/.devora/settings.json
@@ -30,7 +30,7 @@ impl SettingsFile {
     }
 
     /// Load settings from file path
-    fn load_from_path(path: &PathBuf) -> AppSettings {
+    fn load_from_path(path: &Path) -> AppSettings {
         if path.exists() {
             fs::read_to_string(path)
                 .ok()
@@ -45,20 +45,19 @@ impl SettingsFile {
     pub fn save(&self, settings: &AppSettings) -> Result<(), String> {
         let content = serde_json::to_string_pretty(settings)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-        fs::write(&self.path, content)
-            .map_err(|e| format!("Failed to write settings: {}", e))?;
+        fs::write(&self.path, content).map_err(|e| format!("Failed to write settings: {}", e))?;
         *self.settings.lock().unwrap() = settings.clone();
         Ok(())
     }
 
     /// Get the database path, falling back to default if not set
-    pub fn get_database_path(&self, default_dir: &PathBuf) -> PathBuf {
+    pub fn get_database_path(&self, default_dir: &Path) -> PathBuf {
         let settings = self.settings.lock().unwrap();
         settings
             .database_path
             .as_ref()
             .map(PathBuf::from)
-            .unwrap_or_else(|| default_dir.clone())
+            .unwrap_or_else(|| default_dir.to_path_buf())
     }
 
     /// Set the database path
