@@ -4,6 +4,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useProject, fetchSSHHosts, fetchUrlMetadata } from '../../hooks/useProjects'
 import { useSetting } from '../../hooks/useSettings'
+import { useProjectState, getProjectState } from '../../hooks/useProjectState'
 import SectionNavigation from './SectionNavigation'
 import ProjectHeader from './ProjectHeader'
 import WorkingDirsSection from './WorkingDirsSection'
@@ -33,11 +34,17 @@ export default function ProjectDetail() {
     useProject(id!)
   const { value: codingAgentGlobalEnv } = useSetting('codingAgentGlobalEnv')
 
+  // Project state persistence (scroll position, todo drawer state)
+  const { restoreScrollPosition, setTodoDrawerOpen: saveTodoDrawerState } = useProjectState(id)
+
+  // Get initial state for this project
+  const initialState = id ? getProjectState(id) : null
+
   // Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Todo drawer state
-  const [todoDrawerOpen, setTodoDrawerOpen] = useState(false)
+  // Todo drawer state - initialize from saved state
+  const [todoDrawerOpen, setTodoDrawerOpen] = useState(() => initialState?.todoDrawerOpen ?? false)
   const {
     todos,
     progress: todoProgress,
@@ -65,6 +72,26 @@ export default function ProjectDetail() {
   useEffect(() => {
     fetchSSHHosts().then(setSSHHosts)
   }, [])
+
+  // Restore scroll position when project loads
+  useEffect(() => {
+    if (!loading && project) {
+      // Small delay to ensure DOM is rendered
+      const timer = setTimeout(() => {
+        restoreScrollPosition()
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [loading, project, restoreScrollPosition])
+
+  // Sync todo drawer state to project state
+  const handleTodoDrawerChange = useCallback(
+    (open: boolean) => {
+      setTodoDrawerOpen(open)
+      saveTodoDrawerState(open)
+    },
+    [saveTodoDrawerState]
+  )
 
   // Helper: detect if text is a file path
   const isFilePath = useCallback((text: string): boolean => {
@@ -479,7 +506,7 @@ export default function ProjectDetail() {
           onCreateCodingAgent={() => setIsCreatingCodingAgent(true)}
           onCreateFile={() => setIsCreatingFile(true)}
           onCreateCommand={() => setIsCreatingCommand(true)}
-          onOpenTodos={() => setTodoDrawerOpen(true)}
+          onOpenTodos={() => handleTodoDrawerChange(true)}
           todoProgress={todoProgress}
         />
 
@@ -498,7 +525,7 @@ export default function ProjectDetail() {
       {/* Todo Drawer */}
       <TodoDrawer
         isOpen={todoDrawerOpen}
-        onClose={() => setTodoDrawerOpen(false)}
+        onClose={() => handleTodoDrawerChange(false)}
         todos={todos}
         progress={todoProgress}
         loading={todosLoading}

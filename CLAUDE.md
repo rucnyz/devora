@@ -142,3 +142,14 @@ const {
 - Drag handle for reordering
 - Inline editing (click content to edit)
 - Progress indicator in project header
+
+## State Persistence
+
+### Project State (useProjectState)
+`src/hooks/useProjectState.ts` manages in-memory state that persists across project switches during a session:
+- **Scroll position**: Restored when returning to a project
+- **Todo drawer state**: Remembers if the drawer was open
+
+```typescript
+const { restoreScrollPosition, setTodoDrawerOpen } = useProjectState(projectId)
+```

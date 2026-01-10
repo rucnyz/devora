@@ -27,8 +27,7 @@ pub fn run() {
             let db_dir = settings_file.get_database_path(&config_dir);
 
             // Initialize database in the configured directory
-            let database = Database::new(db_dir)
-                .expect("Failed to initialize database");
+            let database = Database::new(db_dir).expect("Failed to initialize database");
 
             app.manage(database);
             app.manage(settings_file);

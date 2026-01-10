@@ -9,6 +9,7 @@ import { ThemeProvider, useTheme } from './hooks/useTheme'
 import { useSetting, SettingsProvider } from './hooks/useSettings.tsx'
 import { useCustomIdes, CustomIdesProvider } from './hooks/useCustomIdes'
 import { ToastProvider } from './hooks/useToast'
+
 import type { CustomIde, CustomRemoteIde, TerminalType } from './types'
 import { WINDOWS_TERMINALS, MACOS_TERMINALS, LINUX_TERMINALS } from './types'
 import {
