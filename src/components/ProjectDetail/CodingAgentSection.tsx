@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
-import { selectFolder, openCodingAgent } from '../../hooks/useProjects'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
+import { selectFolder, openCodingAgent, reorderItems } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useSetting } from '../../hooks/useSettings'
 import { useToast } from '../../hooks/useToast'
@@ -7,6 +9,7 @@ import { getPathName } from '../../utils/remote'
 import { CODING_AGENT_LABELS, CODING_AGENT_TAG_CLASS, CODING_AGENT_TYPES } from '../../constants/itemTypes'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
 import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
+import { SortableItem } from './SortableItem'
 import type { Item, CodingAgentType, WorkingDir, TerminalType } from '../../types'
 
 // Helper to quote a path if it contains spaces (for shell compatibility)
@@ -250,7 +253,8 @@ function CodingAgentCreator({
   const saveCreating = useCallback(async () => {
     if (newPath.trim()) {
       try {
-        const title = getPathName(newPath, 'Project')
+        const agentLabel = CODING_AGENT_LABELS[newAgentType]
+        const title = `${agentLabel} - ${getPathName(newPath, 'Project')}`
         const envJson = envEntriesToJson(newEnvEntries)
         await onAdd(title, newPath.trim(), newAgentType, newArgs.trim(), envJson)
         onCreatingChange(false)
@@ -351,6 +355,7 @@ function CodingAgentCreator({
 
 interface CodingAgentSectionProps {
   items: Item[]
+  projectId: string
   isCreating: boolean
   workingDirs: WorkingDir[]
   globalEnv: string
@@ -358,10 +363,12 @@ interface CodingAgentSectionProps {
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
+  onReorder: () => void
 }
 
 export default function CodingAgentSection({
   items,
+  projectId,
   isCreating,
   workingDirs,
   globalEnv,
@@ -369,10 +376,12 @@ export default function CodingAgentSection({
   onUpdate,
   onDelete,
   onCreatingChange,
+  onReorder,
 }: CodingAgentSectionProps) {
   const toast = useToast()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editAgentType, setEditAgentType] = useState<CodingAgentType>('claude-code')
+  const [editTitle, setEditTitle] = useState('')
   const [editPath, setEditPath] = useState('')
   const [editArgs, setEditArgs] = useState('')
   const [editEnvEntries, setEditEnvEntries] = useState<Array<{ key: string; value: string }>>([])
@@ -380,8 +389,25 @@ export default function CodingAgentSection({
   const editAgentRef = useRef<HTMLDivElement>(null)
   const { value: defaultTerminal } = useSetting('defaultTerminal')
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((i) => i.id === active.id)
+      const newIndex = items.findIndex((i) => i.id === over.id)
+      const newOrder = arrayMove(items, oldIndex, newIndex)
+      await reorderItems(
+        projectId,
+        newOrder.map((i) => i.id)
+      )
+      onReorder()
+    }
+  }
+
   const resetEditState = useCallback(() => {
     setEditingId(null)
+    setEditTitle('')
     setEditPath('')
     setEditArgs('')
     setEditAgentType('claude-code')
@@ -391,7 +417,8 @@ export default function CodingAgentSection({
 
   const saveEditing = useCallback(async () => {
     if (editingId && editPath.trim()) {
-      const title = getPathName(editPath, 'Project')
+      const agentLabel = CODING_AGENT_LABELS[editAgentType]
+      const title = editTitle.trim() || `${agentLabel} - ${getPathName(editPath, 'Project')}`
       const envJson = envEntriesToJson(editEnvEntries)
       await onUpdate(editingId, {
         title,
@@ -402,7 +429,7 @@ export default function CodingAgentSection({
       })
       resetEditState()
     }
-  }, [editingId, editPath, editAgentType, editArgs, editEnvEntries, onUpdate, resetEditState])
+  }, [editingId, editTitle, editPath, editAgentType, editArgs, editEnvEntries, onUpdate, resetEditState])
 
   useEditorHandlers({
     containerRef: editAgentRef,
@@ -419,6 +446,7 @@ export default function CodingAgentSection({
 
   const handleEdit = (item: Item) => {
     setEditingId(item.id)
+    setEditTitle(item.title)
     setEditAgentType(item.coding_agent_type || 'claude-code')
     setEditPath(item.content || '')
     setEditArgs(item.coding_agent_args || '')
@@ -465,163 +493,181 @@ export default function CodingAgentSection({
 
       {isCreating && <CodingAgentCreator workingDirs={workingDirs} onAdd={onAdd} onCreatingChange={onCreatingChange} />}
 
-      <div className="flex flex-wrap gap-2">
-        {items.map((item, index) =>
-          editingId === item.id ? (
-            <div
-              key={item.id}
-              ref={editAgentRef}
-              className="w-full p-4 rounded-xl bg-(--accent-agent)/5 border border-(--accent-agent)/30 animate-card-enter"
-            >
-              <div className="flex flex-wrap items-center gap-3">
-                <select
-                  value={editAgentType}
-                  onChange={(e) => {
-                    setEditAgentType(e.target.value as CodingAgentType)
-                    setEditArgs('') // Reset args when changing agent type
-                  }}
-                  className="input-terminal w-auto!"
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
+          <div className="flex flex-wrap gap-2">
+            {items.map((item, index) =>
+              editingId === item.id ? (
+                <div
+                  key={item.id}
+                  ref={editAgentRef}
+                  className="w-full p-4 rounded-xl bg-(--accent-agent)/5 border border-(--accent-agent)/30 animate-card-enter"
                 >
-                  {CODING_AGENT_TYPES.map((agent) => (
-                    <option key={agent.value} value={agent.value}>
-                      {agent.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex-1 flex gap-2">
-                  <input
-                    type="text"
-                    value={editPath}
-                    onChange={(e) => setEditPath(e.target.value)}
-                    placeholder="Project folder path..."
-                    className="input-terminal flex-1"
-                    autoFocus
+                  <div className="flex flex-wrap items-center gap-3">
+                    <select
+                      value={editAgentType}
+                      onChange={(e) => {
+                        setEditAgentType(e.target.value as CodingAgentType)
+                        setEditArgs('') // Reset args when changing agent type
+                      }}
+                      className="input-terminal w-auto!"
+                    >
+                      {CODING_AGENT_TYPES.map((agent) => (
+                        <option key={agent.value} value={agent.value}>
+                          {agent.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={editPath}
+                        onChange={(e) => setEditPath(e.target.value)}
+                        placeholder="Project folder path..."
+                        className="input-terminal flex-1"
+                        autoFocus
+                      />
+                      <button type="button" onClick={handleSelectFolderForEdit} className="btn-ghost whitespace-nowrap">
+                        Browse
+                      </button>
+                    </div>
+                  </div>
+                  <WorkingDirsSuggestions
+                    workingDirs={workingDirs}
+                    filter="local"
+                    onSelect={(path) => setEditPath(path)}
+                    className="mt-3 pt-3 border-t border-(--border-subtle)"
                   />
-                  <button type="button" onClick={handleSelectFolderForEdit} className="btn-ghost whitespace-nowrap">
-                    Browse
-                  </button>
+
+                  {/* Arguments input */}
+                  <div className="mt-3 pt-3 border-t border-(--border-subtle)">
+                    <label className="text-xs font-mono text-(--text-muted) mb-1 block">Arguments</label>
+                    <input
+                      type="text"
+                      value={editArgs}
+                      onChange={(e) => setEditArgs(e.target.value)}
+                      placeholder="Optional arguments..."
+                      className="input-terminal w-full"
+                    />
+                  </div>
+
+                  {/* Agent-specific options */}
+                  <AgentOptions
+                    agentType={editAgentType}
+                    args={editArgs}
+                    onArgsChange={setEditArgs}
+                    workingDirs={workingDirs}
+                  />
+
+                  {/* Environment Variables */}
+                  <div className="mt-3 pt-3 border-t border-(--border-subtle)">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-mono text-(--text-muted)">Environment Variables</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditEnvVars(!showEditEnvVars)}
+                        className="text-xs text-(--accent-agent) hover:underline"
+                      >
+                        {showEditEnvVars
+                          ? 'Hide'
+                          : editEnvEntries.length > 0
+                            ? `Show (${editEnvEntries.length})`
+                            : 'Add'}
+                      </button>
+                    </div>
+                    {showEditEnvVars && <EnvVarsEditor entries={editEnvEntries} onChange={setEditEnvEntries} />}
+                    {!showEditEnvVars && editEnvEntries.length > 0 && (
+                      <p className="text-xs text-(--text-muted)">{editEnvEntries.length} variable(s) configured</p>
+                    )}
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-(--border-subtle)">
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      placeholder="Display name..."
+                      className="input-terminal w-full"
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDelete(item.id)
+                        resetEditState()
+                      }}
+                      className="btn-delete"
+                    >
+                      delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <WorkingDirsSuggestions
-                workingDirs={workingDirs}
-                filter="local"
-                onSelect={(path) => setEditPath(path)}
-                className="mt-3 pt-3 border-t border-(--border-subtle)"
-              />
-
-              {/* Arguments input */}
-              <div className="mt-3 pt-3 border-t border-(--border-subtle)">
-                <label className="text-xs font-mono text-(--text-muted) mb-1 block">Arguments</label>
-                <input
-                  type="text"
-                  value={editArgs}
-                  onChange={(e) => setEditArgs(e.target.value)}
-                  placeholder="Optional arguments..."
-                  className="input-terminal w-full"
-                />
-              </div>
-
-              {/* Agent-specific options */}
-              <AgentOptions
-                agentType={editAgentType}
-                args={editArgs}
-                onArgsChange={setEditArgs}
-                workingDirs={workingDirs}
-              />
-
-              {/* Environment Variables */}
-              <div className="mt-3 pt-3 border-t border-(--border-subtle)">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-mono text-(--text-muted)">Environment Variables</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowEditEnvVars(!showEditEnvVars)}
-                    className="text-xs text-(--accent-agent) hover:underline"
+              ) : (
+                <SortableItem key={item.id} id={item.id}>
+                  <ItemContextMenu
+                    items={[
+                      {
+                        label: 'Duplicate',
+                        icon: <DuplicateIcon className="w-4 h-4" />,
+                        onClick: () => handleDuplicate(item),
+                      },
+                    ]}
                   >
-                    {showEditEnvVars ? 'Hide' : editEnvEntries.length > 0 ? `Show (${editEnvEntries.length})` : 'Add'}
-                  </button>
-                </div>
-                {showEditEnvVars && <EnvVarsEditor entries={editEnvEntries} onChange={setEditEnvEntries} />}
-                {!showEditEnvVars && editEnvEntries.length > 0 && (
-                  <p className="text-xs text-(--text-muted)">{editEnvEntries.length} variable(s) configured</p>
-                )}
-              </div>
+                    <div
+                      className="group/agent relative animate-card-enter mr-12"
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
+                      <div className={`tag ${CODING_AGENT_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
+                        <span>{item.title}</span>
+                        {item.coding_agent_args && (
+                          <span className="opacity-40 text-xs ml-1" title={item.coding_agent_args}>
+                            [args]
+                          </span>
+                        )}
+                        {item.coding_agent_env && (
+                          <span className="opacity-40 text-xs ml-1" title="Has environment variables">
+                            [env]
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDelete(item.id)
+                          }}
+                          className="ml-1 opacity-0 group-hover/agent:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-agent) hover:border-(--accent-agent) opacity-0 group-hover/agent:opacity-100 transition-all"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </ItemContextMenu>
+                </SortableItem>
+              )
+            )}
 
-              <div className="flex justify-between items-center mt-3">
-                <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(item.id)
-                    resetEditState()
-                  }}
-                  className="btn-delete"
-                >
-                  delete
-                </button>
-              </div>
-            </div>
-          ) : (
-            <ItemContextMenu
-              key={item.id}
-              items={[
-                {
-                  label: 'Duplicate',
-                  icon: <DuplicateIcon className="w-4 h-4" />,
-                  onClick: () => handleDuplicate(item),
-                },
-              ]}
-            >
-              <div
-                className="group/agent relative animate-card-enter mr-12"
-                style={{ animationDelay: `${index * 30}ms` }}
+            {!isCreating && (
+              <button
+                onClick={() => onCreatingChange(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-agent) text-(--text-muted) hover:text-(--accent-agent) transition-all"
               >
-                <div className={`tag ${CODING_AGENT_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
-                  <span>{CODING_AGENT_LABELS[item.coding_agent_type!]}</span>
-                  <span className="opacity-60">{item.title}</span>
-                  {item.coding_agent_args && (
-                    <span className="opacity-40 text-xs ml-1" title={item.coding_agent_args}>
-                      [args]
-                    </span>
-                  )}
-                  {item.coding_agent_env && (
-                    <span className="opacity-40 text-xs ml-1" title="Has environment variables">
-                      [env]
-                    </span>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(item.id)
-                    }}
-                    className="ml-1 opacity-0 group-hover/agent:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
-                  >
-                    ×
-                  </button>
-                </div>
-                <button
-                  onClick={() => handleEdit(item)}
-                  className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-agent) hover:border-(--accent-agent) opacity-0 group-hover/agent:opacity-100 transition-all"
-                >
-                  Edit
-                </button>
-              </div>
-            </ItemContextMenu>
-          )
-        )}
-
-        {!isCreating && (
-          <button
-            onClick={() => onCreatingChange(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-agent) text-(--text-muted) hover:text-(--accent-agent) transition-all"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="font-mono text-sm">Add</span>
-          </button>
-        )}
-      </div>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="font-mono text-sm">Add</span>
+              </button>
+            )}
+          </div>
+        </SortableContext>
+      </DndContext>
     </section>
   )
 }

@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
-import { openRemoteIde, openCustomRemoteIde } from '../../hooks/useProjects'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
+import { openRemoteIde, openCustomRemoteIde, reorderItems } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useCustomIdes } from '../../hooks/useCustomIdes'
 import { useToast } from '../../hooks/useToast'
@@ -9,6 +11,7 @@ import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
 import RemoteIDECreator from './RemoteIDECreator'
 import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
+import { SortableItem } from './SortableItem'
 import type { Item, RemoteIdeType, WorkingDir, CustomRemoteIde } from '../../types'
 
 // Helper to check if remote IDE type is built-in
@@ -27,6 +30,7 @@ const getRemoteIdeLabel = (ideType: string, customRemoteIdes: CustomRemoteIde[])
 
 interface RemoteIDESectionProps {
   items: Item[]
+  projectId: string
   isCreating: boolean
   sshHosts: string[]
   workingDirs: WorkingDir[]
@@ -34,10 +38,12 @@ interface RemoteIDESectionProps {
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
+  onReorder: () => void
 }
 
 export default function RemoteIDESection({
   items,
+  projectId,
   isCreating,
   sshHosts,
   workingDirs,
@@ -45,19 +51,38 @@ export default function RemoteIDESection({
   onUpdate,
   onDelete,
   onCreatingChange,
+  onReorder,
 }: RemoteIDESectionProps) {
   const toast = useToast()
   const { customRemoteIdes } = useCustomIdes()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editRemoteIdeType, setEditRemoteIdeType] = useState<string>('cursor')
+  const [editTitle, setEditTitle] = useState('')
   const [editHost, setEditHost] = useState('')
   const [editPath, setEditPath] = useState('')
   const editRemoteIdeRef = useRef<HTMLDivElement>(null)
 
   const [showBrowser, setShowBrowser] = useState(false)
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((i) => i.id === active.id)
+      const newIndex = items.findIndex((i) => i.id === over.id)
+      const newOrder = arrayMove(items, oldIndex, newIndex)
+      await reorderItems(
+        projectId,
+        newOrder.map((i) => i.id)
+      )
+      onReorder()
+    }
+  }
+
   const resetEditState = useCallback(() => {
     setEditingId(null)
+    setEditTitle('')
     setEditHost('')
     setEditPath('')
     setEditRemoteIdeType('cursor')
@@ -65,12 +90,13 @@ export default function RemoteIDESection({
 
   const saveEditing = useCallback(async () => {
     if (editingId && editHost.trim() && editPath.trim()) {
-      const title = getPathName(editPath, 'Remote')
+      const ideLabel = getRemoteIdeLabel(editRemoteIdeType, customRemoteIdes)
+      const title = editTitle.trim() || `${ideLabel} - ${getPathName(editPath, 'Remote')}@${editHost}`
       const content = buildRemoteContent(editHost, editPath)
       await onUpdate(editingId, { title, content, remote_ide_type: editRemoteIdeType })
       resetEditState()
     }
-  }, [editingId, editHost, editPath, editRemoteIdeType, onUpdate, resetEditState])
+  }, [editingId, editTitle, editHost, editPath, editRemoteIdeType, customRemoteIdes, onUpdate, resetEditState])
 
   useEditorHandlers({
     containerRef: editRemoteIdeRef,
@@ -83,6 +109,7 @@ export default function RemoteIDESection({
 
   const handleEdit = (item: Item) => {
     setEditingId(item.id)
+    setEditTitle(item.title)
     setEditRemoteIdeType(item.remote_ide_type || 'cursor')
     const { host, path } = parseRemoteContent(item.content || '')
     setEditHost(host)
@@ -142,128 +169,146 @@ export default function RemoteIDESection({
           />
         )}
 
-        <div className="flex flex-wrap gap-2">
-          {items.map((item, index) =>
-            editingId === item.id ? (
-              <div
-                key={item.id}
-                ref={editRemoteIdeRef}
-                className="w-full p-4 rounded-xl bg-(--accent-remote)/5 border border-(--accent-remote)/30 animate-card-enter"
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <select
-                    value={editRemoteIdeType}
-                    onChange={(e) => setEditRemoteIdeType(e.target.value)}
-                    className="input-terminal w-auto!"
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
+            <div className="flex flex-wrap gap-2">
+              {items.map((item, index) =>
+                editingId === item.id ? (
+                  <div
+                    key={item.id}
+                    ref={editRemoteIdeRef}
+                    className="w-full p-4 rounded-xl bg-(--accent-remote)/5 border border-(--accent-remote)/30 animate-card-enter"
                   >
-                    {REMOTE_IDE_TYPES.map((ide) => (
-                      <option key={ide.value} value={ide.value}>
-                        {ide.label}
-                      </option>
-                    ))}
-                    {customRemoteIdes.length > 0 && (
-                      <optgroup label="Custom">
-                        {customRemoteIdes.map((ide) => (
-                          <option key={ide.id} value={ide.id}>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <select
+                        value={editRemoteIdeType}
+                        onChange={(e) => setEditRemoteIdeType(e.target.value)}
+                        className="input-terminal w-auto!"
+                      >
+                        {REMOTE_IDE_TYPES.map((ide) => (
+                          <option key={ide.value} value={ide.value}>
                             {ide.label}
                           </option>
                         ))}
-                      </optgroup>
-                    )}
-                  </select>
-                  <HostInput
-                    value={editHost}
-                    onChange={setEditHost}
-                    suggestions={sshHosts}
-                    className="w-40"
-                    autoFocus
-                  />
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      type="text"
-                      value={editPath}
-                      onChange={(e) => setEditPath(e.target.value)}
-                      placeholder="/home/user/project"
-                      className="input-terminal flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowBrowser(true)}
-                      disabled={!editHost.trim()}
-                      className="btn-ghost whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Browse
-                    </button>
+                        {customRemoteIdes.length > 0 && (
+                          <optgroup label="Custom">
+                            {customRemoteIdes.map((ide) => (
+                              <option key={ide.id} value={ide.id}>
+                                {ide.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                      <HostInput
+                        value={editHost}
+                        onChange={setEditHost}
+                        suggestions={sshHosts}
+                        className="w-40"
+                        autoFocus
+                      />
+                      <div className="flex-1 flex gap-2">
+                        <input
+                          type="text"
+                          value={editPath}
+                          onChange={(e) => setEditPath(e.target.value)}
+                          placeholder="/home/user/project"
+                          className="input-terminal flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowBrowser(true)}
+                          disabled={!editHost.trim()}
+                          className="btn-ghost whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Browse
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Display name..."
+                        className="input-terminal w-full"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center mt-3">
+                      <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDelete(item.id)
+                          resetEditState()
+                        }}
+                        className="btn-delete"
+                      >
+                        delete
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex justify-between items-center mt-3">
-                  <span className="text-xs font-mono text-(--text-muted)">Click outside to save</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(item.id)
-                      resetEditState()
-                    }}
-                    className="btn-delete"
-                  >
-                    delete
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <ItemContextMenu
-                key={item.id}
-                items={[
-                  {
-                    label: 'Duplicate',
-                    icon: <DuplicateIcon className="w-4 h-4" />,
-                    onClick: () => handleDuplicate(item),
-                  },
-                ]}
-              >
-                <div
-                  className="group/remote-ide relative animate-card-enter mr-7"
-                  style={{ animationDelay: `${index * 30}ms` }}
-                >
-                  <div className={`tag ${REMOTE_IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
-                    <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                    <span>{getRemoteIdeLabel(item.remote_ide_type!, customRemoteIdes)}</span>
-                    <span className="opacity-60">{item.title}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDelete(item.id)
-                      }}
-                      className="ml-1 opacity-0 group-hover/remote-ide:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                ) : (
+                  <SortableItem key={item.id} id={item.id}>
+                    <ItemContextMenu
+                      items={[
+                        {
+                          label: 'Duplicate',
+                          icon: <DuplicateIcon className="w-4 h-4" />,
+                          onClick: () => handleDuplicate(item),
+                        },
+                      ]}
                     >
-                      ×
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-remote) hover:border-(--accent-remote) opacity-0 group-hover/remote-ide:opacity-100 transition-all"
-                  >
-                    Edit
-                  </button>
-                </div>
-              </ItemContextMenu>
-            )
-          )}
+                      <div
+                        className="group/remote-ide relative animate-card-enter mr-7"
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <div className={`tag ${REMOTE_IDE_TAG_CLASS} cursor-pointer`} onClick={() => handleOpen(item)}>
+                          <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M5 12h14M12 5l7 7-7 7"
+                            />
+                          </svg>
+                          <span>{item.title}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onDelete(item.id)
+                            }}
+                            className="ml-1 opacity-0 group-hover/remote-ide:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--accent-remote) hover:border-(--accent-remote) opacity-0 group-hover/remote-ide:opacity-100 transition-all"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </ItemContextMenu>
+                  </SortableItem>
+                )
+              )}
 
-          {!isCreating && (
-            <button
-              onClick={() => onCreatingChange(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-remote) text-(--text-muted) hover:text-(--accent-remote) transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="font-mono text-sm">Add</span>
-            </button>
-          )}
-        </div>
+              {!isCreating && (
+                <button
+                  onClick={() => onCreatingChange(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-remote) text-(--text-muted) hover:text-(--accent-remote) transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="font-mono text-sm">Add</span>
+                </button>
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
       </section>
 
       {showBrowser && (

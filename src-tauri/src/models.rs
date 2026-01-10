@@ -44,6 +44,7 @@ pub enum IdeType {
 pub enum RemoteIdeType {
     Cursor,
     Vscode,
+    Zed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
@@ -126,9 +127,9 @@ pub struct Item {
     pub title: String,
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ide_type: Option<String>,  // Changed to String to support custom IDE IDs
+    pub ide_type: Option<String>, // Changed to String to support custom IDE IDs
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub remote_ide_type: Option<String>,  // Changed to String to support custom remote IDE IDs
+    pub remote_ide_type: Option<String>, // Changed to String to support custom remote IDE IDs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub coding_agent_type: Option<CodingAgentType>,
     #[serde(skip_serializing_if = "Option::is_none")]

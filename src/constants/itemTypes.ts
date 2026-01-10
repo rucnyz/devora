@@ -66,6 +66,7 @@ export const IDE_TYPES: { value: IdeType; label: string }[] = IDE_GROUPS.flatMap
 export const REMOTE_IDE_LABELS: Record<RemoteIdeType, string> = {
   cursor: 'Cursor',
   vscode: 'VS Code',
+  zed: 'Zed',
 }
 
 // All remote IDEs use the unified tag-remote-ide class
@@ -74,6 +75,7 @@ export const REMOTE_IDE_TAG_CLASS = 'tag-remote-ide'
 export const REMOTE_IDE_TYPES: { value: RemoteIdeType; label: string }[] = [
   { value: 'cursor', label: 'Cursor' },
   { value: 'vscode', label: 'VS Code' },
+  { value: 'zed', label: 'Zed' },
 ]
 
 /**

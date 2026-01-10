@@ -168,6 +168,7 @@ export const openCustomRemoteIde = api.openCustomRemoteIde
 export const openCodingAgent = api.openCodingAgent
 export const fetchSSHHosts = api.getSSHHosts
 export const fetchUrlMetadata = api.fetchUrlMetadata
+export const reorderItems = api.reorderItems
 
 // Remote directory types - re-export with compatible names
 export interface RemoteDirEntry {

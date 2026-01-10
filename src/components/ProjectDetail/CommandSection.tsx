@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { selectFolder, runCommand } from '../../hooks/useProjects'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
+import { selectFolder, runCommand, reorderItems } from '../../hooks/useProjects'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useToast } from '../../hooks/useToast'
 import RemoteDirBrowser from '../RemoteDirBrowser'
@@ -8,10 +10,12 @@ import HostInput from '../HostInput'
 import CommandCreator from './CommandCreator'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
 import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
+import { SortableItem } from './SortableItem'
 import type { Item, CommandMode, WorkingDir } from '../../types'
 
 interface CommandSectionProps {
   items: Item[]
+  projectId: string
   isCreating: boolean
   workingDirs: WorkingDir[]
   sshHosts: string[]
@@ -19,10 +23,12 @@ interface CommandSectionProps {
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
+  onReorder: () => void
 }
 
 export default function CommandSection({
   items,
+  projectId,
   isCreating,
   workingDirs,
   sshHosts,
@@ -30,6 +36,7 @@ export default function CommandSection({
   onUpdate,
   onDelete,
   onCreatingChange,
+  onReorder,
 }: CommandSectionProps) {
   const toast = useToast()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -42,6 +49,22 @@ export default function CommandSection({
 
   const [commandOutput, setCommandOutput] = useState<{ title: string; output: string; error?: string } | null>(null)
   const [showBrowser, setShowBrowser] = useState(false)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((i) => i.id === active.id)
+      const newIndex = items.findIndex((i) => i.id === over.id)
+      const newOrder = arrayMove(items, oldIndex, newIndex)
+      await reorderItems(
+        projectId,
+        newOrder.map((i) => i.id)
+      )
+      onReorder()
+    }
+  }
 
   const resetEditState = useCallback(() => {
     setEditingId(null)
@@ -145,158 +168,168 @@ export default function CommandSection({
           />
         )}
 
-        <div className="flex flex-wrap gap-2">
-          {items.map((item, index) =>
-            editingId === item.id ? (
-              <div
-                key={item.id}
-                ref={editCommandRef}
-                className="w-full p-4 rounded-xl bg-(--bg-elevated) border border-(--border-visible) animate-card-enter"
-              >
-                <div className="flex flex-wrap items-center gap-3 mb-3">
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Title (optional)..."
-                    className="input-terminal w-40"
-                    autoFocus
-                  />
-                  <input
-                    type="text"
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    placeholder="Command to run..."
-                    className="input-terminal flex-1"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-3 mb-3">
-                  <HostInput
-                    value={editHost}
-                    onChange={setEditHost}
-                    suggestions={sshHosts}
-                    placeholder="Host (optional for remote)"
-                    className="w-36"
-                  />
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      type="text"
-                      value={editCwd}
-                      onChange={(e) => setEditCwd(e.target.value)}
-                      placeholder={editHost ? 'Remote path...' : 'Working directory (optional)...'}
-                      className="input-terminal flex-1"
-                    />
-                    <button type="button" onClick={handleBrowseForEdit} className="btn-ghost whitespace-nowrap">
-                      Browse
-                    </button>
-                  </div>
-                  <select
-                    value={editMode}
-                    onChange={(e) => setEditMode(e.target.value as CommandMode)}
-                    className="input-terminal w-36"
-                  >
-                    <option value="background">Background</option>
-                    <option value="output">Show Output</option>
-                  </select>
-                </div>
-                <WorkingDirsSuggestions
-                  workingDirs={workingDirs}
-                  onSelect={(path, host) => {
-                    setEditCwd(path)
-                    setEditHost(host || '')
-                  }}
-                  className="mb-3"
-                />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-mono text-(--text-muted)">
-                    Click outside to save {editHost && <span className="text-[#e879f9]">(SSH: {editHost})</span>}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(item.id)
-                      resetEditState()
-                    }}
-                    className="btn-delete"
-                  >
-                    delete
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <ItemContextMenu
-                key={item.id}
-                items={[
-                  {
-                    label: 'Duplicate',
-                    icon: <DuplicateIcon className="w-4 h-4" />,
-                    onClick: () => handleDuplicate(item),
-                  },
-                ]}
-              >
-                <div
-                  className="group/command relative animate-card-enter mr-7"
-                  style={{ animationDelay: `${index * 30}ms` }}
-                >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
+            <div className="flex flex-wrap gap-2">
+              {items.map((item, index) =>
+                editingId === item.id ? (
                   <div
-                    className={`tag cursor-pointer ${item.command_host ? 'tag-remote-command' : 'tag-command'}`}
-                    onClick={() => handleRun(item)}
+                    key={item.id}
+                    ref={editCommandRef}
+                    className="w-full p-4 rounded-xl bg-(--bg-elevated) border border-(--border-visible) animate-card-enter"
                   >
-                    {item.command_host ? (
-                      <svg className="w-4 h-4 text-[#e879f9]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M5 12h14M12 5l7 7-7 7"
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Title (optional)..."
+                        className="input-terminal w-40"
+                        autoFocus
+                      />
+                      <input
+                        type="text"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        placeholder="Command to run..."
+                        className="input-terminal flex-1"
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <HostInput
+                        value={editHost}
+                        onChange={setEditHost}
+                        suggestions={sshHosts}
+                        placeholder="Host (optional for remote)"
+                        className="w-36"
+                      />
+                      <div className="flex-1 flex gap-2">
+                        <input
+                          type="text"
+                          value={editCwd}
+                          onChange={(e) => setEditCwd(e.target.value)}
+                          placeholder={editHost ? 'Remote path...' : 'Working directory (optional)...'}
+                          className="input-terminal flex-1"
                         />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                    )}
-                    <span>{item.title}</span>
-                    {item.command_host && <span className="text-xs text-[#e879f9]">@{item.command_host}</span>}
-                    {item.command_mode === 'output' && <span className="text-xs opacity-50">[out]</span>}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDelete(item.id)
+                        <button type="button" onClick={handleBrowseForEdit} className="btn-ghost whitespace-nowrap">
+                          Browse
+                        </button>
+                      </div>
+                      <select
+                        value={editMode}
+                        onChange={(e) => setEditMode(e.target.value as CommandMode)}
+                        className="input-terminal w-36"
+                      >
+                        <option value="background">Background</option>
+                        <option value="output">Show Output</option>
+                      </select>
+                    </div>
+                    <WorkingDirsSuggestions
+                      workingDirs={workingDirs}
+                      onSelect={(path, host) => {
+                        setEditCwd(path)
+                        setEditHost(host || '')
                       }}
-                      className="ml-1 opacity-0 group-hover/command:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
-                    >
-                      ×
-                    </button>
+                      className="mb-3"
+                    />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-mono text-(--text-muted)">
+                        Click outside to save {editHost && <span className="text-[#e879f9]">(SSH: {editHost})</span>}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDelete(item.id)
+                          resetEditState()
+                        }}
+                        className="btn-delete"
+                      >
+                        delete
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--text-primary) hover:border-(--text-muted) opacity-0 group-hover/command:opacity-100 transition-all"
-                  >
-                    Edit
-                  </button>
-                </div>
-              </ItemContextMenu>
-            )
-          )}
+                ) : (
+                  <SortableItem key={item.id} id={item.id}>
+                    <ItemContextMenu
+                      items={[
+                        {
+                          label: 'Duplicate',
+                          icon: <DuplicateIcon className="w-4 h-4" />,
+                          onClick: () => handleDuplicate(item),
+                        },
+                      ]}
+                    >
+                      <div
+                        className="group/command relative animate-card-enter mr-7"
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <div
+                          className={`tag cursor-pointer ${item.command_host ? 'tag-remote-command' : 'tag-command'}`}
+                          onClick={() => handleRun(item)}
+                        >
+                          {item.command_host ? (
+                            <svg
+                              className="w-4 h-4 text-[#e879f9]"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M5 12h14M12 5l7 7-7 7"
+                              />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                          )}
+                          <span>{item.title}</span>
+                          {item.command_host && <span className="text-xs text-[#e879f9]">@{item.command_host}</span>}
+                          {item.command_mode === 'output' && <span className="text-xs opacity-50">[out]</span>}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onDelete(item.id)
+                            }}
+                            className="ml-1 opacity-0 group-hover/command:opacity-100 text-(--text-muted) hover:text-(--accent-danger) transition-opacity"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-muted) hover:text-(--text-primary) hover:border-(--text-muted) opacity-0 group-hover/command:opacity-100 transition-all"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </ItemContextMenu>
+                  </SortableItem>
+                )
+              )}
 
-          {!isCreating && (
-            <button
-              onClick={() => onCreatingChange(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-warning) text-(--text-muted) hover:text-(--accent-warning) transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="font-mono text-sm">Add</span>
-            </button>
-          )}
-        </div>
+              {!isCreating && (
+                <button
+                  onClick={() => onCreatingChange(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-(--text-muted) hover:border-(--accent-warning) text-(--text-muted) hover:text-(--accent-warning) transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="font-mono text-sm">Add</span>
+                </button>
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
       </section>
 
       {commandOutput &&

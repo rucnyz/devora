@@ -2,11 +2,25 @@ import { useState, useRef, useCallback } from 'react'
 import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import { useCustomIdes } from '../../hooks/useCustomIdes'
 import { buildRemoteContent, getPathName } from '../../utils/remote'
-import { REMOTE_IDE_TYPES } from '../../constants/itemTypes'
+import { REMOTE_IDE_TYPES, REMOTE_IDE_LABELS } from '../../constants/itemTypes'
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
-import type { WorkingDir } from '../../types'
+import type { WorkingDir, RemoteIdeType, CustomRemoteIde } from '../../types'
+
+// Helper to check if remote IDE type is built-in
+const isBuiltInRemoteIde = (ideType: string): ideType is RemoteIdeType => {
+  return REMOTE_IDE_TYPES.some((ide) => ide.value === ideType)
+}
+
+// Helper to get remote IDE label
+const getRemoteIdeLabel = (ideType: string, customRemoteIdes: CustomRemoteIde[]): string => {
+  if (isBuiltInRemoteIde(ideType)) {
+    return REMOTE_IDE_LABELS[ideType]
+  }
+  const custom = customRemoteIdes.find((c) => c.id === ideType)
+  return custom?.label || ideType
+}
 
 interface RemoteIDECreatorProps {
   sshHosts: string[]
@@ -25,13 +39,14 @@ export default function RemoteIDECreator({ sshHosts, workingDirs, onAdd, onCance
 
   const save = useCallback(async () => {
     if (host.trim() && path.trim()) {
-      const title = getPathName(path, 'Remote')
+      const ideLabel = getRemoteIdeLabel(ideType, customRemoteIdes)
+      const title = `${ideLabel} - ${getPathName(path, 'Remote')}@${host}`
       const content = buildRemoteContent(host, path)
       await onAdd(title, content, ideType)
     } else {
       onCancel()
     }
-  }, [host, path, ideType, onAdd, onCancel])
+  }, [host, path, ideType, customRemoteIdes, onAdd, onCancel])
 
   useEditorHandlers({
     containerRef: formRef,

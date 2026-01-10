@@ -59,8 +59,8 @@ pub fn create_item(
     itemType: ItemType,
     title: String,
     content: Option<String>,
-    ideType: Option<String>,  // Changed to String to support custom IDE IDs
-    remoteIdeType: Option<String>,  // Changed to String to support custom remote IDE IDs
+    ideType: Option<String>, // Changed to String to support custom IDE IDs
+    remoteIdeType: Option<String>, // Changed to String to support custom remote IDE IDs
     codingAgentType: Option<CodingAgentType>,
     codingAgentArgs: Option<String>,
     codingAgentEnv: Option<String>,
@@ -75,7 +75,7 @@ pub fn create_item(
         &title,
         &content.unwrap_or_default(),
         ideType.as_deref(),
-        remoteIdeType.as_deref(),  // Changed to string
+        remoteIdeType.as_deref(), // Changed to string
         codingAgentType,
         codingAgentArgs.as_deref(),
         codingAgentEnv.as_deref(),
@@ -91,8 +91,8 @@ pub fn update_item(
     id: String,
     title: Option<String>,
     content: Option<String>,
-    ideType: Option<Option<String>>,  // Changed to String to support custom IDE IDs
-    remoteIdeType: Option<Option<String>>,  // Changed to String to support custom remote IDE IDs
+    ideType: Option<Option<String>>, // Changed to String to support custom IDE IDs
+    remoteIdeType: Option<Option<String>>, // Changed to String to support custom remote IDE IDs
     codingAgentType: Option<Option<CodingAgentType>>,
     codingAgentArgs: Option<Option<String>>,
     codingAgentEnv: Option<Option<String>>,
@@ -107,7 +107,7 @@ pub fn update_item(
         title.as_deref(),
         content.as_deref(),
         ideType.map(|o| o.as_deref().map(|s| s.to_string())),
-        remoteIdeType.map(|o| o.as_deref().map(|s| s.to_string())),  // Changed to string
+        remoteIdeType.map(|o| o.as_deref().map(|s| s.to_string())), // Changed to string
         codingAgentType,
         codingAgentArgs.as_ref().map(|o| o.as_deref()),
         codingAgentEnv.as_ref().map(|o| o.as_deref()),
@@ -230,8 +230,7 @@ pub fn export_data_to_file(
     let json = serde_json::to_string_pretty(&data)
         .map_err(|e| format!("Failed to serialize data: {}", e))?;
     let count = data.projects.len();
-    fs::write(&filePath, &json)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    fs::write(&filePath, &json).map_err(|e| format!("Failed to write file: {}", e))?;
     Ok(count)
 }
 
@@ -328,9 +327,39 @@ pub fn open_remote_ide(
     host: String,
     path: String,
 ) -> Result<(), String> {
+    // Zed uses a different URI format: zed ssh://host/path
+    if remoteIdeType == RemoteIdeType::Zed {
+        let ssh_uri = format!("ssh://{}{}", host, path);
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+
+            Command::new("cmd")
+                .args(["/c", "zed", &ssh_uri])
+                .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
+                .spawn()
+                .map_err(|e| format!("Failed to open Zed remote: {}", e))?;
+        }
+
+        #[cfg(not(windows))]
+        {
+            Command::new("zed")
+                .arg(&ssh_uri)
+                .spawn()
+                .map_err(|e| format!("Failed to open Zed remote: {}", e))?;
+        }
+
+        return Ok(());
+    }
+
+    // VS Code / Cursor use vscode-remote URI format
     let cmd = match remoteIdeType {
         RemoteIdeType::Cursor => "cursor",
         RemoteIdeType::Vscode => "code",
+        RemoteIdeType::Zed => unreachable!(), // Handled above
     };
 
     let folder_uri = format!("vscode-remote://ssh-remote+{}{}", host, path);
@@ -479,7 +508,10 @@ pub fn open_coding_agent(
         match terminal {
             TerminalType::Cmd => {
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" cmd /k {}", agent_cmd, path, full_cmd))
+                    .raw_arg(format!(
+                        "/c start \"{}\" /d \"{}\" cmd /k {}",
+                        agent_cmd, path, full_cmd
+                    ))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -498,7 +530,10 @@ pub fn open_coding_agent(
                 };
                 let ps_cmd = format!("{}{}", ps_env_prefix, agent_cmd);
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" powershell -NoExit -Command \"{}\"", agent_cmd, path, ps_cmd))
+                    .raw_arg(format!(
+                        "/c start \"{}\" /d \"{}\" powershell -NoExit -Command \"{}\"",
+                        agent_cmd, path, ps_cmd
+                    ))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -517,7 +552,10 @@ pub fn open_coding_agent(
                 };
                 let ps_cmd = format!("{}{}", ps_env_prefix, agent_cmd);
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" pwsh -NoExit -Command \"{}\"", agent_cmd, path, ps_cmd))
+                    .raw_arg(format!(
+                        "/c start \"{}\" /d \"{}\" pwsh -NoExit -Command \"{}\"",
+                        agent_cmd, path, ps_cmd
+                    ))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -562,7 +600,10 @@ pub fn open_coding_agent(
                 };
                 let nu_cmd = format!("{}{}", nu_env_prefix, agent_cmd);
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" nu -e \"{}\"", agent_cmd, path, nu_cmd))
+                    .raw_arg(format!(
+                        "/c start \"{}\" /d \"{}\" nu -e \"{}\"",
+                        agent_cmd, path, nu_cmd
+                    ))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -570,7 +611,10 @@ pub fn open_coding_agent(
             _ => {
                 // Fallback to cmd for unsupported terminals on Windows
                 Command::new("cmd")
-                    .raw_arg(format!("/c start \"{}\" /d \"{}\" cmd /k {}", agent_cmd, path, full_cmd))
+                    .raw_arg(format!(
+                        "/c start \"{}\" /d \"{}\" cmd /k {}",
+                        agent_cmd, path, full_cmd
+                    ))
                     .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -600,14 +644,28 @@ pub fn open_coding_agent(
             }
             TerminalType::Kitty => {
                 Command::new("kitty")
-                    .args(["--directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", full_cmd)])
+                    .args([
+                        "--directory",
+                        &path,
+                        "-e",
+                        "sh",
+                        "-c",
+                        &format!("{} ; exec $SHELL", full_cmd),
+                    ])
                     .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::Alacritty => {
                 Command::new("alacritty")
-                    .args(["--working-directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", full_cmd)])
+                    .args([
+                        "--working-directory",
+                        &path,
+                        "-e",
+                        "sh",
+                        "-c",
+                        &format!("{} ; exec $SHELL", full_cmd),
+                    ])
                     .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -660,14 +718,28 @@ pub fn open_coding_agent(
             }
             TerminalType::Kitty => {
                 Command::new("kitty")
-                    .args(["--directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", full_cmd)])
+                    .args([
+                        "--directory",
+                        &path,
+                        "-e",
+                        "sh",
+                        "-c",
+                        &format!("{} ; exec $SHELL", full_cmd),
+                    ])
                     .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
             }
             TerminalType::Alacritty => {
                 Command::new("alacritty")
-                    .args(["--working-directory", &path, "-e", "sh", "-c", &format!("{} ; exec $SHELL", full_cmd)])
+                    .args([
+                        "--working-directory",
+                        &path,
+                        "-e",
+                        "sh",
+                        "-c",
+                        &format!("{} ; exec $SHELL", full_cmd),
+                    ])
                     .envs(&env_vars)
                     .spawn()
                     .map_err(|e| format!("Failed to open coding agent: {}", e))?;
@@ -752,9 +824,12 @@ pub async fn list_remote_dir(host: String, path: Option<String>) -> Result<DirLi
 
         tokio::process::Command::new("ssh")
             .args([
-                "-o", "ControlMaster=auto",
-                "-o", &format!("ControlPath={}", socket_path_str),
-                "-o", "ControlPersist=600",
+                "-o",
+                "ControlMaster=auto",
+                "-o",
+                &format!("ControlPath={}", socket_path_str),
+                "-o",
+                "ControlPersist=600",
                 &host,
                 &cmd,
             ])
@@ -920,8 +995,7 @@ pub async fn read_file_content(
     if file_size > ABSOLUTE_MAX {
         return Err(format!(
             "File too large ({} bytes). Max: {} bytes",
-            file_size,
-            ABSOLUTE_MAX
+            file_size, ABSOLUTE_MAX
         ));
     }
 
@@ -939,13 +1013,13 @@ pub async fn read_file_content(
         // Read chunk
         let bytes_to_read = length_val.min(file_size.saturating_sub(offset_val));
         let mut buffer = vec![0; bytes_to_read as usize];
-        let bytes_read = file.read(&mut buffer)
+        let bytes_read = file
+            .read(&mut buffer)
             .await
             .map_err(|e| format!("Failed to read file: {}", e))?;
 
         buffer.truncate(bytes_read);
-        String::from_utf8(buffer)
-            .map_err(|e| format!("Failed to decode file as UTF-8: {}", e))?
+        String::from_utf8(buffer).map_err(|e| format!("Failed to decode file as UTF-8: {}", e))?
     } else {
         // Legacy mode: read entire file or first max_size bytes
         let max_size = max_size.unwrap_or(10 * 1024 * 1024); // Default 10MB
@@ -962,7 +1036,8 @@ pub async fn read_file_content(
                 .map_err(|e| format!("Failed to open file: {}", e))?;
 
             let mut buffer = vec![0; max_size as usize];
-            let bytes_read = file.read(&mut buffer)
+            let bytes_read = file
+                .read(&mut buffer)
                 .await
                 .map_err(|e| format!("Failed to read file: {}", e))?;
 
@@ -1000,8 +1075,7 @@ pub async fn get_file_info(path: String) -> Result<FileInfo, String> {
     if file_size > ABSOLUTE_MAX {
         return Err(format!(
             "File too large ({} bytes). Max: {} bytes",
-            file_size,
-            ABSOLUTE_MAX
+            file_size, ABSOLUTE_MAX
         ));
     }
 
@@ -1074,10 +1148,7 @@ pub fn get_database_path(settings_file: State<SettingsFile>) -> String {
 #[tauri::command]
 pub fn get_default_database_path() -> String {
     let home_dir = dirs::home_dir().expect("Failed to get home directory");
-    home_dir
-        .join(".devora")
-        .to_string_lossy()
-        .to_string()
+    home_dir.join(".devora").to_string_lossy().to_string()
 }
 
 #[tauri::command]
@@ -1124,7 +1195,8 @@ pub fn validate_database_path(path: String) -> Result<ValidateDatabasePathResult
 // Todos
 #[tauri::command]
 pub fn get_todos(projectId: String, db: State<Database>) -> Result<Vec<TodoItem>, String> {
-    db.get_todos_by_project(&projectId).map_err(|e| e.to_string())
+    db.get_todos_by_project(&projectId)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1170,4 +1242,3 @@ pub fn reorder_todos(
 pub fn get_todo_progress(projectId: String, db: State<Database>) -> Result<TodoProgress, String> {
     db.get_todo_progress(&projectId).map_err(|e| e.to_string())
 }
-

@@ -29,7 +29,8 @@ import {
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
-  const { project, loading, error, addItem, updateItem, deleteItem, updateProject, reorderItems } = useProject(id!)
+  const { project, loading, error, addItem, updateItem, deleteItem, updateProject, reorderItems, fetchProject } =
+    useProject(id!)
   const { value: codingAgentGlobalEnv } = useSetting('codingAgentGlobalEnv')
 
   // Mobile sidebar state
@@ -344,17 +345,20 @@ export default function ProjectDetail() {
     ide: (
       <IDESection
         items={ideItems}
+        projectId={project.id}
         isCreating={isCreatingIde}
         workingDirs={project.metadata.working_dirs || []}
         onAdd={handleAddIde}
         onUpdate={updateItem}
         onDelete={deleteItem}
         onCreatingChange={setIsCreatingIde}
+        onReorder={() => fetchProject(false)}
       />
     ),
     remoteIde: (
       <RemoteIDESection
         items={remoteIdeItems}
+        projectId={project.id}
         isCreating={isCreatingRemoteIde}
         sshHosts={sshHosts}
         workingDirs={project.metadata.working_dirs || []}
@@ -362,11 +366,13 @@ export default function ProjectDetail() {
         onUpdate={updateItem}
         onDelete={deleteItem}
         onCreatingChange={setIsCreatingRemoteIde}
+        onReorder={() => fetchProject(false)}
       />
     ),
     codingAgent: (
       <CodingAgentSection
         items={codingAgentItems}
+        projectId={project.id}
         isCreating={isCreatingCodingAgent}
         workingDirs={project.metadata.working_dirs || []}
         globalEnv={codingAgentGlobalEnv}
@@ -374,21 +380,25 @@ export default function ProjectDetail() {
         onUpdate={updateItem}
         onDelete={deleteItem}
         onCreatingChange={setIsCreatingCodingAgent}
+        onReorder={() => fetchProject(false)}
       />
     ),
     file: (
       <FileSection
         items={fileItems}
+        projectId={project.id}
         isCreating={isCreatingFile}
         onAdd={handleAddFile}
         onUpdate={updateItem}
         onDelete={deleteItem}
         onCreatingChange={setIsCreatingFile}
+        onReorder={() => fetchProject(false)}
       />
     ),
     command: (
       <CommandSection
         items={commandItems}
+        projectId={project.id}
         isCreating={isCreatingCommand}
         workingDirs={project.metadata.working_dirs || []}
         sshHosts={sshHosts}
@@ -396,9 +406,19 @@ export default function ProjectDetail() {
         onUpdate={updateItem}
         onDelete={deleteItem}
         onCreatingChange={setIsCreatingCommand}
+        onReorder={() => fetchProject(false)}
       />
     ),
-    links: <LinksSection urls={urlItems} onAdd={handleAddUrl} onUpdate={updateItem} onDelete={deleteItem} />,
+    links: (
+      <LinksSection
+        urls={urlItems}
+        projectId={project.id}
+        onAdd={handleAddUrl}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onReorder={() => fetchProject(false)}
+      />
+    ),
     notes: (
       <NotesSection
         notes={notes}

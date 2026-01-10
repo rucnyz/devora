@@ -110,15 +110,17 @@ describe('IDE Constants', () => {
 
 describe('Remote IDE Constants', () => {
   describe('REMOTE_IDE_LABELS', () => {
-    test('contains only cursor and vscode', () => {
+    test('contains cursor, vscode, and zed', () => {
       expect(REMOTE_IDE_LABELS.cursor).toBeDefined()
       expect(REMOTE_IDE_LABELS.vscode).toBeDefined()
-      expect(Object.keys(REMOTE_IDE_LABELS).length).toBe(2)
+      expect(REMOTE_IDE_LABELS.zed).toBeDefined()
+      expect(Object.keys(REMOTE_IDE_LABELS).length).toBe(3)
     })
 
     test('has correct labels', () => {
       expect(REMOTE_IDE_LABELS.cursor).toBe('Cursor')
       expect(REMOTE_IDE_LABELS.vscode).toBe('VS Code')
+      expect(REMOTE_IDE_LABELS.zed).toBe('Zed')
     })
   })
 
@@ -129,15 +131,16 @@ describe('Remote IDE Constants', () => {
   })
 
   describe('REMOTE_IDE_TYPES', () => {
-    test('contains 2 remote IDE options', () => {
-      expect(REMOTE_IDE_TYPES.length).toBe(2)
+    test('contains 3 remote IDE options', () => {
+      expect(REMOTE_IDE_TYPES.length).toBe(3)
     })
 
-    test('contains only cursor and vscode', () => {
+    test('contains cursor, vscode, and zed', () => {
       const values = REMOTE_IDE_TYPES.map((t) => t.value)
       expect(values).toContain('cursor')
       expect(values).toContain('vscode')
-      expect(values.length).toBe(2)
+      expect(values).toContain('zed')
+      expect(values.length).toBe(3)
     })
   })
 })

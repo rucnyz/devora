@@ -17,7 +17,7 @@ export type IdeType =
   | 'vscode'
   | 'zed'
   | 'antigravity'
-export type RemoteIdeType = 'cursor' | 'vscode'
+export type RemoteIdeType = 'cursor' | 'vscode' | 'zed'
 export type CodingAgentType = 'claude-code' | 'opencode' | 'gemini-cli'
 export type CommandMode = 'background' | 'output'
 

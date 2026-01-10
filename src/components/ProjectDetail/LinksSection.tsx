@@ -1,22 +1,43 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { fetchUrlMetadata } from '../../hooks/useProjects'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
+import { fetchUrlMetadata, reorderItems } from '../../hooks/useProjects'
 import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
+import { SortableItem } from './SortableItem'
 import type { Item } from '../../types'
 
 interface LinksSectionProps {
   urls: Item[]
+  projectId: string
   onAdd: (title: string, url: string) => Promise<Item>
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onReorder: () => void
 }
 
-export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksSectionProps) {
+export default function LinksSection({ urls, projectId, onAdd, onUpdate, onDelete, onReorder }: LinksSectionProps) {
   const [quickUrlInput, setQuickUrlInput] = useState('')
   const quickUrlInputRef = useRef<HTMLInputElement>(null)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const editUrlRef = useRef<HTMLDivElement>(null)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = urls.findIndex((i) => i.id === active.id)
+      const newIndex = urls.findIndex((i) => i.id === over.id)
+      const newOrder = arrayMove(urls, oldIndex, newIndex)
+      await reorderItems(
+        projectId,
+        newOrder.map((i) => i.id)
+      )
+      onReorder()
+    }
+  }
 
   const quickAddUrl = useCallback(
     async (url: string) => {
@@ -102,108 +123,113 @@ export default function LinksSection({ urls, onAdd, onUpdate, onDelete }: LinksS
     <section id="section-links" className="scroll-mt-6">
       <h3 className="section-label">Links</h3>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {urls.map((item, index) =>
-          editingId === item.id ? (
-            <div
-              key={item.id}
-              ref={editUrlRef}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-(--accent-secondary)/10 border border-(--accent-secondary)"
-            >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={urls.map((i) => i.id)} strategy={rectSortingStrategy}>
+          <div className="flex flex-wrap items-center gap-2">
+            {urls.map((item, index) =>
+              editingId === item.id ? (
+                <div
+                  key={item.id}
+                  ref={editUrlRef}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-(--accent-secondary)/10 border border-(--accent-secondary)"
+                >
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && editTitle.trim()) {
+                        e.preventDefault()
+                        saveEditing()
+                      } else if (e.key === 'Escape') {
+                        setEditingId(null)
+                      }
+                    }}
+                    className="w-40 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-primary) focus:outline-none focus:border-(--accent-secondary)"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="text-(--text-muted) hover:text-(--text-primary) text-xs"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <SortableItem key={item.id} id={item.id}>
+                  <ItemContextMenu
+                    items={[
+                      {
+                        label: 'Duplicate',
+                        icon: <DuplicateIcon className="w-4 h-4" />,
+                        onClick: () => handleDuplicate(item),
+                      },
+                    ]}
+                  >
+                    <a
+                      href={item.content}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={item.content}
+                      className="tag tag-url animate-card-enter group"
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
+                      <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
+                      </svg>
+                      <span>{item.title}</span>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setEditingId(item.id)
+                          setEditTitle(item.title)
+                        }}
+                        className="ml-1 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-secondary) transition-opacity"
+                        title="Rename"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onDelete(item.id)
+                        }}
+                        className="ml-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-danger) transition-opacity"
+                      >
+                        ×
+                      </button>
+                    </a>
+                  </ItemContextMenu>
+                </SortableItem>
+              )
+            )}
+            {/* Quick URL input */}
+            <div className="inline-flex items-center">
               <input
+                ref={quickUrlInputRef}
                 type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
+                value={quickUrlInput}
+                onChange={(e) => setQuickUrlInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && editTitle.trim()) {
+                  if (e.key === 'Enter' && quickUrlInput.trim()) {
                     e.preventDefault()
-                    saveEditing()
-                  } else if (e.key === 'Escape') {
-                    setEditingId(null)
+                    quickAddUrl(quickUrlInput)
                   }
                 }}
-                className="w-40 px-2 py-0.5 text-xs font-mono rounded bg-(--bg-elevated) border border-(--border-visible) text-(--text-primary) focus:outline-none focus:border-(--accent-secondary)"
-                autoFocus
+                placeholder="Paste URL or Ctrl+V anywhere..."
+                className="w-56 px-3 py-1.5 text-xs font-mono rounded-md bg-(--bg-elevated) border border-(--border-visible) text-(--text-secondary) placeholder:text-(--text-muted) focus:outline-none focus:border-(--accent-secondary) transition-colors"
               />
-              <button
-                onClick={() => setEditingId(null)}
-                className="text-(--text-muted) hover:text-(--text-primary) text-xs"
-              >
-                ✕
-              </button>
             </div>
-          ) : (
-            <ItemContextMenu
-              key={item.id}
-              items={[
-                {
-                  label: 'Duplicate',
-                  icon: <DuplicateIcon className="w-4 h-4" />,
-                  onClick: () => handleDuplicate(item),
-                },
-              ]}
-            >
-              <a
-                href={item.content}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={item.content}
-                className="tag tag-url animate-card-enter group"
-                style={{ animationDelay: `${index * 30}ms` }}
-              >
-                <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-                <span>{item.title}</span>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setEditingId(item.id)
-                    setEditTitle(item.title)
-                  }}
-                  className="ml-1 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-secondary) transition-opacity"
-                  title="Rename"
-                >
-                  ✎
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    onDelete(item.id)
-                  }}
-                  className="ml-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-(--accent-danger) transition-opacity"
-                >
-                  ×
-                </button>
-              </a>
-            </ItemContextMenu>
-          )
-        )}
-        {/* Quick URL input */}
-        <div className="inline-flex items-center">
-          <input
-            ref={quickUrlInputRef}
-            type="text"
-            value={quickUrlInput}
-            onChange={(e) => setQuickUrlInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && quickUrlInput.trim()) {
-                e.preventDefault()
-                quickAddUrl(quickUrlInput)
-              }
-            }}
-            placeholder="Paste URL or Ctrl+V anywhere..."
-            className="w-56 px-3 py-1.5 text-xs font-mono rounded-md bg-(--bg-elevated) border border-(--border-visible) text-(--text-secondary) placeholder:text-(--text-muted) focus:outline-none focus:border-(--accent-secondary) transition-colors"
-          />
-        </div>
-      </div>
+          </div>
+        </SortableContext>
+      </DndContext>
     </section>
   )
 }
