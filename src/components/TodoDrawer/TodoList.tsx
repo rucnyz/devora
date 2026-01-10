@@ -17,6 +17,8 @@ interface TodoListProps {
 
 export interface TodoListRef {
   editTodo: (id: string) => void
+  isEditing: () => boolean
+  stopEditing: () => void
 }
 
 const TodoList = forwardRef<TodoListRef, TodoListProps>(
@@ -26,6 +28,8 @@ const TodoList = forwardRef<TodoListRef, TodoListProps>(
 
     useImperativeHandle(ref, () => ({
       editTodo: (id: string) => setEditingId(id),
+      isEditing: () => editingId !== null,
+      stopEditing: () => setEditingId(null),
     }))
 
     const sensors = useSensors(

@@ -173,6 +173,7 @@ export default function TodoItem({
       e.preventDefault()
       await handleSave(true)
     } else if (e.key === 'Escape') {
+      e.stopPropagation()
       setEditContent(todo.content)
       stopEditing()
     } else if (e.key === 'Tab') {

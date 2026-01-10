@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import type { TodoItem, TodoProgress as TodoProgressType } from '../../types'
 import TodoList, { type TodoListRef } from './TodoList'
@@ -36,11 +36,55 @@ export default function TodoDrawer({
 }: TodoDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<TodoListRef>(null)
+  const [drawerWidth, setDrawerWidth] = useState(560)
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
 
-  // Close on Escape key
+  const MIN_WIDTH = 320
+  const MAX_WIDTH = Math.min(1200, typeof window !== 'undefined' ? window.innerWidth * 0.9 : 1200)
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      setIsResizing(true)
+      resizeRef.current = { startX: e.clientX, startWidth: drawerWidth }
+    },
+    [drawerWidth]
+  )
+
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return
+      // Dragging left increases width (since drawer is on right side)
+      const delta = resizeRef.current.startX - e.clientX
+      const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeRef.current.startWidth + delta))
+      setDrawerWidth(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      resizeRef.current = null
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizing])
+
+  // Close on Escape key (but not if editing - let TodoItem handle it)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
+        // If the event target is a textarea, the user is editing - don't close
+        // TodoItem's onKeyDown will handle exiting edit mode
+        if (e.target instanceof HTMLTextAreaElement) {
+          return
+        }
         onClose()
       }
     }
@@ -73,14 +117,25 @@ export default function TodoDrawer({
       {/* Drawer panel */}
       <div
         ref={drawerRef}
+        style={{ width: `${drawerWidth}px` }}
         className={`
-          fixed top-0 right-0 h-full w-[480px] max-w-[90vw] z-50
+          fixed top-0 right-0 h-full max-w-[90vw] z-50
           bg-(--bg-surface) border-l border-(--border-visible)
           transform transition-transform duration-300 ease-out
           flex flex-col
           ${isOpen ? 'translate-x-0' : 'translate-x-full'}
+          ${isResizing ? 'transition-none select-none' : ''}
         `}
       >
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleResizeStart}
+          className={`
+            absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize
+            hover:bg-(--accent-primary) transition-colors
+            ${isResizing ? 'bg-(--accent-primary)' : ''}
+          `}
+        />
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-(--border-subtle)">
           <div className="flex items-center gap-3">
