@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
-import { getProjects } from '../api/tauri'
+import { getProjects, openProjectWindow } from '../api/tauri'
 import type { Project } from '../types'
+
+interface ContextMenuState {
+  x: number
+  y: number
+  project: Project
+}
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed'
 
@@ -19,7 +25,9 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     return saved === 'true'
   })
   const [mounted, setMounted] = useState(false)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
 
   // Enable transitions after mount to prevent initial animation
   useEffect(() => {
@@ -59,6 +67,29 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     }
   }, [mobileOpen, onMobileClose])
 
+  // Close context menu on click outside or Escape
+  useEffect(() => {
+    if (!contextMenu) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null)
+    }
+
+    // Use click instead of mousedown to avoid timing issues with button clicks
+    document.addEventListener('click', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [contextMenu])
+
   const toggleCollapse = () => {
     setCollapsed((c) => {
       const newVal = !c
@@ -66,6 +97,37 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       setTimeout(() => window.dispatchEvent(new CustomEvent('sidebar-toggle')), 0)
       return newVal
     })
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, project: Project) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, project })
+  }
+
+  const handleOpenInNewWindow = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!contextMenu) return
+    const project = contextMenu.project
+    setContextMenu(null)
+    try {
+      await openProjectWindow(project.id, project.name)
+    } catch (error) {
+      console.error('Failed to open project window:', error)
+    }
+  }
+
+  const handleLinkClick = async (e: React.MouseEvent, project: Project) => {
+    // Ctrl+Click or Cmd+Click opens in new window
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      try {
+        await openProjectWindow(project.id, project.name)
+      } catch (error) {
+        console.error('Failed to open project window:', error)
+      }
+    } else {
+      onMobileClose()
+    }
   }
 
   return createPortal(
@@ -111,8 +173,9 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               <Link
                 key={project.id}
                 to={`/project/${project.id}`}
-                onClick={onMobileClose}
-                title={collapsed ? project.name : undefined}
+                onClick={(e) => handleLinkClick(e, project)}
+                onContextMenu={(e) => handleContextMenu(e, project)}
+                title={collapsed ? project.name : `${project.name} (Ctrl+Click to open in new window)`}
                 className={`
                   flex items-center gap-2 px-3 py-2 mx-1 rounded-md
                   transition-colors duration-150
@@ -143,6 +206,30 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           })}
         </nav>
       </aside>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-[100] min-w-[160px] py-1 bg-(--bg-surface) border border-(--border-subtle) rounded-lg shadow-lg"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={(e) => handleOpenInNewWindow(e)}
+            className="w-full px-3 py-2 text-left text-sm text-(--text-primary) hover:bg-(--bg-hover) flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+            Open in new window
+          </button>
+        </div>
+      )}
     </>,
     document.body
   )

@@ -454,6 +454,12 @@ export async function validateDatabasePath(path: string): Promise<ValidateDataba
   return invoke<ValidateDatabasePathResult>('validate_database_path', { path })
 }
 
+// ============ Window Management API ============
+
+export async function openProjectWindow(projectId: string, projectName: string): Promise<void> {
+  return invoke('open_project_window', { projectId, projectName })
+}
+
 // ============ Todos API ============
 
 import type { TodoItem, TodoProgress } from '../types'

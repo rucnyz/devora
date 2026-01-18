@@ -86,6 +86,7 @@ export const CODING_AGENT_LABELS: Record<CodingAgentType, string> = {
   'claude-code': 'Claude Code',
   opencode: 'OpenCode',
   'gemini-cli': 'Gemini CLI',
+  codex: 'Codex',
 }
 
 // All coding agents use the unified tag-coding-agent class
@@ -95,4 +96,5 @@ export const CODING_AGENT_TYPES: { value: CodingAgentType; label: string }[] = [
   { value: 'claude-code', label: 'Claude Code' },
   { value: 'opencode', label: 'OpenCode' },
   { value: 'gemini-cli', label: 'Gemini CLI' },
+  { value: 'codex', label: 'Codex' },
 ]

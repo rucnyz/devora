@@ -134,6 +134,7 @@ function AgentOptions({
       <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-(--border-subtle)">
         <span className="text-xs text-(--text-muted) font-mono">Insert:</span>
         <ArgButton label="--chrome" onClick={() => appendArg('--chrome')} />
+        <ArgButton label="--dangerously-skip-permissions" onClick={() => appendArg('--dangerously-skip-permissions')} />
         <AddDirDropdown workingDirs={localWorkingDirs} onSelect={appendArg} />
       </div>
     )

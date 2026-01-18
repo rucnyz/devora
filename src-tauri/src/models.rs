@@ -54,6 +54,7 @@ pub enum CodingAgentType {
     ClaudeCode,
     Opencode,
     GeminiCli,
+    Codex,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]

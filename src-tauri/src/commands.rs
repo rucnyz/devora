@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use tauri::State;
+use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 // Projects
 #[tauri::command]
@@ -458,6 +458,7 @@ pub fn open_coding_agent(
         CodingAgentType::ClaudeCode => "claude",
         CodingAgentType::Opencode => "opencode",
         CodingAgentType::GeminiCli => "gemini",
+        CodingAgentType::Codex => "codex",
     };
 
     // Build full command with args
@@ -1241,4 +1242,35 @@ pub fn reorder_todos(
 #[tauri::command]
 pub fn get_todo_progress(projectId: String, db: State<Database>) -> Result<TodoProgress, String> {
     db.get_todo_progress(&projectId).map_err(|e| e.to_string())
+}
+
+// Window management
+#[tauri::command]
+pub async fn open_project_window(
+    app: AppHandle,
+    projectId: String,
+    projectName: String,
+) -> Result<(), String> {
+    let window_label = format!("project-{}", projectId);
+
+    // Check if window already exists
+    if let Some(window) = app.get_webview_window(&window_label) {
+        // Window exists, focus it
+        window.set_focus().map_err(|e| e.to_string())?;
+        window.unminimize().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    // Create new window
+    let url = WebviewUrl::App(format!("/project/{}", projectId).into());
+    let title = format!("Devora - {}", projectName);
+
+    WebviewWindowBuilder::new(&app, &window_label, url)
+        .title(&title)
+        .inner_size(1200.0, 800.0)
+        .min_inner_size(800.0, 600.0)
+        .build()
+        .map_err(|e| format!("Failed to create window: {}", e))?;
+
+    Ok(())
 }

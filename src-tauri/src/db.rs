@@ -20,7 +20,13 @@ impl Database {
         info!("Database path: {:?}", db_path);
 
         let conn = Connection::open(&db_path)?;
-        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+        // WAL mode for better concurrent access (multiple instances)
+        // busy_timeout waits for locks instead of failing immediately
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL;
+             PRAGMA busy_timeout = 5000;
+             PRAGMA foreign_keys = ON;",
+        )?;
 
         let db = Database {
             conn: Mutex::new(conn),

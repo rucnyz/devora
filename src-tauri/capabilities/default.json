@@ -3,10 +3,12 @@
   "identifier": "default",
   "description": "Enables default permissions for Devora",
   "windows": [
-    "main"
+    "main",
+    "project-*"
   ],
   "permissions": [
     "core:default",
+    "core:webview:allow-create-webview-window",
     "dialog:allow-open",
     "dialog:allow-save",
     "dialog:allow-message",

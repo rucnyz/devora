@@ -98,6 +98,8 @@ pub fn run() {
             commands::delete_todo,
             commands::reorder_todos,
             commands::get_todo_progress,
+            // Window management
+            commands::open_project_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

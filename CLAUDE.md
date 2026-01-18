@@ -74,6 +74,39 @@ Tests use Bun's built-in test runner with `@testing-library/react` and `happy-do
 - Commands use `State<Database>` for thread-safe database access
 - Windows-specific code uses `creation_flags` to hide console windows
 
+## Multi-Instance Architecture
+
+Devora supports running multiple independent instances, ideal for Windows multi-virtual-desktop workflows where each desktop can have its own Devora instance with a different project.
+
+### SQLite Concurrent Access
+Multiple instances share the same database file (`~/.devora/projects.db`). Safe concurrent access is enabled via:
+- **WAL mode** (`PRAGMA journal_mode = WAL`): Allows concurrent reads and writes
+- **Busy timeout** (`PRAGMA busy_timeout = 5000`): Waits up to 5 seconds for locks instead of failing immediately
+
+### Multi-Window Support (within single instance)
+- Each project can be opened in its own window via right-click context menu or Ctrl+Click
+- Window labels follow the pattern: `project-{projectId}`
+- If a window for a project already exists, it's focused instead of creating a duplicate
+
+### Tauri Command
+- `open_project_window(projectId, projectName)` - Creates a new window or focuses existing one
+  - URL: `/project/{projectId}`
+  - Title: `Devora - {projectName}`
+  - Window size: 1200x800 (min: 800x600)
+
+### Capabilities
+- `src-tauri/capabilities/default.json` includes:
+  - `windows: ["main", "project-*"]` - Allows dynamic project windows
+  - `core:webview:allow-create-webview-window` - Permission to create windows
+
+### Frontend Integration
+- `src/api/tauri.ts`: `openProjectWindow(projectId, projectName)` API function
+- `src/components/Sidebar.tsx`:
+  - Right-click context menu with "Open in new window" option
+  - Ctrl+Click (Cmd+Click on macOS) shortcut to open in new window
+  - Tooltip hint showing the keyboard shortcut
+  - **Event handling**: Context menu uses `click` event (not `mousedown`) for closing to avoid timing issues with button clicks; `stopPropagation()` prevents bubbling
+
 ## TODO Feature
 
 Each project has an associated TODO list accessible via a slide-out drawer.
