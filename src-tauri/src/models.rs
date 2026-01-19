@@ -279,11 +279,19 @@ pub struct FileLinesResult {
     pub start_line: usize,
 }
 
-// Database path validation result
+// Database path validation result (legacy - kept for backward compatibility)
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidateDatabasePathResult {
     pub is_valid: bool,
     pub database_exists: bool,
+}
+
+// Data path validation result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidateDataPathResult {
+    pub is_valid: bool,
+    pub data_exists: bool,
 }
 
 // Todo item

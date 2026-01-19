@@ -106,6 +106,16 @@ export interface ImportResult {
   skipped: number
 }
 
+// ============ Store Reload API ============
+
+export async function reloadStore(): Promise<void> {
+  return invoke('reload_store')
+}
+
+export async function checkExternalChanges(): Promise<boolean> {
+  return invoke<boolean>('check_external_changes')
+}
+
 // ============ Projects API ============
 
 export async function getProjects(): Promise<Project[]> {
@@ -427,32 +437,40 @@ export async function readFileLines(path: string, startLine: number, count: numb
   return invoke<FileLinesResult>('read_file_lines', { path, startLine, count })
 }
 
-// ============ Database Path API ============
+// ============ Data Path API ============
 
-export interface ValidateDatabasePathResult {
+export interface ValidateDataPathResult {
   is_valid: boolean
-  database_exists: boolean
+  data_exists: boolean
 }
 
-export async function getDatabasePath(): Promise<string> {
-  return invoke<string>('get_database_path')
+export async function getDataPath(): Promise<string> {
+  return invoke<string>('get_data_path')
 }
 
-export async function getDefaultDatabasePath(): Promise<string> {
-  return invoke<string>('get_default_database_path')
+export async function getDefaultDataPath(): Promise<string> {
+  return invoke<string>('get_default_data_path')
 }
 
-export async function setDatabasePath(path: string): Promise<void> {
-  return invoke('set_database_path', { path })
+export async function setDataPath(path: string): Promise<void> {
+  return invoke('set_data_path', { path })
 }
 
-export async function checkDatabaseExists(path: string): Promise<boolean> {
-  return invoke<boolean>('check_database_exists', { path })
+export async function checkDataExists(path: string): Promise<boolean> {
+  return invoke<boolean>('check_data_exists', { path })
 }
 
-export async function validateDatabasePath(path: string): Promise<ValidateDatabasePathResult> {
-  return invoke<ValidateDatabasePathResult>('validate_database_path', { path })
+export async function validateDataPath(path: string): Promise<ValidateDataPathResult> {
+  return invoke<ValidateDataPathResult>('validate_data_path', { path })
 }
+
+// Legacy aliases for backward compatibility
+export const getDatabasePath = getDataPath
+export const getDefaultDatabasePath = getDefaultDataPath
+export const setDatabasePath = setDataPath
+export const checkDatabaseExists = checkDataExists
+export type ValidateDatabasePathResult = ValidateDataPathResult
+export const validateDatabasePath = validateDataPath
 
 // ============ Window Management API ============
 

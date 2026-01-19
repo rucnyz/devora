@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Devora is a cross-platform desktop application for local project management built with **Tauri 2 + React 19**. Each project contains notes, IDE shortcuts, file links, URL links, commands, and coding agent integrations. All data is stored locally in SQLite (~/.devora/projects.db).
+Devora is a cross-platform desktop application for local project management built with **Tauri 2 + React 19**. Each project contains notes, IDE shortcuts, file links, URL links, commands, and coding agent integrations. All data is stored locally in JSON files, enabling cloud sync via OneDrive/Dropbox when the app is closed.
 
 ## Development Commands
 
@@ -44,16 +44,19 @@ bun run format
 
 ### Backend (src-tauri/)
 - **Rust 2024 edition** with Tauri 2
-- **Entry**: `src/lib.rs` initializes plugins and registers commands
+- **Entry**: `src/lib.rs` initializes plugins, runs migration, and registers commands
 - **Commands**: `src/commands.rs` - Tauri commands for projects, items, file cards, settings, IDE operations
-- **Database**: `src/db.rs` - SQLite with migration system (PRAGMA user_version), uses rusqlite
+- **Storage**: `src/json_store.rs` - JSON-based storage with multi-file structure and atomic writes
+- **Migration**: `src/migration.rs` - Automatic SQLite to JSON migration on first run
 - **Models**: `src/models.rs` - Rust structs with serde serialization matching frontend types
+- **Settings**: `src/settings.rs` - App settings stored in `~/.devora/settings.json`
+- **Legacy**: `src/db.rs` - SQLite module (kept for migration compatibility)
 
 ### Key Data Flow
 1. Frontend calls `src/api/tauri.ts` functions
 2. Tauri `invoke()` calls Rust commands in `src/commands.rs`
-3. Commands use `Database` struct methods from `src/db.rs`
-4. SQLite stores data in `~/.devora/projects.db`
+3. Commands use `JsonStore` struct methods from `src/json_store.rs`
+4. Data is saved immediately to JSON files in the configured data path
 
 ### Item Types
 Items belong to projects and have types: `note`, `ide`, `file`, `url`, `remote-ide`, `command`, `coding-agent`
@@ -70,18 +73,89 @@ Tests use Bun's built-in test runner with `@testing-library/react` and `happy-do
 ## Rust Backend Notes
 
 - Uses Tauri plugins: dialog, opener, updater, process, log
-- Database migrations are version-controlled (current: v5)
-- Commands use `State<Database>` for thread-safe database access
+- Commands use `State<JsonStore>` for thread-safe storage access
 - Windows-specific code uses `creation_flags` to hide console windows
+
+## JSON Storage Architecture
+
+Data is stored in JSON files instead of SQLite, enabling cloud sync (OneDrive/Dropbox) when the app is closed.
+
+### File Layout
+```
+~/.devora/                      # Fixed config location
+  ├── settings.json             # App settings (includes data_path)
+  └── projects.db.migrated      # OLD: Renamed after migration
+
+{data_path}/                    # Default: ~/.devora/ OR user custom (e.g. OneDrive)
+  ├── metadata.json             # Project list & global settings
+  └── projects/
+      ├── {uuid-1}.json         # Project 1 with items, todos, file_cards
+      ├── {uuid-2}.json         # Project 2
+      └── ...
+```
+
+### JsonStore Module (`src/json_store.rs`)
+Core storage struct with key methods:
+- `new(data_path)` - Initialize store, create directories, load metadata
+- `get_all_projects()` / `get_project_by_id(id)` - Read projects
+- `create_project()` / `update_project()` / `delete_project()` - Project CRUD
+- `create_item()` / `update_item()` / `delete_item()` / `reorder_items()` - Item CRUD
+- `create_todo()` / `update_todo()` / `delete_todo()` / `reorder_todos()` - Todo CRUD
+- `get_setting()` / `set_setting()` - Settings stored in metadata.json
+
+### Atomic Writes
+All file writes use atomic pattern to prevent corruption:
+1. Ensure parent directory exists (`fs::create_dir_all`)
+2. Write to `{file}.json.tmp`
+3. Sync to disk (`file.sync_all()`)
+4. Rename to `{file}.json`
+
+This allows creating files even after the data directory was deleted.
+
+### Immediate Saves
+Every create/update/delete operation immediately saves to disk. No batching or caching delays.
+
+### Migration System (`src/migration.rs`)
+Automatic SQLite to JSON migration on first run:
+1. Check if `metadata.json` exists → skip migration
+2. Check if `projects.db` exists → migrate
+3. For each project: gather items, todos, file_cards → write `projects/{id}.json`
+4. Write `metadata.json` with project IDs and settings
+5. Rename `projects.db` → `projects.db.migrated`
+
+### Data Path Configuration
+- **Default**: `~/.devora/` (stores both settings and data)
+- **Custom**: User can set via Settings → Data Path (e.g., OneDrive folder)
+- **Settings location**: Always `~/.devora/settings.json` (never synced)
+- **API**: `get_data_path()`, `set_data_path()`, `validate_data_path()`
+
+### External Change Detection (Cloud Sync Support)
+When using a cloud-synced folder (OneDrive, Dropbox), data may change externally while the app is running. The app automatically detects and reloads these changes:
+
+- **On window focus**: Immediately checks if `metadata.json` was modified externally
+- **Periodic check**: Every 5 minutes while the app is running
+- **Auto-reload**: If changes detected, clears cache, reloads metadata, and refreshes the page
+
+**Implementation:**
+- `JsonStore::has_external_changes()` - Compares file mtime using `!=` (detects both newer and older files from sync, and file deletion)
+- `JsonStore::reload()` - Clears project cache, reloads metadata from disk. If metadata.json was deleted, creates empty file.
+- `App.tsx` - Uses Tauri's `getCurrentWindow().onFocusChanged()` API (not browser's `window.focus` event, which doesn't work reliably in Tauri webviews)
+
+**Detection cases:**
+- File mtime changed (newer OR older due to sync reversion)
+- File created (didn't exist before)
+- File deleted (existed before, now gone → creates empty metadata.json)
+
+**API:**
+- `check_external_changes()` - Returns `true` if files were modified externally
+- `reload_store()` - Clears cache and reloads metadata from disk
 
 ## Multi-Instance Architecture
 
 Devora supports running multiple independent instances, ideal for Windows multi-virtual-desktop workflows where each desktop can have its own Devora instance with a different project.
 
-### SQLite Concurrent Access
-Multiple instances share the same database file (`~/.devora/projects.db`). Safe concurrent access is enabled via:
-- **WAL mode** (`PRAGMA journal_mode = WAL`): Allows concurrent reads and writes
-- **Busy timeout** (`PRAGMA busy_timeout = 5000`): Waits up to 5 seconds for locks instead of failing immediately
+### Concurrent Access
+Multiple instances can read from the same data directory. Write conflicts are possible but unlikely in typical single-user scenarios. Each write is atomic, so files are never left in a corrupted state.
 
 ### Multi-Window Support (within single instance)
 - Each project can be opened in its own window via right-click context menu or Ctrl+Click
@@ -113,23 +187,27 @@ Each project has an associated TODO list accessible via a slide-out drawer.
 
 ### Architecture Decision
 Uses **hybrid storage + Markdown content** approach:
-- Each TODO is stored as an independent database record (enables drag-and-drop sorting, progress stats)
+- Each TODO is stored as a JSON object within its project file (enables drag-and-drop sorting, progress stats)
 - Content field supports inline Markdown (URLs auto-rendered as clickable links)
 
-### Database Schema (v5)
-```sql
-CREATE TABLE todos (
-    id TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL,
-    content TEXT NOT NULL,
-    completed INTEGER DEFAULT 0,
-    "order" INTEGER DEFAULT 0,
-    indent_level INTEGER DEFAULT 0,  -- 0-3 levels
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    completed_at TEXT,
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-);
+### JSON Schema
+TODOs are stored in `projects/{projectId}.json`:
+```json
+{
+  "todos": [
+    {
+      "id": "uuid",
+      "project_id": "uuid",
+      "content": "Task description",
+      "completed": false,
+      "order": 0,
+      "indent_level": 0,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "completed_at": null
+    }
+  ]
+}
 ```
 
 ### Tauri Commands

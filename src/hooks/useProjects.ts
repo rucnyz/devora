@@ -10,6 +10,8 @@ export function useProjects() {
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true)
+      // Reload store from disk first (in case files were externally modified)
+      await api.reloadStore()
       const data = await api.getProjects()
       setProjects(data)
       setError(null)
@@ -52,9 +54,13 @@ export function useProject(id: string) {
   const [error, setError] = useState<string | null>(null)
 
   const fetchProject = useCallback(
-    async (showLoading = true) => {
+    async (showLoading = true, forceReload = false) => {
       try {
         if (showLoading) setLoading(true)
+        // Reload store from disk if requested (e.g., manual refresh)
+        if (forceReload) {
+          await api.reloadStore()
+        }
         const data = await api.getProject(id)
         setProject(data)
         setError(null)

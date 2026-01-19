@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::db::Database;
+use crate::json_store::JsonStore;
 use crate::models::*;
 use crate::settings::SettingsFile;
 use std::collections::HashMap;
@@ -9,15 +9,27 @@ use std::path::Path;
 use std::process::Command;
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
+// Reload store from disk (for Ctrl+R refresh)
+#[tauri::command]
+pub fn reload_store(store: State<JsonStore>) -> Result<(), String> {
+    store.reload()
+}
+
+// Check if data files have been modified externally (e.g., by OneDrive sync)
+#[tauri::command]
+pub fn check_external_changes(store: State<JsonStore>) -> bool {
+    store.has_external_changes()
+}
+
 // Projects
 #[tauri::command]
-pub fn get_projects(db: State<Database>) -> Result<Vec<Project>, String> {
-    db.get_all_projects().map_err(|e| e.to_string())
+pub fn get_projects(store: State<JsonStore>) -> Result<Vec<Project>, String> {
+    store.get_all_projects()
 }
 
 #[tauri::command]
-pub fn get_project(id: String, db: State<Database>) -> Result<Option<Project>, String> {
-    db.get_project_by_id(&id).map_err(|e| e.to_string())
+pub fn get_project(id: String, store: State<JsonStore>) -> Result<Option<Project>, String> {
+    store.get_project_by_id(&id)
 }
 
 #[tauri::command]
@@ -25,14 +37,13 @@ pub fn create_project(
     name: String,
     description: Option<String>,
     metadata: Option<ProjectMetadata>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<Project, String> {
-    db.create_project(
+    store.create_project(
         &name,
         &description.unwrap_or_default(),
         metadata.unwrap_or_default(),
     )
-    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -41,15 +52,14 @@ pub fn update_project(
     name: Option<String>,
     description: Option<String>,
     metadata: Option<ProjectMetadata>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<Option<Project>, String> {
-    db.update_project(&id, name.as_deref(), description.as_deref(), metadata)
-        .map_err(|e| e.to_string())
+    store.update_project(&id, name.as_deref(), description.as_deref(), metadata)
 }
 
 #[tauri::command]
-pub fn delete_project(id: String, db: State<Database>) -> Result<bool, String> {
-    db.delete_project(&id).map_err(|e| e.to_string())
+pub fn delete_project(id: String, store: State<JsonStore>) -> Result<bool, String> {
+    store.delete_project(&id)
 }
 
 // Items
@@ -59,23 +69,23 @@ pub fn create_item(
     itemType: ItemType,
     title: String,
     content: Option<String>,
-    ideType: Option<String>, // Changed to String to support custom IDE IDs
-    remoteIdeType: Option<String>, // Changed to String to support custom remote IDE IDs
+    ideType: Option<String>,
+    remoteIdeType: Option<String>,
     codingAgentType: Option<CodingAgentType>,
     codingAgentArgs: Option<String>,
     codingAgentEnv: Option<String>,
     commandMode: Option<CommandMode>,
     commandCwd: Option<String>,
     commandHost: Option<String>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<Item, String> {
-    db.create_item(
+    store.create_item(
         &projectId,
         itemType,
         &title,
         &content.unwrap_or_default(),
         ideType.as_deref(),
-        remoteIdeType.as_deref(), // Changed to string
+        remoteIdeType.as_deref(),
         codingAgentType,
         codingAgentArgs.as_deref(),
         codingAgentEnv.as_deref(),
@@ -83,7 +93,6 @@ pub fn create_item(
         commandCwd.as_deref(),
         commandHost.as_deref(),
     )
-    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -91,8 +100,8 @@ pub fn update_item(
     id: String,
     title: Option<String>,
     content: Option<String>,
-    ideType: Option<Option<String>>, // Changed to String to support custom IDE IDs
-    remoteIdeType: Option<Option<String>>, // Changed to String to support custom remote IDE IDs
+    ideType: Option<Option<String>>,
+    remoteIdeType: Option<Option<String>>,
     codingAgentType: Option<Option<CodingAgentType>>,
     codingAgentArgs: Option<Option<String>>,
     codingAgentEnv: Option<Option<String>>,
@@ -100,14 +109,14 @@ pub fn update_item(
     commandCwd: Option<Option<String>>,
     commandHost: Option<Option<String>>,
     order: Option<i32>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<Option<Item>, String> {
-    db.update_item(
+    store.update_item(
         &id,
         title.as_deref(),
         content.as_deref(),
         ideType.map(|o| o.as_deref().map(|s| s.to_string())),
-        remoteIdeType.map(|o| o.as_deref().map(|s| s.to_string())), // Changed to string
+        remoteIdeType.map(|o| o.as_deref().map(|s| s.to_string())),
         codingAgentType,
         codingAgentArgs.as_ref().map(|o| o.as_deref()),
         codingAgentEnv.as_ref().map(|o| o.as_deref()),
@@ -116,29 +125,26 @@ pub fn update_item(
         commandHost.as_ref().map(|o| o.as_deref()),
         order,
     )
-    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn delete_item(id: String, db: State<Database>) -> Result<bool, String> {
-    db.delete_item(&id).map_err(|e| e.to_string())
+pub fn delete_item(id: String, store: State<JsonStore>) -> Result<bool, String> {
+    store.delete_item(&id)
 }
 
 #[tauri::command]
 pub fn reorder_items(
     projectId: String,
     itemIds: Vec<String>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<(), String> {
-    db.reorder_items(&projectId, itemIds)
-        .map_err(|e| e.to_string())
+    store.reorder_items(&projectId, itemIds)
 }
 
 // File Cards
 #[tauri::command]
-pub fn get_file_cards(projectId: String, db: State<Database>) -> Result<Vec<FileCard>, String> {
-    db.get_file_cards_by_project(&projectId)
-        .map_err(|e| e.to_string())
+pub fn get_file_cards(projectId: String, store: State<JsonStore>) -> Result<Vec<FileCard>, String> {
+    store.get_file_cards_by_project(&projectId)
 }
 
 #[tauri::command]
@@ -148,16 +154,15 @@ pub fn create_file_card(
     filePath: String,
     positionX: Option<f64>,
     positionY: Option<f64>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<FileCard, String> {
-    db.create_file_card(
+    store.create_file_card(
         &projectId,
         &filename,
         &filePath,
         positionX.unwrap_or(100.0),
         positionY.unwrap_or(100.0),
     )
-    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -170,9 +175,9 @@ pub fn update_file_card(
     isExpanded: Option<bool>,
     isMinimized: Option<bool>,
     zIndex: Option<i32>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<Option<FileCard>, String> {
-    db.update_file_card(
+    store.update_file_card(
         &id,
         filename.as_deref(),
         filePath.as_deref(),
@@ -182,51 +187,50 @@ pub fn update_file_card(
         isMinimized,
         zIndex,
     )
-    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn delete_file_card(id: String, db: State<Database>) -> Result<bool, String> {
-    db.delete_file_card(&id).map_err(|e| e.to_string())
+pub fn delete_file_card(id: String, store: State<JsonStore>) -> Result<bool, String> {
+    store.delete_file_card(&id)
 }
 
 // Settings
 #[tauri::command]
-pub fn get_all_settings(db: State<Database>) -> Result<HashMap<String, String>, String> {
-    db.get_all_settings().map_err(|e| e.to_string())
+pub fn get_all_settings(store: State<JsonStore>) -> Result<HashMap<String, String>, String> {
+    store.get_all_settings()
 }
 
 #[tauri::command]
-pub fn get_setting(key: String, db: State<Database>) -> Result<Option<String>, String> {
-    db.get_setting(&key).map_err(|e| e.to_string())
+pub fn get_setting(key: String, store: State<JsonStore>) -> Result<Option<String>, String> {
+    store.get_setting(&key)
 }
 
 #[tauri::command]
-pub fn set_setting(key: String, value: String, db: State<Database>) -> Result<(), String> {
-    db.set_setting(&key, &value).map_err(|e| e.to_string())
+pub fn set_setting(key: String, value: String, store: State<JsonStore>) -> Result<(), String> {
+    store.set_setting(&key, &value)
 }
 
 #[tauri::command]
-pub fn delete_setting(key: String, db: State<Database>) -> Result<(), String> {
-    db.delete_setting(&key).map_err(|e| e.to_string())
+pub fn delete_setting(key: String, store: State<JsonStore>) -> Result<(), String> {
+    store.delete_setting(&key)
 }
 
 // Export/Import
 #[tauri::command]
 pub fn export_data(
     projectIds: Option<Vec<String>>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<ExportData, String> {
-    db.export_all_data(projectIds).map_err(|e| e.to_string())
+    store.export_all_data(projectIds)
 }
 
 #[tauri::command]
 pub fn export_data_to_file(
     filePath: String,
     projectIds: Option<Vec<String>>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<usize, String> {
-    let data = db.export_all_data(projectIds).map_err(|e| e.to_string())?;
+    let data = store.export_all_data(projectIds)?;
     let json = serde_json::to_string_pretty(&data)
         .map_err(|e| format!("Failed to serialize data: {}", e))?;
     let count = data.projects.len();
@@ -238,10 +242,9 @@ pub fn export_data_to_file(
 pub fn import_data(
     data: ImportData,
     mode: Option<String>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<ImportResult, String> {
-    db.import_data(data, &mode.unwrap_or_else(|| "merge".to_string()))
-        .map_err(|e| e.to_string())
+    store.import_data(data, &mode.unwrap_or_else(|| "merge".to_string()))
 }
 
 // System operations
@@ -1135,38 +1138,38 @@ pub async fn read_file_lines(
     })
 }
 
-// Database Path Management
+// Data Path Management (renamed from Database Path)
 #[tauri::command]
-pub fn get_database_path(settings_file: State<SettingsFile>) -> String {
+pub fn get_data_path(settings_file: State<SettingsFile>) -> String {
     let home_dir = dirs::home_dir().expect("Failed to get home directory");
     let default_dir = home_dir.join(".devora");
     settings_file
-        .get_database_path(&default_dir)
+        .get_data_path(&default_dir)
         .to_string_lossy()
         .to_string()
 }
 
 #[tauri::command]
-pub fn get_default_database_path() -> String {
+pub fn get_default_data_path() -> String {
     let home_dir = dirs::home_dir().expect("Failed to get home directory");
     home_dir.join(".devora").to_string_lossy().to_string()
 }
 
 #[tauri::command]
-pub fn set_database_path(path: String, settings_file: State<SettingsFile>) -> Result<(), String> {
+pub fn set_data_path(path: String, settings_file: State<SettingsFile>) -> Result<(), String> {
     // Empty path means use default
     let path_option = if path.is_empty() { None } else { Some(path) };
-    settings_file.set_database_path(path_option)
+    settings_file.set_data_path(path_option)
 }
 
 #[tauri::command]
-pub fn check_database_exists(path: String) -> bool {
-    let db_path = Path::new(&path).join("projects.db");
-    db_path.exists()
+pub fn check_data_exists(path: String) -> bool {
+    let metadata_path = Path::new(&path).join("metadata.json");
+    metadata_path.exists()
 }
 
 #[tauri::command]
-pub fn validate_database_path(path: String) -> Result<ValidateDatabasePathResult, String> {
+pub fn validate_data_path(path: String) -> Result<ValidateDataPathResult, String> {
     let path = Path::new(&path);
 
     // Check if it's a file (should be a directory)
@@ -1184,20 +1187,19 @@ pub fn validate_database_path(path: String) -> Result<ValidateDatabasePathResult
     fs::write(&test_file, "test").map_err(|e| format!("Cannot write to directory: {}", e))?;
     fs::remove_file(&test_file).ok();
 
-    // Check if database already exists
-    let db_exists = path.join("projects.db").exists();
+    // Check if data already exists
+    let data_exists = path.join("metadata.json").exists();
 
-    Ok(ValidateDatabasePathResult {
+    Ok(ValidateDataPathResult {
         is_valid: true,
-        database_exists: db_exists,
+        data_exists,
     })
 }
 
 // Todos
 #[tauri::command]
-pub fn get_todos(projectId: String, db: State<Database>) -> Result<Vec<TodoItem>, String> {
-    db.get_todos_by_project(&projectId)
-        .map_err(|e| e.to_string())
+pub fn get_todos(projectId: String, store: State<JsonStore>) -> Result<Vec<TodoItem>, String> {
+    store.get_todos_by_project(&projectId)
 }
 
 #[tauri::command]
@@ -1205,10 +1207,9 @@ pub fn create_todo(
     projectId: String,
     content: String,
     indentLevel: Option<i32>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<TodoItem, String> {
-    db.create_todo(&projectId, &content, indentLevel.unwrap_or(0))
-        .map_err(|e| e.to_string())
+    store.create_todo(&projectId, &content, indentLevel.unwrap_or(0))
 }
 
 #[tauri::command]
@@ -1218,30 +1219,28 @@ pub fn update_todo(
     completed: Option<bool>,
     indentLevel: Option<i32>,
     order: Option<i32>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<Option<TodoItem>, String> {
-    db.update_todo(&id, content.as_deref(), completed, indentLevel, order)
-        .map_err(|e| e.to_string())
+    store.update_todo(&id, content.as_deref(), completed, indentLevel, order)
 }
 
 #[tauri::command]
-pub fn delete_todo(id: String, db: State<Database>) -> Result<bool, String> {
-    db.delete_todo(&id).map_err(|e| e.to_string())
+pub fn delete_todo(id: String, store: State<JsonStore>) -> Result<bool, String> {
+    store.delete_todo(&id)
 }
 
 #[tauri::command]
 pub fn reorder_todos(
     projectId: String,
     todoIds: Vec<String>,
-    db: State<Database>,
+    store: State<JsonStore>,
 ) -> Result<(), String> {
-    db.reorder_todos(&projectId, todoIds)
-        .map_err(|e| e.to_string())
+    store.reorder_todos(&projectId, todoIds)
 }
 
 #[tauri::command]
-pub fn get_todo_progress(projectId: String, db: State<Database>) -> Result<TodoProgress, String> {
-    db.get_todo_progress(&projectId).map_err(|e| e.to_string())
+pub fn get_todo_progress(projectId: String, store: State<JsonStore>) -> Result<TodoProgress, String> {
+    store.get_todo_progress(&projectId)
 }
 
 // Window management

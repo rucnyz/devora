@@ -1,3 +1,7 @@
+// This module is kept for backward compatibility with migration from SQLite
+// The Database struct is no longer used directly - JsonStore is used instead
+#![allow(dead_code)]
+
 use crate::models::*;
 use chrono::Utc;
 use log::info;

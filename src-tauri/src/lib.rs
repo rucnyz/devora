@@ -1,9 +1,11 @@
 mod commands;
 mod db;
+mod json_store;
+mod migration;
 mod models;
 mod settings;
 
-use db::Database;
+use json_store::JsonStore;
 use settings::SettingsFile;
 use std::fs;
 use tauri::Manager;
@@ -20,16 +22,23 @@ pub fn run() {
             // Ensure config directory exists
             fs::create_dir_all(&config_dir).expect("Failed to create config directory");
 
-            // Load settings from JSON file (read before database init)
+            // Load settings from JSON file (read before storage init)
             let settings_file = SettingsFile::new(config_dir.clone());
 
-            // Get database path from settings, or use default
-            let db_dir = settings_file.get_database_path(&config_dir);
+            // Get data path from settings, or use default
+            let data_dir = settings_file.get_data_path(&config_dir);
 
-            // Initialize database in the configured directory
-            let database = Database::new(db_dir).expect("Failed to initialize database");
+            // Run migration from SQLite to JSON if needed
+            // Migration checks if metadata.json exists and if projects.db exists
+            if let Err(e) = migration::migrate_if_needed(&config_dir, &data_dir) {
+                log::error!("Migration failed: {}", e);
+                // Continue anyway - either fresh start or migration error
+            }
 
-            app.manage(database);
+            // Initialize JSON store in the configured directory
+            let store = JsonStore::new(data_dir).expect("Failed to initialize JSON store");
+
+            app.manage(store);
             app.manage(settings_file);
 
             // Setup logging in debug mode
@@ -48,6 +57,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::default().build())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
+            // Store reload & external change detection
+            commands::reload_store,
+            commands::check_external_changes,
             // Projects
             commands::get_projects,
             commands::get_project,
@@ -85,12 +97,12 @@ pub fn run() {
             commands::read_file_content,
             commands::get_file_info,
             commands::read_file_lines,
-            // Database path management
-            commands::get_database_path,
-            commands::get_default_database_path,
-            commands::set_database_path,
-            commands::check_database_exists,
-            commands::validate_database_path,
+            // Data path management
+            commands::get_data_path,
+            commands::get_default_data_path,
+            commands::set_data_path,
+            commands::check_data_exists,
+            commands::validate_data_path,
             // Todos
             commands::get_todos,
             commands::create_todo,

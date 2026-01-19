@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { check, type Update } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
@@ -25,6 +26,8 @@ import {
   setDatabasePath,
   checkDatabaseExists,
   selectFolder,
+  checkExternalChanges,
+  reloadStore,
 } from './api/tauri'
 
 type UpdateState =
@@ -1448,6 +1451,44 @@ function AppContent() {
   const zoomTimeoutRef = useRef<number | null>(null)
   const location = useLocation()
   const isProjectPage = location.pathname.startsWith('/project/')
+
+  // Check for external changes and auto-reload if needed
+  const checkAndReloadIfNeeded = useCallback(async () => {
+    try {
+      const hasChanges = await checkExternalChanges()
+      if (hasChanges) {
+        await reloadStore()
+        window.location.reload()
+      }
+    } catch {
+      // Ignore errors
+    }
+  }, [])
+
+  // Periodically check for external changes (e.g., OneDrive sync)
+  useEffect(() => {
+    const checkInterval = setInterval(checkAndReloadIfNeeded, 5 * 60 * 1000) // Check every 5 minutes
+    return () => clearInterval(checkInterval)
+  }, [checkAndReloadIfNeeded])
+
+  // Check immediately when window regains focus (using Tauri window event)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+
+    getCurrentWindow()
+      .onFocusChanged(({ payload: focused }) => {
+        if (focused) {
+          checkAndReloadIfNeeded()
+        }
+      })
+      .then((fn) => {
+        unlisten = fn
+      })
+
+    return () => {
+      unlisten?.()
+    }
+  }, [checkAndReloadIfNeeded])
 
   // Track sidebar collapsed state for layout margin
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
