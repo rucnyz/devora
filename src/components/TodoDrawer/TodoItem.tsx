@@ -169,7 +169,11 @@ export default function TodoItem({
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || e.shiftKey)) {
-      // Ctrl/Cmd/Shift+Enter saves and moves to next
+      // Ctrl/Cmd/Shift+Enter inserts newline
+      // Let default behavior happen (textarea will add newline)
+      return
+    } else if (e.key === 'Enter') {
+      // Enter saves and moves to next
       e.preventDefault()
       await handleSave(true)
     } else if (e.key === 'Escape') {
