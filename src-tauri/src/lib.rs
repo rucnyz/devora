@@ -8,12 +8,27 @@ mod settings;
 use json_store::JsonStore;
 use settings::SettingsFile;
 use std::fs;
-use tauri::Manager;
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+
+/// Parse --project <name> from command line arguments
+fn parse_project_arg() -> Option<String> {
+    let args: Vec<String> = std::env::args().collect();
+    let mut iter = args.iter().peekable();
+    while let Some(arg) = iter.next() {
+        if arg == "--project" {
+            return iter.next().cloned();
+        }
+    }
+    None
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Parse --project argument before building the app
+    let project_name_arg = parse_project_arg();
+
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(move |app| {
             // Get config directory (~/.devora/)
             let config_dir = dirs::home_dir()
                 .expect("Failed to get home directory")
@@ -37,6 +52,29 @@ pub fn run() {
 
             // Initialize JSON store in the configured directory
             let store = JsonStore::new(data_dir).expect("Failed to initialize JSON store");
+
+            // Handle --project argument: find project by name and open it
+            if let Some(ref project_name) = project_name_arg {
+                if let Ok(projects) = store.get_all_projects() {
+                    if let Some(project) = projects.iter().find(|p| p.name == *project_name) {
+                        // Close default main window
+                        if let Some(main_window) = app.get_webview_window("main") {
+                            let _ = main_window.close();
+                        }
+
+                        // Create project window with proper title
+                        let window_label = format!("project-{}", project.id);
+                        let url = WebviewUrl::App(format!("/project/{}", project.id).into());
+                        let title = format!("Devora - {}", project.name);
+
+                        let _ = WebviewWindowBuilder::new(app, &window_label, url)
+                            .title(&title)
+                            .inner_size(1200.0, 800.0)
+                            .min_inner_size(800.0, 600.0)
+                            .build();
+                    }
+                }
+            }
 
             app.manage(store);
             app.manage(settings_file);
