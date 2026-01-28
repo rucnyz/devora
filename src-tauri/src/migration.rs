@@ -1,4 +1,4 @@
-use crate::json_store::{Metadata, ProjectData};
+use crate::json_store::{Metadata, ProjectData, ProjectInfo};
 use crate::models::*;
 use log::info;
 use rusqlite::{params, Connection};
@@ -25,7 +25,7 @@ pub fn migrate_if_needed(config_dir: &Path, data_dir: &Path) -> Result<Option<Mi
         // Check if metadata has any projects (not an empty migration)
         if let Ok(content) = fs::read_to_string(&metadata_path) {
             if let Ok(metadata) = serde_json::from_str::<Metadata>(&content) {
-                if !metadata.project_ids.is_empty() {
+                if !metadata.project_ids.is_empty() || !metadata.projects.is_empty() {
                     info!("metadata.json exists with projects, skipping migration");
                     return Ok(None);
                 }
@@ -93,12 +93,16 @@ fn migrate_sqlite_to_json(sqlite_path: &Path, data_dir: &Path) -> Result<Migrati
     result.settings_migrated = settings.len();
 
     // Get all projects
-    let projects = get_sqlite_projects(&conn)?;
-    let mut project_ids = Vec::new();
+    let sqlite_projects = get_sqlite_projects(&conn)?;
+    let mut projects = Vec::new();
 
-    for project in projects {
+    for project in sqlite_projects {
         let project_id = project.id.clone();
-        project_ids.push(project_id.clone());
+        let project_name = project.name.clone();
+        projects.push(ProjectInfo {
+            id: project_id.clone(),
+            name: project_name,
+        });
 
         // Get items for this project
         let items = get_sqlite_items(&conn, &project_id)?;
@@ -138,7 +142,8 @@ fn migrate_sqlite_to_json(sqlite_path: &Path, data_dir: &Path) -> Result<Migrati
     // Write metadata.json
     let metadata = Metadata {
         version: 1,
-        project_ids,
+        project_ids: Vec::new(),
+        projects,
         global_settings: settings,
     };
 

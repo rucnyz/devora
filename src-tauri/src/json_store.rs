@@ -9,11 +9,23 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 use uuid::Uuid;
 
+/// Project info stored in metadata (id + name for quick access)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectInfo {
+    pub id: String,
+    pub name: String,
+}
+
 /// Metadata stored in metadata.json
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Metadata {
     pub version: u32,
+    /// Legacy field for backward compatibility (will be migrated to `projects`)
+    #[serde(default)]
     pub project_ids: Vec<String>,
+    /// New field: stores project id + name for quick access
+    #[serde(default)]
+    pub projects: Vec<ProjectInfo>,
     #[serde(default)]
     pub global_settings: HashMap<String, String>,
 }
@@ -83,19 +95,42 @@ impl JsonStore {
 
         // Load metadata
         let metadata_path = data_path.join("metadata.json");
-        let (metadata, mtime) = if metadata_path.exists() {
+        let (metadata, mtime, needs_save) = if metadata_path.exists() {
             let content = fs::read_to_string(&metadata_path)
                 .map_err(|e| format!("Failed to read metadata.json: {}", e))?;
             let mtime = fs::metadata(&metadata_path)
                 .ok()
                 .and_then(|m| m.modified().ok());
-            let metadata: Metadata = serde_json::from_str(&content)
+            let mut metadata: Metadata = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse metadata.json: {}", e))?;
-            (metadata, mtime)
+
+            // Migrate legacy project_ids to projects if needed
+            let needs_save = if !metadata.project_ids.is_empty() && metadata.projects.is_empty() {
+                info!("Migrating legacy project_ids to projects...");
+                let projects_dir = data_path.join("projects");
+                for id in &metadata.project_ids {
+                    let project_path = projects_dir.join(format!("{}.json", id));
+                    if let Ok(content) = fs::read_to_string(&project_path) {
+                        if let Ok(project_data) = serde_json::from_str::<ProjectData>(&content) {
+                            metadata.projects.push(ProjectInfo {
+                                id: id.clone(),
+                                name: project_data.name,
+                            });
+                        }
+                    }
+                }
+                metadata.project_ids.clear();
+                true
+            } else {
+                false
+            };
+
+            (metadata, mtime, needs_save)
         } else {
             let metadata = Metadata {
                 version: 1,
                 project_ids: Vec::new(),
+                projects: Vec::new(),
                 global_settings: HashMap::new(),
             };
             // Write initial metadata
@@ -103,8 +138,14 @@ impl JsonStore {
             let mtime = fs::metadata(&metadata_path)
                 .ok()
                 .and_then(|m| m.modified().ok());
-            (metadata, mtime)
+            (metadata, mtime, false)
         };
+
+        // Save migrated metadata if needed
+        if needs_save {
+            Self::write_json_atomic(&metadata_path, &metadata)?;
+            info!("Migration complete: {} projects", metadata.projects.len());
+        }
 
         info!("JsonStore initialized at {:?}", data_path);
 
@@ -202,6 +243,12 @@ impl JsonStore {
         Ok(())
     }
 
+    /// Helper to get all project IDs
+    fn get_project_ids(&self) -> Vec<String> {
+        let metadata = self.metadata.read().unwrap();
+        metadata.projects.iter().map(|p| p.id.clone()).collect()
+    }
+
     /// Helper to generate new UUID
     fn new_id() -> String {
         Uuid::new_v4().to_string()
@@ -219,12 +266,12 @@ impl JsonStore {
         let metadata = self.metadata.read().unwrap();
         let mut projects = Vec::new();
 
-        for id in &metadata.project_ids {
-            match self.load_project(id) {
+        for info in &metadata.projects {
+            match self.load_project(&info.id) {
                 Ok(data) => projects.push(data.to_project()),
                 Err(e) => {
                     // Log error but continue - don't fail entire list for one bad project
-                    log::warn!("Failed to load project {}: {}", id, e);
+                    log::warn!("Failed to load project {}: {}", info.id, e);
                 }
             }
         }
@@ -238,7 +285,7 @@ impl JsonStore {
     /// Get a single project by ID (with items)
     pub fn get_project_by_id(&self, id: &str) -> Result<Option<Project>, String> {
         let metadata = self.metadata.read().unwrap();
-        if !metadata.project_ids.contains(&id.to_string()) {
+        if !metadata.projects.iter().any(|p| p.id == id) {
             return Ok(None);
         }
         drop(metadata);
@@ -277,7 +324,10 @@ impl JsonStore {
         // Update metadata
         {
             let mut meta = self.metadata.write().unwrap();
-            meta.project_ids.push(id.clone());
+            meta.projects.push(ProjectInfo {
+                id: id.clone(),
+                name: name.to_string(),
+            });
         }
         self.save_metadata()?;
 
@@ -297,6 +347,7 @@ impl JsonStore {
             Err(_) => return Ok(None),
         };
 
+        let name_changed = name.is_some();
         if let Some(n) = name {
             project_data.name = n.to_string();
         }
@@ -310,6 +361,17 @@ impl JsonStore {
 
         self.save_project(&project_data)?;
 
+        // Update name in metadata if changed
+        if name_changed {
+            {
+                let mut meta = self.metadata.write().unwrap();
+                if let Some(info) = meta.projects.iter_mut().find(|p| p.id == id) {
+                    info.name = project_data.name.clone();
+                }
+            }
+            self.save_metadata()?;
+        }
+
         Ok(Some(project_data.to_project_with_items()))
     }
 
@@ -318,7 +380,7 @@ impl JsonStore {
         // Check if project exists
         {
             let metadata = self.metadata.read().unwrap();
-            if !metadata.project_ids.contains(&id.to_string()) {
+            if !metadata.projects.iter().any(|p| p.id == id) {
                 return Ok(false);
             }
         }
@@ -335,7 +397,7 @@ impl JsonStore {
         // Update metadata
         {
             let mut meta = self.metadata.write().unwrap();
-            meta.project_ids.retain(|pid| pid != id);
+            meta.projects.retain(|p| p.id != id);
         }
         self.save_metadata()?;
 
@@ -418,9 +480,7 @@ impl JsonStore {
         order: Option<i32>,
     ) -> Result<Option<Item>, String> {
         // Find which project contains this item
-        let metadata = self.metadata.read().unwrap();
-        let project_ids = metadata.project_ids.clone();
-        drop(metadata);
+        let project_ids = self.get_project_ids();
 
         for project_id in &project_ids {
             let mut project_data = match self.load_project(project_id) {
@@ -476,9 +536,7 @@ impl JsonStore {
 
     /// Delete an item
     pub fn delete_item(&self, id: &str) -> Result<bool, String> {
-        let metadata = self.metadata.read().unwrap();
-        let project_ids = metadata.project_ids.clone();
-        drop(metadata);
+        let project_ids = self.get_project_ids();
 
         for project_id in &project_ids {
             let mut project_data = match self.load_project(project_id) {
@@ -582,9 +640,7 @@ impl JsonStore {
         is_minimized: Option<bool>,
         z_index: Option<i32>,
     ) -> Result<Option<FileCard>, String> {
-        let metadata = self.metadata.read().unwrap();
-        let project_ids = metadata.project_ids.clone();
-        drop(metadata);
+        let project_ids = self.get_project_ids();
 
         for project_id in &project_ids {
             let mut project_data = match self.load_project(project_id) {
@@ -627,9 +683,7 @@ impl JsonStore {
 
     /// Delete a file card
     pub fn delete_file_card(&self, id: &str) -> Result<bool, String> {
-        let metadata = self.metadata.read().unwrap();
-        let project_ids = metadata.project_ids.clone();
-        drop(metadata);
+        let project_ids = self.get_project_ids();
 
         for project_id in &project_ids {
             let mut project_data = match self.load_project(project_id) {
@@ -740,9 +794,7 @@ impl JsonStore {
         indent_level: Option<i32>,
         order: Option<i32>,
     ) -> Result<Option<TodoItem>, String> {
-        let metadata = self.metadata.read().unwrap();
-        let project_ids = metadata.project_ids.clone();
-        drop(metadata);
+        let project_ids = self.get_project_ids();
 
         for project_id in &project_ids {
             let mut project_data = match self.load_project(project_id) {
@@ -784,9 +836,7 @@ impl JsonStore {
 
     /// Delete a todo
     pub fn delete_todo(&self, id: &str) -> Result<bool, String> {
-        let metadata = self.metadata.read().unwrap();
-        let project_ids = metadata.project_ids.clone();
-        drop(metadata);
+        let project_ids = self.get_project_ids();
 
         for project_id in &project_ids {
             let mut project_data = match self.load_project(project_id) {
@@ -847,9 +897,7 @@ impl JsonStore {
 
     /// Export all data
     pub fn export_all_data(&self, project_ids: Option<Vec<String>>) -> Result<ExportData, String> {
-        let metadata = self.metadata.read().unwrap();
-        let ids_to_export = project_ids.unwrap_or_else(|| metadata.project_ids.clone());
-        drop(metadata);
+        let ids_to_export = project_ids.unwrap_or_else(|| self.get_project_ids());
 
         let mut projects = Vec::new();
         let mut items = Vec::new();
@@ -909,9 +957,7 @@ impl JsonStore {
 
         if mode == "replace" {
             // Delete all existing projects
-            let metadata = self.metadata.read().unwrap();
-            let existing_ids = metadata.project_ids.clone();
-            drop(metadata);
+            let existing_ids = self.get_project_ids();
 
             for id in existing_ids {
                 self.delete_project(&id)?;
@@ -923,7 +969,7 @@ impl JsonStore {
             // Check if project already exists
             {
                 let metadata = self.metadata.read().unwrap();
-                if metadata.project_ids.contains(&project_row.id) {
+                if metadata.projects.iter().any(|p| p.id == project_row.id) {
                     skipped += 1;
                     continue;
                 }
@@ -987,7 +1033,10 @@ impl JsonStore {
             // Update metadata
             {
                 let mut meta = self.metadata.write().unwrap();
-                meta.project_ids.push(project_row.id.clone());
+                meta.projects.push(ProjectInfo {
+                    id: project_row.id.clone(),
+                    name: project_row.name.clone(),
+                });
             }
 
             projects_imported += 1;

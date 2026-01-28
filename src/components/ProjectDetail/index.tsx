@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useProject, fetchSSHHosts, fetchUrlMetadata } from '../../hooks/useProjects'
@@ -83,6 +84,17 @@ export default function ProjectDetail() {
       return () => clearTimeout(timer)
     }
   }, [loading, project, restoreScrollPosition])
+
+  // Update window title when project loads
+  useEffect(() => {
+    if (project?.name) {
+      getCurrentWindow().setTitle(`Devora - ${project.name}`)
+    }
+    // Reset title when leaving the project page
+    return () => {
+      getCurrentWindow().setTitle('Devora')
+    }
+  }, [project?.name])
 
   // Sync todo drawer state to project state
   const handleTodoDrawerChange = useCallback(
