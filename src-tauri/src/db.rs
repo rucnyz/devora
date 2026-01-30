@@ -11,6 +11,13 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use uuid::Uuid;
 
+// Local TodoProgress for legacy compatibility (not used in new code)
+pub struct TodoProgress {
+    pub total: i32,
+    pub completed: i32,
+    pub percentage: f32,
+}
+
 pub struct Database {
     pub conn: Mutex<Connection>,
 }
@@ -1056,13 +1063,13 @@ impl Database {
     }
 
     // Todos CRUD
-    pub fn get_todos_by_project(&self, project_id: &str) -> Result<Vec<TodoItem>> {
+    pub fn get_todos_by_project(&self, project_id: &str) -> Result<Vec<LegacyTodoItem>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, project_id, content, completed, \"order\", indent_level, created_at, updated_at, completed_at FROM todos WHERE project_id = ? ORDER BY \"order\" ASC"
         )?;
         let rows = stmt.query_map(params![project_id], |row| {
-            Ok(TodoItem {
+            Ok(LegacyTodoItem {
                 id: row.get(0)?,
                 project_id: row.get(1)?,
                 content: row.get(2)?,
@@ -1082,7 +1089,7 @@ impl Database {
         project_id: &str,
         content: &str,
         indent_level: i32,
-    ) -> Result<TodoItem> {
+    ) -> Result<LegacyTodoItem> {
         let conn = self.conn.lock().unwrap();
         let id = Self::new_id();
         let timestamp = Self::now();
@@ -1101,7 +1108,7 @@ impl Database {
             params![id, project_id, content, order, indent_level, timestamp, timestamp],
         )?;
 
-        Ok(TodoItem {
+        Ok(LegacyTodoItem {
             id,
             project_id: project_id.to_string(),
             content: content.to_string(),
@@ -1121,7 +1128,7 @@ impl Database {
         completed: Option<bool>,
         indent_level: Option<i32>,
         order: Option<i32>,
-    ) -> Result<Option<TodoItem>> {
+    ) -> Result<Option<LegacyTodoItem>> {
         let conn = self.conn.lock().unwrap();
 
         // Read existing todo
@@ -1178,7 +1185,7 @@ impl Database {
             ],
         )?;
 
-        Ok(Some(TodoItem {
+        Ok(Some(LegacyTodoItem {
             id: existing.0,
             project_id: existing.1,
             content: content.to_string(),

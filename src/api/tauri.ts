@@ -478,39 +478,12 @@ export async function openProjectWindow(projectId: string, projectName: string):
   return invoke('open_project_window', { projectId, projectName })
 }
 
-// ============ Todos API ============
+// ============ Todos (Markdown) API ============
 
-import type { TodoItem, TodoProgress } from '../types'
-
-export async function getTodos(projectId: string): Promise<TodoItem[]> {
-  return invoke<TodoItem[]>('get_todos', { projectId })
+export async function getProjectTodos(projectId: string): Promise<string> {
+  return invoke<string>('get_project_todos', { projectId })
 }
 
-export async function createTodo(projectId: string, content: string, indentLevel?: number): Promise<TodoItem> {
-  return invoke<TodoItem>('create_todo', { projectId, content, indentLevel })
-}
-
-export async function updateTodo(
-  id: string,
-  updates: Partial<Pick<TodoItem, 'content' | 'completed' | 'indent_level' | 'order'>>
-): Promise<TodoItem | null> {
-  return invoke<TodoItem | null>('update_todo', {
-    id,
-    content: updates.content,
-    completed: updates.completed,
-    indentLevel: updates.indent_level,
-    order: updates.order,
-  })
-}
-
-export async function deleteTodo(id: string): Promise<boolean> {
-  return invoke<boolean>('delete_todo', { id })
-}
-
-export async function reorderTodos(projectId: string, todoIds: string[]): Promise<void> {
-  return invoke('reorder_todos', { projectId, todoIds })
-}
-
-export async function getTodoProgress(projectId: string): Promise<TodoProgress> {
-  return invoke<TodoProgress>('get_todo_progress', { projectId })
+export async function setProjectTodos(projectId: string, content: string): Promise<void> {
+  return invoke('set_project_todos', { projectId, content })
 }

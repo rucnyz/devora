@@ -100,7 +100,7 @@ Core storage struct with key methods:
 - `get_all_projects()` / `get_project_by_id(id)` - Read projects
 - `create_project()` / `update_project()` / `delete_project()` - Project CRUD
 - `create_item()` / `update_item()` / `delete_item()` / `reorder_items()` - Item CRUD
-- `create_todo()` / `update_todo()` / `delete_todo()` / `reorder_todos()` - Todo CRUD
+- `get_project_todos()` / `set_project_todos()` - Markdown notes per project
 - `get_setting()` / `set_setting()` - Settings stored in metadata.json
 
 ### Atomic Writes
@@ -181,85 +181,67 @@ Multiple instances can read from the same data directory. Write conflicts are po
   - Tooltip hint showing the keyboard shortcut
   - **Event handling**: Context menu uses `click` event (not `mousedown`) for closing to avoid timing issues with button clicks; `stopPropagation()` prevents bubbling
 
-## TODO Feature
+## TODO Feature (Markdown Notes)
 
-Each project has an associated TODO list accessible via a slide-out drawer.
+Each project has an associated notes/todos section accessible via a slide-out drawer, stored as plain Markdown.
 
 ### Architecture Decision
-Uses **hybrid storage + Markdown content** approach:
-- Each TODO is stored as a JSON object within its project file (enables drag-and-drop sorting, progress stats)
-- Content field supports inline Markdown (URLs auto-rendered as clickable links)
+Uses **plain Markdown storage** approach:
+- Single `todos` field (String) in project JSON - user writes free-form Markdown
+- WYSIWYG editing via `@milkdown/react` (Notion-like experience)
+- No structured todo items, progress tracking, or drag-and-drop - just text
 
 ### JSON Schema
-TODOs are stored in `projects/{projectId}.json`:
+Notes are stored in `projects/{projectId}.json`:
 ```json
 {
-  "todos": [
-    {
-      "id": "uuid",
-      "project_id": "uuid",
-      "content": "Task description",
-      "completed": false,
-      "order": 0,
-      "indent_level": 0,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z",
-      "completed_at": null
-    }
-  ]
+  "todos": "# My Notes\n\n- [ ] Task 1\n- [x] Task 2 (done)\n\nFree-form markdown content..."
 }
 ```
 
+### Migration
+When loading old project files with structured `Vec<TodoItem>` format, auto-converts to Markdown:
+- Completed items → `- [x] content`
+- Uncompleted items → `- [ ] content`
+- Indentation preserved via spaces
+
 ### Tauri Commands
-- `get_todos(projectId)` - Get all TODOs for a project
-- `create_todo(projectId, content, indentLevel?)` - Create new TODO
-- `update_todo(id, content?, completed?, indentLevel?, order?)` - Update TODO
-- `delete_todo(id)` - Delete TODO
-- `reorder_todos(projectId, todoIds)` - Batch reorder TODOs
-- `get_todo_progress(projectId)` - Get completion stats (total, completed, percentage)
+- `get_project_todos(projectId)` - Get markdown string for a project
+- `set_project_todos(projectId, content)` - Save markdown string
 
 ### Frontend Components
 ```
-src/components/TodoDrawer/
-  index.tsx          # Main drawer (right-side slide-in, uses createPortal)
-  TodoList.tsx       # DnD container (@dnd-kit/core + sortable)
-  TodoItem.tsx       # Single item (checkbox, content, indent, edit)
-  TodoCreator.tsx    # Bottom input for adding TODOs
-  TodoProgress.tsx   # Progress bar (3/10 completed)
-  SortableTodo.tsx   # DnD wrapper
+src/components/NotesDrawer/
+  index.tsx            # Main drawer (right-side slide-in, uses createPortal)
+  MilkdownEditor.tsx   # WYSIWYG Milkdown editor wrapper
 ```
 
 ### Hook: useTodos
-`src/hooks/useTodos.ts` manages TODO state:
+`src/hooks/useTodos.ts` manages markdown content:
 ```typescript
-const {
-  todos,           // TodoItem[]
-  progress,        // TodoProgress
-  loading,
-  addTodo,         // (content: string, indentLevel?: number) => Promise
-  updateTodo,      // (id: string, updates: Partial) => Promise
-  toggleComplete,  // (id: string) => Promise
-  deleteTodo,      // (id: string) => Promise
-  reorderTodos,    // (todoIds: string[]) => Promise
-  changeIndent,    // (id: string, delta: number) => Promise
-  refreshTodos,    // () => Promise
-} = useTodos(projectId)
+const { content, loading, saveTodos, refreshTodos } = useTodos(projectId)
 ```
 
-### Features
-- Click checkbox to toggle completion
-- Tab/Shift+Tab for indent/outdent (0-3 levels)
-- URLs in content auto-rendered as clickable links
-- Drag handle for reordering
-- Inline editing (click content to edit)
-- Progress indicator in project header
+### Editor: Milkdown
+Uses `@milkdown/react` for WYSIWYG Markdown editing:
+- **Core packages**: `@milkdown/core`, `@milkdown/preset-commonmark`, `@milkdown/preset-gfm`, `@milkdown/react`, `@milkdown/theme-nord`
+- **Plugins**: `@milkdown/plugin-listener` (markdown change events), `@milkdown/plugin-history` (Ctrl+Z undo/redo)
+- **Components**: `@milkdown/components` (listItemBlockComponent for interactive task list checkboxes)
+- Real-time WYSIWYG rendering (type `**bold**` → instant bold text)
+- GFM task lists with clickable checkboxes (`- [ ]` / `- [x]`)
+
+### Auto-save
+`NotesDrawer` implements debounced auto-save:
+- Content changes trigger a 500ms debounce timer
+- Saves automatically after user stops typing
+- "Saving..." indicator shown during save
 
 ## State Persistence
 
 ### Project State (useProjectState)
 `src/hooks/useProjectState.ts` manages in-memory state that persists across project switches during a session:
 - **Scroll position**: Restored when returning to a project
-- **Todo drawer state**: Remembers if the drawer was open
+- **Notes drawer state**: Remembers if the drawer was open
 
 ```typescript
 const { restoreScrollPosition, setTodoDrawerOpen } = useProjectState(projectId)

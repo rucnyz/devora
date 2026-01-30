@@ -141,13 +141,9 @@ pub fn run() {
             commands::set_data_path,
             commands::check_data_exists,
             commands::validate_data_path,
-            // Todos
-            commands::get_todos,
-            commands::create_todo,
-            commands::update_todo,
-            commands::delete_todo,
-            commands::reorder_todos,
-            commands::get_todo_progress,
+            // Todos (Markdown)
+            commands::get_project_todos,
+            commands::set_project_todos,
             // Window management
             commands::open_project_window,
         ])

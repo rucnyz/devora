@@ -11,8 +11,7 @@ interface ProjectHeaderProps {
   onCreateCodingAgent?: () => void
   onCreateFile?: () => void
   onCreateCommand?: () => void
-  onOpenTodos?: () => void
-  todoProgress?: { total: number; completed: number }
+  onOpenNotes?: () => void
 }
 
 export default function ProjectHeader({
@@ -24,8 +23,7 @@ export default function ProjectHeader({
   onCreateCodingAgent,
   onCreateFile,
   onCreateCommand,
-  onOpenTodos,
-  todoProgress,
+  onOpenNotes,
 }: ProjectHeaderProps) {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
@@ -137,22 +135,17 @@ export default function ProjectHeader({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {onOpenTodos && (
-            <button onClick={onOpenTodos} className="btn-ghost text-sm flex items-center gap-2" title="Open TODOs">
+          {onOpenNotes && (
+            <button onClick={onOpenNotes} className="btn-ghost text-sm flex items-center gap-2" title="Open Notes">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                 />
               </svg>
-              TODOs
-              {todoProgress && todoProgress.total > 0 && (
-                <span className="text-xs font-mono text-(--text-muted)">
-                  {todoProgress.completed}/{todoProgress.total}
-                </span>
-              )}
+              Notes
             </button>
           )}
           {onCreateNote &&

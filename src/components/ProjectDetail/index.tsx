@@ -19,7 +19,7 @@ import NotesSection from './NotesSection'
 import SortableSection from './SortableSection'
 import FileCardContainer from '../FilePreviewCard/FileCardContainer'
 import Sidebar from '../Sidebar'
-import TodoDrawer from '../TodoDrawer'
+import NotesDrawer from '../NotesDrawer'
 import { useTodos } from '../../hooks/useTodos'
 import {
   DEFAULT_SECTION_ORDER,
@@ -44,19 +44,9 @@ export default function ProjectDetail() {
   // Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Todo drawer state - initialize from saved state
-  const [todoDrawerOpen, setTodoDrawerOpen] = useState(() => initialState?.todoDrawerOpen ?? false)
-  const {
-    todos,
-    progress: todoProgress,
-    loading: todosLoading,
-    addTodo,
-    toggleComplete,
-    deleteTodo: removeTodo,
-    reorderTodos,
-    changeIndent,
-    updateTodo,
-  } = useTodos(id!)
+  // Notes drawer state - initialize from saved state
+  const [notesDrawerOpen, setNotesDrawerOpen] = useState(() => initialState?.todoDrawerOpen ?? false)
+  const { content: notesContent, loading: notesLoading, saveTodos: saveNotes } = useTodos(id!)
 
   // SSH hosts from ~/.ssh/config
   const [sshHosts, setSSHHosts] = useState<string[]>([])
@@ -96,10 +86,10 @@ export default function ProjectDetail() {
     }
   }, [project?.name])
 
-  // Sync todo drawer state to project state
-  const handleTodoDrawerChange = useCallback(
+  // Sync notes drawer state to project state
+  const handleNotesDrawerChange = useCallback(
     (open: boolean) => {
-      setTodoDrawerOpen(open)
+      setNotesDrawerOpen(open)
       saveTodoDrawerState(open)
     },
     [saveTodoDrawerState]
@@ -518,8 +508,7 @@ export default function ProjectDetail() {
           onCreateCodingAgent={() => setIsCreatingCodingAgent(true)}
           onCreateFile={() => setIsCreatingFile(true)}
           onCreateCommand={() => setIsCreatingCommand(true)}
-          onOpenTodos={() => handleTodoDrawerChange(true)}
-          todoProgress={todoProgress}
+          onOpenNotes={() => handleNotesDrawerChange(true)}
         />
 
         {/* Sortable Sections */}
@@ -534,19 +523,13 @@ export default function ProjectDetail() {
         </DndContext>
       </div>
 
-      {/* Todo Drawer */}
-      <TodoDrawer
-        isOpen={todoDrawerOpen}
-        onClose={() => handleTodoDrawerChange(false)}
-        todos={todos}
-        progress={todoProgress}
-        loading={todosLoading}
-        onAdd={addTodo}
-        onToggle={toggleComplete}
-        onDelete={removeTodo}
-        onReorder={reorderTodos}
-        onIndent={changeIndent}
-        onUpdate={updateTodo}
+      {/* Notes Drawer */}
+      <NotesDrawer
+        isOpen={notesDrawerOpen}
+        onClose={() => handleNotesDrawerChange(false)}
+        content={notesContent}
+        loading={notesLoading}
+        onSave={saveNotes}
       />
     </div>
   )

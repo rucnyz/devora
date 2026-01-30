@@ -1,47 +1,63 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import type { TodoItem, TodoProgress as TodoProgressType } from '../../types'
-import TodoList, { type TodoListRef } from './TodoList'
-import TodoProgress from './TodoProgress'
+import MilkdownEditor from './MilkdownEditor'
 
-interface TodoDrawerProps {
+interface NotesDrawerProps {
   isOpen: boolean
   onClose: () => void
-  todos: TodoItem[]
-  progress: TodoProgressType
+  content: string
   loading: boolean
-  onAdd: (content: string, indentLevel?: number) => Promise<TodoItem>
-  onToggle: (id: string) => Promise<void>
-  onDelete: (id: string) => Promise<void>
-  onReorder: (todoIds: string[]) => Promise<void>
-  onIndent: (id: string, delta: number) => Promise<void>
-  onUpdate: (
-    id: string,
-    updates: Partial<Pick<TodoItem, 'content' | 'completed' | 'indent_level' | 'order'>>
-  ) => Promise<void>
+  onSave: (content: string) => Promise<void>
 }
 
-export default function TodoDrawer({
-  isOpen,
-  onClose,
-  todos,
-  progress,
-  loading,
-  onAdd,
-  onToggle,
-  onDelete,
-  onReorder,
-  onIndent,
-  onUpdate,
-}: TodoDrawerProps) {
+export default function NotesDrawer({ isOpen, onClose, content, loading, onSave }: NotesDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
-  const listRef = useRef<TodoListRef>(null)
   const [drawerWidth, setDrawerWidth] = useState(560)
   const [isResizing, setIsResizing] = useState(false)
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  const [localContent, setLocalContent] = useState(content)
+  const [isSaving, setIsSaving] = useState(false)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const MIN_WIDTH = 320
   const MAX_WIDTH = Math.min(1200, typeof window !== 'undefined' ? window.innerWidth * 0.9 : 1200)
+
+  // Sync local content when prop changes (e.g., when switching projects)
+  useEffect(() => {
+    setLocalContent(content)
+  }, [content])
+
+  // Auto-save with debounce
+  const handleContentChange = useCallback(
+    (newContent: string) => {
+      setLocalContent(newContent)
+
+      // Clear existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+
+      // Debounce save by 500ms
+      saveTimeoutRef.current = setTimeout(async () => {
+        setIsSaving(true)
+        try {
+          await onSave(newContent)
+        } finally {
+          setIsSaving(false)
+        }
+      }, 500)
+    },
+    [onSave]
+  )
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -57,7 +73,6 @@ export default function TodoDrawer({
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizeRef.current) return
-      // Dragging left increases width (since drawer is on right side)
       const delta = resizeRef.current.startX - e.clientX
       const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeRef.current.startWidth + delta))
       setDrawerWidth(newWidth)
@@ -76,15 +91,10 @@ export default function TodoDrawer({
     }
   }, [isResizing])
 
-  // Close on Escape key (but not if editing - let TodoItem handle it)
+  // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        // If the event target is a textarea, the user is editing - don't close
-        // TodoItem's onKeyDown will handle exiting edit mode
-        if (e.target instanceof HTMLTextAreaElement) {
-          return
-        }
         onClose()
       }
     }
@@ -136,11 +146,12 @@ export default function TodoDrawer({
             ${isResizing ? 'bg-(--accent-primary)' : ''}
           `}
         />
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-(--border-subtle)">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-(--text-primary)">TODOs</h2>
-            <TodoProgress progress={progress} />
+            <h2 className="text-lg font-semibold text-(--text-primary)">Notes</h2>
+            {isSaving && <span className="text-xs text-(--text-muted)">Saving...</span>}
           </div>
           <button
             onClick={onClose}
@@ -152,21 +163,12 @@ export default function TodoDrawer({
           </button>
         </div>
 
-        {/* Todo list */}
-        <div className="flex-1 overflow-y-auto p-4">
+        {/* Editor */}
+        <div className="flex-1 overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center h-32 text-(--text-muted)">Loading...</div>
           ) : (
-            <TodoList
-              ref={listRef}
-              todos={todos}
-              onToggle={onToggle}
-              onDelete={onDelete}
-              onReorder={onReorder}
-              onIndent={onIndent}
-              onUpdate={onUpdate}
-              onAdd={onAdd}
-            />
+            <MilkdownEditor value={localContent} onChange={handleContentChange} />
           )}
         </div>
       </div>

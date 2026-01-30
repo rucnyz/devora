@@ -1196,51 +1196,19 @@ pub fn validate_data_path(path: String) -> Result<ValidateDataPathResult, String
     })
 }
 
-// Todos
+// Todos (Markdown)
 #[tauri::command]
-pub fn get_todos(projectId: String, store: State<JsonStore>) -> Result<Vec<TodoItem>, String> {
-    store.get_todos_by_project(&projectId)
+pub fn get_project_todos(projectId: String, store: State<JsonStore>) -> Result<String, String> {
+    store.get_project_todos(&projectId)
 }
 
 #[tauri::command]
-pub fn create_todo(
+pub fn set_project_todos(
     projectId: String,
     content: String,
-    indentLevel: Option<i32>,
-    store: State<JsonStore>,
-) -> Result<TodoItem, String> {
-    store.create_todo(&projectId, &content, indentLevel.unwrap_or(0))
-}
-
-#[tauri::command]
-pub fn update_todo(
-    id: String,
-    content: Option<String>,
-    completed: Option<bool>,
-    indentLevel: Option<i32>,
-    order: Option<i32>,
-    store: State<JsonStore>,
-) -> Result<Option<TodoItem>, String> {
-    store.update_todo(&id, content.as_deref(), completed, indentLevel, order)
-}
-
-#[tauri::command]
-pub fn delete_todo(id: String, store: State<JsonStore>) -> Result<bool, String> {
-    store.delete_todo(&id)
-}
-
-#[tauri::command]
-pub fn reorder_todos(
-    projectId: String,
-    todoIds: Vec<String>,
     store: State<JsonStore>,
 ) -> Result<(), String> {
-    store.reorder_todos(&projectId, todoIds)
-}
-
-#[tauri::command]
-pub fn get_todo_progress(projectId: String, store: State<JsonStore>) -> Result<TodoProgress, String> {
-    store.get_todo_progress(&projectId)
+    store.set_project_todos(&projectId, &content)
 }
 
 // Window management

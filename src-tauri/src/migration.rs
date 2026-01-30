@@ -108,9 +108,10 @@ fn migrate_sqlite_to_json(sqlite_path: &Path, data_dir: &Path) -> Result<Migrati
         let items = get_sqlite_items(&conn, &project_id)?;
         result.items_migrated += items.len();
 
-        // Get todos for this project
-        let todos = get_sqlite_todos(&conn, &project_id)?;
-        result.todos_migrated += todos.len();
+        // Get todos for this project and convert to markdown
+        let legacy_todos = get_sqlite_todos(&conn, &project_id)?;
+        result.todos_migrated += legacy_todos.len();
+        let todos_markdown = convert_todos_to_markdown(&legacy_todos);
 
         // Get file cards for this project
         let file_cards = get_sqlite_file_cards(&conn, &project_id)?;
@@ -123,7 +124,7 @@ fn migrate_sqlite_to_json(sqlite_path: &Path, data_dir: &Path) -> Result<Migrati
             description: project.description,
             metadata: project.metadata,
             items,
-            todos,
+            todos: todos_markdown,
             file_cards,
             created_at: project.created_at,
             updated_at: project.updated_at,
@@ -248,7 +249,7 @@ fn get_sqlite_items(conn: &Connection, project_id: &str) -> Result<Vec<Item>, St
 }
 
 /// Get todos for a project from SQLite
-fn get_sqlite_todos(conn: &Connection, project_id: &str) -> Result<Vec<TodoItem>, String> {
+fn get_sqlite_todos(conn: &Connection, project_id: &str) -> Result<Vec<LegacyTodoItem>, String> {
     // First check if todos table exists (might be an older database)
     let table_exists: bool = conn
         .query_row(
@@ -271,7 +272,7 @@ fn get_sqlite_todos(conn: &Connection, project_id: &str) -> Result<Vec<TodoItem>
 
     let rows = stmt
         .query_map(params![project_id], |row| {
-            Ok(TodoItem {
+            Ok(LegacyTodoItem {
                 id: row.get(0)?,
                 project_id: row.get(1)?,
                 content: row.get(2)?,
@@ -365,4 +366,24 @@ fn migrate_settings(conn: &Connection) -> Result<std::collections::HashMap<Strin
     }
 
     Ok(settings)
+}
+
+/// Convert legacy Vec<LegacyTodoItem> to markdown string
+fn convert_todos_to_markdown(todos: &[LegacyTodoItem]) -> String {
+    if todos.is_empty() {
+        return String::new();
+    }
+
+    let mut sorted_todos = todos.to_vec();
+    sorted_todos.sort_by_key(|t| t.order);
+
+    sorted_todos
+        .iter()
+        .map(|todo| {
+            let indent = "  ".repeat(todo.indent_level as usize);
+            let checkbox = if todo.completed { "[x]" } else { "[ ]" };
+            format!("{}- {} {}", indent, checkbox, todo.content)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

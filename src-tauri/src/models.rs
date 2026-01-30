@@ -294,9 +294,9 @@ pub struct ValidateDataPathResult {
     pub data_exists: bool,
 }
 
-// Todo item
+// Legacy Todo item (for migration only)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TodoItem {
+pub struct LegacyTodoItem {
     pub id: String,
     pub project_id: String,
     pub content: String,
@@ -307,12 +307,4 @@ pub struct TodoItem {
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<String>,
-}
-
-// Todo progress statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TodoProgress {
-    pub total: i32,
-    pub completed: i32,
-    pub percentage: f32,
 }

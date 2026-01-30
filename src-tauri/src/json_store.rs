@@ -30,6 +30,20 @@ pub struct Metadata {
     pub global_settings: HashMap<String, String>,
 }
 
+/// Legacy project data format (for migration)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LegacyProjectData {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub metadata: ProjectMetadata,
+    pub items: Vec<Item>,
+    pub todos: Vec<LegacyTodoItem>,
+    pub file_cards: Vec<FileCard>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 /// Full project data stored in projects/{id}.json
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectData {
@@ -38,7 +52,8 @@ pub struct ProjectData {
     pub description: String,
     pub metadata: ProjectMetadata,
     pub items: Vec<Item>,
-    pub todos: Vec<TodoItem>,
+    #[serde(default)]
+    pub todos: String,
     pub file_cards: Vec<FileCard>,
     pub created_at: String,
     pub updated_at: String,
@@ -203,7 +218,27 @@ impl JsonStore {
         self.data_path.join("projects").join(format!("{}.json", id))
     }
 
-    /// Load project from file
+    /// Convert legacy Vec<LegacyTodoItem> to markdown string
+    fn convert_todos_to_markdown(todos: &[LegacyTodoItem]) -> String {
+        if todos.is_empty() {
+            return String::new();
+        }
+
+        let mut sorted_todos = todos.to_vec();
+        sorted_todos.sort_by_key(|t| t.order);
+
+        sorted_todos
+            .iter()
+            .map(|todo| {
+                let indent = "  ".repeat(todo.indent_level as usize);
+                let checkbox = if todo.completed { "[x]" } else { "[ ]" };
+                format!("{}- {} {}", indent, checkbox, todo.content)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Load project from file (with automatic migration from legacy format)
     fn load_project(&self, id: &str) -> Result<ProjectData, String> {
         // Check cache first
         {
@@ -217,8 +252,37 @@ impl JsonStore {
         let path = self.project_path(id);
         let content = fs::read_to_string(&path)
             .map_err(|e| format!("Failed to read project file: {}", e))?;
-        let data: ProjectData = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse project file: {}", e))?;
+
+        // Try to parse as new format first
+        let data: ProjectData = match serde_json::from_str(&content) {
+            Ok(data) => data,
+            Err(_) => {
+                // Try legacy format with Vec<LegacyTodoItem>
+                let legacy: LegacyProjectData = serde_json::from_str(&content)
+                    .map_err(|e| format!("Failed to parse project file: {}", e))?;
+
+                // Convert to new format
+                let todos_markdown = Self::convert_todos_to_markdown(&legacy.todos);
+
+                let migrated = ProjectData {
+                    id: legacy.id,
+                    name: legacy.name,
+                    description: legacy.description,
+                    metadata: legacy.metadata,
+                    items: legacy.items,
+                    todos: todos_markdown,
+                    file_cards: legacy.file_cards,
+                    created_at: legacy.created_at,
+                    updated_at: legacy.updated_at,
+                };
+
+                // Save migrated data
+                Self::write_json_atomic(&path, &migrated)?;
+                info!("Migrated project {} to new todos format", id);
+
+                migrated
+            }
+        };
 
         // Store in cache
         self.projects_cache
@@ -312,7 +376,7 @@ impl JsonStore {
             description: description.to_string(),
             metadata,
             items: Vec::new(),
-            todos: Vec::new(),
+            todos: String::new(),
             file_cards: Vec::new(),
             created_at: timestamp.clone(),
             updated_at: timestamp,
@@ -737,160 +801,20 @@ impl JsonStore {
         self.save_metadata()
     }
 
-    // ==================== Todos CRUD ====================
+    // ==================== Todos (Markdown) ====================
 
-    /// Get todos for a project
-    pub fn get_todos_by_project(&self, project_id: &str) -> Result<Vec<TodoItem>, String> {
+    /// Get todos markdown for a project
+    pub fn get_project_todos(&self, project_id: &str) -> Result<String, String> {
         let project_data = self.load_project(project_id)?;
-        let mut todos = project_data.todos;
-        todos.sort_by_key(|t| t.order);
-        Ok(todos)
+        Ok(project_data.todos)
     }
 
-    /// Create a todo
-    pub fn create_todo(
-        &self,
-        project_id: &str,
-        content: &str,
-        indent_level: i32,
-    ) -> Result<TodoItem, String> {
+    /// Set todos markdown for a project
+    pub fn set_project_todos(&self, project_id: &str, content: &str) -> Result<(), String> {
         let mut project_data = self.load_project(project_id)?;
-
-        let id = Self::new_id();
-        let timestamp = Self::now();
-
-        let order = project_data
-            .todos
-            .iter()
-            .map(|t| t.order)
-            .max()
-            .unwrap_or(-1)
-            + 1;
-
-        let todo = TodoItem {
-            id,
-            project_id: project_id.to_string(),
-            content: content.to_string(),
-            completed: false,
-            order,
-            indent_level,
-            created_at: timestamp.clone(),
-            updated_at: timestamp,
-            completed_at: None,
-        };
-
-        project_data.todos.push(todo.clone());
-        self.save_project(&project_data)?;
-
-        Ok(todo)
-    }
-
-    /// Update a todo
-    pub fn update_todo(
-        &self,
-        id: &str,
-        content: Option<&str>,
-        completed: Option<bool>,
-        indent_level: Option<i32>,
-        order: Option<i32>,
-    ) -> Result<Option<TodoItem>, String> {
-        let project_ids = self.get_project_ids();
-
-        for project_id in &project_ids {
-            let mut project_data = match self.load_project(project_id) {
-                Ok(data) => data,
-                Err(_) => continue,
-            };
-
-            if let Some(todo) = project_data.todos.iter_mut().find(|t| t.id == id) {
-                let was_completed = todo.completed;
-
-                if let Some(c) = content {
-                    todo.content = c.to_string();
-                }
-                if let Some(comp) = completed {
-                    todo.completed = comp;
-                    // Set completed_at if completing for the first time
-                    if comp && !was_completed {
-                        todo.completed_at = Some(Self::now());
-                    } else if !comp {
-                        todo.completed_at = None;
-                    }
-                }
-                if let Some(il) = indent_level {
-                    todo.indent_level = il;
-                }
-                if let Some(o) = order {
-                    todo.order = o;
-                }
-                todo.updated_at = Self::now();
-
-                let updated_todo = todo.clone();
-                self.save_project(&project_data)?;
-                return Ok(Some(updated_todo));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Delete a todo
-    pub fn delete_todo(&self, id: &str) -> Result<bool, String> {
-        let project_ids = self.get_project_ids();
-
-        for project_id in &project_ids {
-            let mut project_data = match self.load_project(project_id) {
-                Ok(data) => data,
-                Err(_) => continue,
-            };
-
-            let original_len = project_data.todos.len();
-            project_data.todos.retain(|t| t.id != id);
-
-            if project_data.todos.len() < original_len {
-                self.save_project(&project_data)?;
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
-    }
-
-    /// Reorder todos within a project
-    pub fn reorder_todos(&self, project_id: &str, todo_ids: Vec<String>) -> Result<(), String> {
-        let mut project_data = self.load_project(project_id)?;
-        let timestamp = Self::now();
-
-        for (index, id) in todo_ids.iter().enumerate() {
-            if let Some(todo) = project_data.todos.iter_mut().find(|t| &t.id == id) {
-                todo.order = index as i32;
-                todo.updated_at = timestamp.clone();
-            }
-        }
-
-        // Sort todos by order
-        project_data.todos.sort_by_key(|t| t.order);
-
+        project_data.todos = content.to_string();
+        project_data.updated_at = Self::now();
         self.save_project(&project_data)
-    }
-
-    /// Get todo progress for a project
-    pub fn get_todo_progress(&self, project_id: &str) -> Result<TodoProgress, String> {
-        let project_data = self.load_project(project_id)?;
-
-        let total = project_data.todos.len() as i32;
-        let completed = project_data.todos.iter().filter(|t| t.completed).count() as i32;
-        let percentage = if total > 0 {
-            (completed as f32 / total as f32) * 100.0
-        } else {
-            0.0
-        };
-
-        Ok(TodoProgress {
-            total,
-            completed,
-            percentage,
-        })
     }
 
     // ==================== Export/Import ====================
@@ -1021,7 +945,7 @@ impl JsonStore {
                 description: project_row.description.clone(),
                 metadata: project_metadata,
                 items: project_items,
-                todos: Vec::new(), // Import doesn't include todos currently
+                todos: String::new(), // Import doesn't include todos currently
                 file_cards: project_file_cards,
                 created_at: project_row.created_at.clone(),
                 updated_at: project_row.updated_at.clone(),
