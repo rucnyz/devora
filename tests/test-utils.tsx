@@ -6,18 +6,23 @@ import { render, type RenderOptions } from '@testing-library/react'
 mock.module('../src/api/tauri', () => ({
   getSetting: mock(() => Promise.resolve(null)),
   setSetting: mock(() => Promise.resolve()),
+  getAllSettings: mock(() => Promise.resolve({})),
+  getPathMappings: mock(() => Promise.resolve([])),
 }))
 
 // Import providers after mocking
+import { SettingsProvider } from '../src/hooks/useSettings'
 import { ToastProvider } from '../src/hooks/useToast'
 import { CustomIdesProvider } from '../src/hooks/useCustomIdes'
 
 // Wrapper that includes all providers needed for testing
 function AllProviders({ children }: { children: ReactNode }) {
   return (
-    <ToastProvider>
-      <CustomIdesProvider>{children}</CustomIdesProvider>
-    </ToastProvider>
+    <SettingsProvider>
+      <ToastProvider>
+        <CustomIdesProvider>{children}</CustomIdesProvider>
+      </ToastProvider>
+    </SettingsProvider>
   )
 }
 

@@ -11,7 +11,7 @@ import { useSetting, SettingsProvider } from './hooks/useSettings.tsx'
 import { useCustomIdes, CustomIdesProvider } from './hooks/useCustomIdes'
 import { ToastProvider } from './hooks/useToast'
 
-import type { CustomIde, CustomRemoteIde, TerminalType } from './types'
+import type { CustomIde, CustomRemoteIde, PathMapping, TerminalType } from './types'
 import { WINDOWS_TERMINALS, MACOS_TERMINALS, LINUX_TERMINALS } from './types'
 import {
   getProjects,
@@ -28,7 +28,10 @@ import {
   selectFolder,
   checkExternalChanges,
   reloadStore,
+  getPathMappings,
+  setPathMappings,
 } from './api/tauri'
+import { initPathMappings } from './utils/pathMapper'
 
 type UpdateState =
   | { status: 'idle' }
@@ -514,7 +517,7 @@ function generateIdeId(label: string): string {
 }
 
 // Detect platform for terminal options
-function getPlatform(): 'windows' | 'macos' | 'linux' {
+export function getPlatform(): 'windows' | 'macos' | 'linux' {
   const ua = navigator.userAgent.toLowerCase()
   if (ua.includes('win')) return 'windows'
   if (ua.includes('mac')) return 'macos'
@@ -589,6 +592,9 @@ function SettingsButton() {
   // Global environment variables state - initialized when modal opens
   const [globalEnvEntries, setGlobalEnvEntries] = useState<Array<{ key: string; value: string }>>([])
 
+  // Path mappings state
+  const [pathMappingEntries, setPathMappingEntries] = useState<PathMapping[]>([])
+
   // Round to 1 decimal place to avoid floating point display issues
   const currentMb = Math.round((fileCardMaxSize / (1024 * 1024)) * 10) / 10
 
@@ -608,6 +614,8 @@ function SettingsButton() {
     } else {
       setGlobalEnvEntries([])
     }
+    // Load path mappings
+    getPathMappings().then(setPathMappingEntries).catch(() => setPathMappingEntries([]))
   }
 
   // Load database paths when modal opens
@@ -862,6 +870,30 @@ function SettingsButton() {
       })
     const json = Object.keys(obj).length > 0 ? JSON.stringify(obj) : ''
     setCodingAgentGlobalEnv(json)
+  }
+
+  // Path mapping handlers
+  const updatePathMapping = (index: number, field: 'windows' | 'linux', value: string) => {
+    const newEntries = [...pathMappingEntries]
+    newEntries[index] = { ...newEntries[index], [field]: value }
+    setPathMappingEntries(newEntries)
+  }
+
+  const addPathMapping = () => {
+    setPathMappingEntries([...pathMappingEntries, { windows: '', linux: '' }])
+  }
+
+  const removePathMapping = (index: number) => {
+    const newEntries = pathMappingEntries.filter((_, i) => i !== index)
+    setPathMappingEntries(newEntries)
+    // Save after removal
+    const valid = newEntries.filter((e) => e.windows.trim() && e.linux.trim())
+    setPathMappings(valid).then(() => initPathMappings(valid))
+  }
+
+  const savePathMappings = () => {
+    const valid = pathMappingEntries.filter((e) => e.windows.trim() && e.linux.trim())
+    setPathMappings(valid).then(() => initPathMappings(valid))
   }
 
   return (
@@ -1391,6 +1423,64 @@ function SettingsButton() {
                   )}
 
                   <p className="text-xs text-(--text-muted) mt-2">Changes require a restart to take effect.</p>
+                </div>
+
+                {/* Cross-Platform Path Mappings */}
+                <div className="border-t border-(--border-subtle) pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-(--text-primary)">
+                      Cross-platform path mappings
+                    </label>
+                    <button onClick={addPathMapping} className="text-xs text-(--accent-primary) hover:underline">
+                      + Add
+                    </button>
+                  </div>
+                  {pathMappingEntries.length > 0 ? (
+                    <div className="space-y-2 mb-2">
+                      {pathMappingEntries.map((entry, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            placeholder="C:\Users\..."
+                            value={entry.windows}
+                            onChange={(e) => updatePathMapping(idx, 'windows', e.target.value)}
+                            onBlur={savePathMappings}
+                            className="flex-1 px-2 py-1.5 bg-(--bg-surface) border border-(--border-subtle) rounded text-sm font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-primary)"
+                          />
+                          <span className="text-xs text-(--text-muted) shrink-0">&harr;</span>
+                          <input
+                            type="text"
+                            placeholder="/home/..."
+                            value={entry.linux}
+                            onChange={(e) => updatePathMapping(idx, 'linux', e.target.value)}
+                            onBlur={savePathMappings}
+                            className="flex-1 px-2 py-1.5 bg-(--bg-surface) border border-(--border-subtle) rounded text-sm font-mono text-(--text-primary) focus:outline-none focus:border-(--accent-primary)"
+                          />
+                          <button
+                            onClick={() => removePathMapping(idx)}
+                            className="p-1 text-(--text-muted) hover:text-(--accent-danger) transition-colors"
+                            title="Remove"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-(--text-muted) mb-2">
+                      No path mappings configured. Add mappings to use the same projects across Windows and Linux.
+                    </p>
+                  )}
+                  <p className="text-xs text-(--text-muted)">
+                    Map path prefixes between Windows and Linux for cross-platform use with cloud sync (OneDrive/Dropbox).
+                  </p>
                 </div>
               </div>
             </div>

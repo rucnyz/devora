@@ -59,12 +59,31 @@ bun run format
 4. Data is saved immediately to JSON files in the configured data path
 
 ### Item Types
-Items belong to projects and have types: `note`, `ide`, `file`, `url`, `remote-ide`, `command`, `coding-agent`
+Items belong to projects and have types: `note`, `ide`, `file`, `url`, `remote-ide`, `command`, `coding-agent`, `edge-workspace`
 
 ### IDE Support
 - Built-in IDEs: JetBrains suite, VS Code, Cursor, Zed, Antigravity
 - Custom IDEs: Stored in settings as JSON, use `{path}` placeholder in command templates
 - Remote IDEs: VS Code Remote, Cursor Remote, custom with `{host}` and `{path}` placeholders
+
+### Edge Workspace Support (Windows-only)
+Launches Microsoft Edge workspaces with profile selection. The `edge-workspace` item type stores a workspace ID in `content` and profile directory in `edge_profile`.
+
+**Data locations (Windows):**
+- Profile registry: `%LOCALAPPDATA%\Microsoft\Edge\User Data\Local State` → `profile.info_cache`
+- Workspace cache: `{profile_dir}/Workspaces/WorkspacesCache` → `{"workspaces": [...]}`
+- Launch: `msedge.exe --profile-directory="{dir}" --launch-workspace={id} --no-startup-window`
+
+**Rust commands** (all use `#[cfg(windows)]` with empty/error fallback on other platforms):
+- `get_edge_profiles()` — Reads `Local State` JSON → returns `Vec<EdgeProfile>` (`dir`, `name`)
+- `get_edge_workspaces(profileDir)` — Reads `WorkspacesCache` → returns `Vec<EdgeWorkspaceInfo>`
+- `open_edge_workspace(profileDir, workspaceId)` — Spawns `msedge.exe` with flags
+
+**Frontend:**
+- Component: `src/components/ProjectDetail/EdgeWorkspaceSection.tsx` (follows `IDESection.tsx` pattern)
+- CSS: `--accent-edge` color variable (dark: `#4a9eea`, light: `#0078d4`), `.tag-edge-workspace` class
+- Section key: `edgeWorkspace` in `SectionKey` type and `DEFAULT_SECTION_ORDER`
+- Windows-only visibility: `AddDropdown` checks `navigator.userAgent` for Windows
 
 ## Testing
 
@@ -75,6 +94,8 @@ Tests use Bun's built-in test runner with `@testing-library/react` and `happy-do
 - Uses Tauri plugins: dialog, opener, updater, process, log
 - Commands use `State<JsonStore>` for thread-safe storage access
 - Windows-specific code uses `creation_flags` to hide console windows
+- Windows command execution uses `.raw_arg()` instead of `.args()` to pass commands verbatim to shells (avoids double-escaping)
+- Commands support per-item shell selection (`command_shell` field) defaulting to global terminal setting
 
 ## JSON Storage Architecture
 
@@ -235,6 +256,51 @@ Uses `@milkdown/react` for WYSIWYG Markdown editing:
 - Content changes trigger a 500ms debounce timer
 - Saves automatically after user stops typing
 - "Saving..." indicator shown during save
+
+## Cross-Platform Path Mapping
+
+Enables seamless use across Windows and Linux when data is synced via OneDrive/Dropbox. Paths stored in project data are platform-specific; translation happens transparently at consumption time.
+
+### Design
+- **Global path prefix mappings** stored in `metadata.json` `global_settings["pathMappings"]` (synced via cloud sync)
+- **Longest-prefix matching**: when multiple mappings match, the longest prefix wins
+- **Translate on use, not on store**: stored paths remain as-is (whichever OS created them); translation happens when a path is executed
+- **Platforms**: Windows + Linux only (no macOS)
+
+### Storage Schema
+Mappings are stored as JSON in `metadata.json` global_settings (synced, configure-once-works-everywhere):
+```json
+// metadata.json → global_settings.pathMappings (JSON string)
+[
+  { "windows": "C:\\Users\\yuzhounie", "linux": "/home/yuzhounie" },
+  { "windows": "D:\\work", "linux": "/mnt/work" }
+]
+```
+
+### Backend: PathMapper (`src/path_mapper.rs`)
+- `PathMapper` struct with `RwLock<Vec<PathMapping>>` for thread-safe access
+- `translate(path)` — Detects current OS, matches longest prefix from the OTHER platform, replaces prefix and converts separators
+- Initialized from `global_settings["pathMappings"]` on app startup, managed as Tauri state
+
+### Injection Points
+**Rust backend** (`src/commands.rs`): `State<PathMapper>` is injected and `mapper.translate(&path)` applied before using any path in:
+- `open_ide`, `open_custom_ide` — IDE launch with project path
+- `open_file` — file/folder opening (backend command, replaces frontend `openPath`)
+- `run_command` — command cwd (local only, not remote SSH)
+- `read_file_content`, `get_file_info`, `read_file_lines` — file card reads
+- `open_coding_agent` — agent working directory
+
+**NOT translated** (remote paths): `open_remote_ide`, `open_custom_remote_ide`, `list_remote_dir`, `run_command` with host
+
+**React frontend**: `src/utils/pathMapper.ts` provides `translatePath()` utility + `initPathMappings()` for display-side translation if needed. Loaded on app init via `useSettings.tsx`.
+
+### API
+- `get_path_mappings()` — Returns current mappings from PathMapper state
+- `set_path_mappings(mappings)` — Updates in-memory PathMapper AND saves to `global_settings["pathMappings"]`
+- `open_file(path)` — Opens file/folder with path translation (replaces frontend `openPath`)
+
+### UI
+Settings page section "Cross-Platform Path Mappings": table of Windows ↔ Linux prefix pairs with add/remove controls, auto-save on blur.
 
 ## State Persistence
 

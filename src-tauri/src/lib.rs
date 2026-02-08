@@ -3,9 +3,12 @@ mod db;
 mod json_store;
 mod migration;
 mod models;
+mod path_mapper;
 mod settings;
 
 use json_store::JsonStore;
+use models::PathMapping;
+use path_mapper::PathMapper;
 use settings::SettingsFile;
 use std::fs;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -76,8 +79,18 @@ pub fn run() {
                 }
             }
 
+            // Initialize PathMapper from stored settings
+            let path_mappings: Vec<PathMapping> = store
+                .get_setting("pathMappings")
+                .ok()
+                .flatten()
+                .and_then(|json| serde_json::from_str(&json).ok())
+                .unwrap_or_default();
+            let path_mapper = PathMapper::new(path_mappings);
+
             app.manage(store);
             app.manage(settings_file);
+            app.manage(path_mapper);
 
             // Setup logging in debug mode
             if cfg!(debug_assertions) {
@@ -144,6 +157,14 @@ pub fn run() {
             // Todos (Markdown)
             commands::get_project_todos,
             commands::set_project_todos,
+            // Edge Workspace
+            commands::get_edge_profiles,
+            commands::get_edge_workspaces,
+            commands::open_edge_workspace,
+            // Path Mapping
+            commands::get_path_mappings,
+            commands::set_path_mappings,
+            commands::open_file,
             // Window management
             commands::open_project_window,
         ])

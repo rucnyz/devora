@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react'
 import * as api from '../api/tauri'
+import { initPathMappings } from '../utils/pathMapper'
 
 // Default settings values
 export const DEFAULT_SETTINGS = {
@@ -50,6 +51,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       })
       .catch(console.error)
       .finally(() => setLoading(false))
+
+    // Load path mappings for frontend translation
+    api.getPathMappings().then(initPathMappings).catch(console.error)
   }, [])
 
   const updateSetting = useCallback(async <K extends SettingKey>(key: K, value: SettingsState[K]) => {

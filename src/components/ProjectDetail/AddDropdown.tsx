@@ -5,16 +5,20 @@ interface AddDropdownProps {
   onCreateIde: () => void
   onCreateRemoteIde: () => void
   onCreateCodingAgent: () => void
+  onCreateEdgeWorkspace?: () => void
   onCreateFile: () => void
   onCreateCommand: () => void
 }
 
 // Actions use CSS variables for consistent color theming
+const isWindows = navigator.userAgent.includes('Windows')
+
 const actions = [
   { id: 'note', label: 'Note', color: 'var(--accent-warning)' },
   { id: 'ide', label: 'IDE', color: 'var(--accent-primary)' },
   { id: 'remote', label: 'Remote IDE', color: 'var(--accent-remote)' },
   { id: 'agent', label: 'Coding Agent', color: 'var(--accent-agent)' },
+  ...(isWindows ? [{ id: 'edge', label: 'Edge Workspace', color: 'var(--accent-edge)' }] : []),
   { id: 'open', label: 'Open File', color: 'var(--text-secondary)' },
   { id: 'command', label: 'Command', color: 'var(--accent-warning)' },
 ]
@@ -24,6 +28,7 @@ export default function AddDropdown({
   onCreateIde,
   onCreateRemoteIde,
   onCreateCodingAgent,
+  onCreateEdgeWorkspace,
   onCreateFile,
   onCreateCommand,
 }: AddDropdownProps) {
@@ -69,6 +74,9 @@ export default function AddDropdown({
         break
       case 'agent':
         onCreateCodingAgent()
+        break
+      case 'edge':
+        onCreateEdgeWorkspace?.()
         break
       case 'open':
         onCreateFile()

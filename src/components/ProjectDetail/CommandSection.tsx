@@ -11,7 +11,10 @@ import CommandCreator from './CommandCreator'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
 import ItemContextMenu, { DuplicateIcon } from '../ItemContextMenu'
 import { SortableItem } from './SortableItem'
-import type { Item, CommandMode, WorkingDir } from '../../types'
+import type { Item, CommandMode, TerminalType, WorkingDir } from '../../types'
+import { WINDOWS_TERMINALS, MACOS_TERMINALS, LINUX_TERMINALS } from '../../types'
+import { useSetting } from '../../hooks/useSettings'
+import { getPlatform } from '../../App'
 
 interface CommandSectionProps {
   items: Item[]
@@ -19,7 +22,7 @@ interface CommandSectionProps {
   isCreating: boolean
   workingDirs: WorkingDir[]
   sshHosts: string[]
-  onAdd: (title: string, command: string, mode: CommandMode, cwd?: string, host?: string) => Promise<void>
+  onAdd: (title: string, command: string, mode: CommandMode, cwd?: string, host?: string, shell?: TerminalType) => Promise<void>
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
@@ -45,7 +48,9 @@ export default function CommandSection({
   const [editMode, setEditMode] = useState<CommandMode>('background')
   const [editCwd, setEditCwd] = useState('')
   const [editHost, setEditHost] = useState('')
+  const [editShell, setEditShell] = useState<string>('')
   const editCommandRef = useRef<HTMLDivElement>(null)
+  const { value: defaultTerminal } = useSetting('defaultTerminal')
 
   const [commandOutput, setCommandOutput] = useState<{ title: string; output: string; error?: string } | null>(null)
   const [showBrowser, setShowBrowser] = useState(false)
@@ -73,6 +78,7 @@ export default function CommandSection({
     setEditMode('background')
     setEditCwd('')
     setEditHost('')
+    setEditShell('')
   }, [])
 
   const saveEditing = useCallback(async () => {
@@ -84,10 +90,11 @@ export default function CommandSection({
         command_mode: editMode,
         command_cwd: editCwd.trim() || undefined,
         command_host: editHost.trim() || undefined,
+        command_shell: (editShell || undefined) as TerminalType | undefined,
       })
       resetEditState()
     }
-  }, [editingId, editTitle, editContent, editMode, editCwd, editHost, onUpdate, resetEditState])
+  }, [editingId, editTitle, editContent, editMode, editCwd, editHost, editShell, onUpdate, resetEditState])
 
   useEditorHandlers({
     containerRef: editCommandRef,
@@ -114,12 +121,14 @@ export default function CommandSection({
     setEditMode(item.command_mode || 'background')
     setEditCwd(item.command_cwd || '')
     setEditHost(item.command_host || '')
+    setEditShell(item.command_shell || '')
   }
 
   const handleRun = async (item: Item) => {
     if (item.content && item.command_mode) {
       try {
-        const result = await runCommand(item.content, item.command_mode, item.command_cwd, item.command_host)
+        const effectiveShell = item.command_shell || (defaultTerminal as TerminalType | undefined)
+        const result = await runCommand(item.content, item.command_mode, item.command_cwd, item.command_host, effectiveShell)
         if (item.command_mode === 'output') {
           setCommandOutput({
             title: item.title,
@@ -133,8 +142,8 @@ export default function CommandSection({
     }
   }
 
-  const handleAdd = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string) => {
-    await onAdd(title, command, mode, cwd, host)
+  const handleAdd = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string, shell?: TerminalType) => {
+    await onAdd(title, command, mode, cwd, host, shell)
     onCreatingChange(false)
   }
 
@@ -145,7 +154,8 @@ export default function CommandSection({
         item.content || '',
         item.command_mode || 'background',
         item.command_cwd,
-        item.command_host
+        item.command_host,
+        item.command_shell
       )
     } catch (err) {
       toast.error('Failed to duplicate', err instanceof Error ? err.message : String(err))
@@ -222,6 +232,41 @@ export default function CommandSection({
                       >
                         <option value="background">Background</option>
                         <option value="output">Show Output</option>
+                        <option value="terminal">Terminal</option>
+                      </select>
+                      <select
+                        value={editShell}
+                        onChange={(e) => setEditShell(e.target.value)}
+                        className="input-terminal w-36"
+                      >
+                        <option value="">
+                          {defaultTerminal
+                            ? `Global (${(() => {
+                                const platform = getPlatform()
+                                const terminals =
+                                  platform === 'windows'
+                                    ? WINDOWS_TERMINALS
+                                    : platform === 'macos'
+                                      ? MACOS_TERMINALS
+                                      : LINUX_TERMINALS
+                                return terminals.find((t) => t.value === defaultTerminal)?.label || defaultTerminal
+                              })()})`
+                            : 'Global Default'}
+                        </option>
+                        {(() => {
+                          const platform = getPlatform()
+                          const terminals =
+                            platform === 'windows'
+                              ? WINDOWS_TERMINALS
+                              : platform === 'macos'
+                                ? MACOS_TERMINALS
+                                : LINUX_TERMINALS
+                          return terminals.map((t) => (
+                            <option key={t.value} value={t.value}>
+                              {t.label}
+                            </option>
+                          ))
+                        })()}
                       </select>
                     </div>
                     <WorkingDirsSuggestions
@@ -293,6 +338,7 @@ export default function CommandSection({
                           )}
                           <span>{item.title}</span>
                           {item.command_host && <span className="text-xs text-[#e879f9]">@{item.command_host}</span>}
+                          {item.command_shell && <span className="text-xs opacity-50">[{item.command_shell}]</span>}
                           {item.command_mode === 'output' && <span className="text-xs opacity-50">[out]</span>}
                           <button
                             onClick={(e) => {

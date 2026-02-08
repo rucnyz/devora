@@ -9,6 +9,7 @@ interface ProjectHeaderProps {
   onCreateIde?: () => void
   onCreateRemoteIde?: () => void
   onCreateCodingAgent?: () => void
+  onCreateEdgeWorkspace?: () => void
   onCreateFile?: () => void
   onCreateCommand?: () => void
   onOpenNotes?: () => void
@@ -21,6 +22,7 @@ export default function ProjectHeader({
   onCreateIde,
   onCreateRemoteIde,
   onCreateCodingAgent,
+  onCreateEdgeWorkspace,
   onCreateFile,
   onCreateCommand,
   onOpenNotes,
@@ -159,6 +161,7 @@ export default function ProjectHeader({
                 onCreateIde={onCreateIde}
                 onCreateRemoteIde={onCreateRemoteIde}
                 onCreateCodingAgent={onCreateCodingAgent}
+                onCreateEdgeWorkspace={onCreateEdgeWorkspace}
                 onCreateFile={onCreateFile}
                 onCreateCommand={onCreateCommand}
               />

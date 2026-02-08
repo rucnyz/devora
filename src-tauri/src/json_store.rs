@@ -485,6 +485,8 @@ impl JsonStore {
         command_mode: Option<CommandMode>,
         command_cwd: Option<&str>,
         command_host: Option<&str>,
+        command_shell: Option<TerminalType>,
+        edge_profile: Option<&str>,
     ) -> Result<Item, String> {
         let mut project_data = self.load_project(project_id)?;
 
@@ -514,6 +516,8 @@ impl JsonStore {
             command_mode,
             command_cwd: command_cwd.map(|s| s.to_string()),
             command_host: command_host.map(|s| s.to_string()),
+            command_shell,
+            edge_profile: edge_profile.map(|s| s.to_string()),
             order,
             created_at: timestamp.clone(),
             updated_at: timestamp.clone(),
@@ -541,6 +545,8 @@ impl JsonStore {
         command_mode: Option<Option<CommandMode>>,
         command_cwd: Option<Option<&str>>,
         command_host: Option<Option<&str>>,
+        command_shell: Option<Option<TerminalType>>,
+        edge_profile: Option<Option<&str>>,
         order: Option<i32>,
     ) -> Result<Option<Item>, String> {
         // Find which project contains this item
@@ -582,6 +588,12 @@ impl JsonStore {
                 }
                 if let Some(ch) = command_host {
                     item.command_host = ch.map(|s| s.to_string());
+                }
+                if let Some(cs) = command_shell {
+                    item.command_shell = cs;
+                }
+                if let Some(ep) = edge_profile {
+                    item.edge_profile = ep.map(|s| s.to_string());
                 }
                 if let Some(o) = order {
                     item.order = o;

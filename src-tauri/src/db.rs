@@ -261,6 +261,8 @@ impl Database {
                         command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                         command_cwd: row.get(11)?,
                         command_host: row.get(12)?,
+                        command_shell: None,
+                        edge_profile: None,
                     })
                 })?;
                 p.items = Some(items.filter_map(|r| r.ok()).collect());
@@ -404,6 +406,8 @@ impl Database {
             command_mode,
             command_cwd: command_cwd.map(|s| s.to_string()),
             command_host: command_host.map(|s| s.to_string()),
+            command_shell: None,
+            edge_profile: None,
             order,
             created_at: timestamp.clone(),
             updated_at: timestamp,
@@ -533,6 +537,8 @@ impl Database {
             command_mode,
             command_cwd: command_cwd.map(|s| s.to_string()),
             command_host: command_host.map(|s| s.to_string()),
+            command_shell: None,
+            edge_profile: None,
             order,
             created_at: existing.7,
             updated_at: timestamp,
@@ -818,6 +824,8 @@ impl Database {
                             command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                             command_cwd: row.get(11)?,
                             command_host: row.get(12)?,
+                            command_shell: None,
+                        edge_profile: None,
                         })
                     })?
                     .filter_map(|r| r.ok())
@@ -892,6 +900,8 @@ impl Database {
                         command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                         command_cwd: row.get(11)?,
                         command_host: row.get(12)?,
+                        command_shell: None,
+                        edge_profile: None,
                     })
                 })?
                 .filter_map(|r| r.ok())

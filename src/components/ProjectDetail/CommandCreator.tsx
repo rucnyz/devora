@@ -4,13 +4,28 @@ import { useEditorHandlers } from '../../hooks/useEditorHandlers'
 import RemoteDirBrowser from '../RemoteDirBrowser'
 import HostInput from '../HostInput'
 import WorkingDirsSuggestions from './WorkingDirsSuggestions'
-import type { CommandMode, WorkingDir } from '../../types'
+import type { CommandMode, TerminalType, WorkingDir } from '../../types'
+import { WINDOWS_TERMINALS, MACOS_TERMINALS, LINUX_TERMINALS } from '../../types'
+import { useSetting } from '../../hooks/useSettings'
+import { getPlatform } from '../../App'
 
 interface CommandCreatorProps {
   workingDirs: WorkingDir[]
   sshHosts: string[]
-  onAdd: (title: string, command: string, mode: CommandMode, cwd?: string, host?: string) => Promise<void>
+  onAdd: (title: string, command: string, mode: CommandMode, cwd?: string, host?: string, shell?: TerminalType) => Promise<void>
   onCancel: () => void
+}
+
+function getTerminalOptions() {
+  const platform = getPlatform()
+  switch (platform) {
+    case 'windows':
+      return WINDOWS_TERMINALS
+    case 'macos':
+      return MACOS_TERMINALS
+    default:
+      return LINUX_TERMINALS
+  }
 }
 
 export default function CommandCreator({ workingDirs, sshHosts, onAdd, onCancel }: CommandCreatorProps) {
@@ -19,17 +34,19 @@ export default function CommandCreator({ workingDirs, sshHosts, onAdd, onCancel 
   const [mode, setMode] = useState<CommandMode>('background')
   const [cwd, setCwd] = useState('')
   const [host, setHost] = useState('')
+  const [shell, setShell] = useState<string>('')  // empty = global default
+  const { value: defaultTerminal } = useSetting('defaultTerminal')
   const [showBrowser, setShowBrowser] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
 
   const save = useCallback(async () => {
     if (content.trim()) {
       const finalTitle = title.trim() || content.trim()
-      await onAdd(finalTitle, content.trim(), mode, cwd.trim() || undefined, host.trim() || undefined)
+      await onAdd(finalTitle, content.trim(), mode, cwd.trim() || undefined, host.trim() || undefined, (shell || undefined) as TerminalType | undefined)
     } else {
       onCancel()
     }
-  }, [title, content, mode, cwd, host, onAdd, onCancel])
+  }, [title, content, mode, cwd, host, shell, onAdd, onCancel])
 
   useEditorHandlers({
     containerRef: formRef,
@@ -99,6 +116,19 @@ export default function CommandCreator({ workingDirs, sshHosts, onAdd, onCancel 
           <select value={mode} onChange={(e) => setMode(e.target.value as CommandMode)} className="input-terminal w-36">
             <option value="background">Background</option>
             <option value="output">Show Output</option>
+            <option value="terminal">Terminal</option>
+          </select>
+          <select value={shell} onChange={(e) => setShell(e.target.value)} className="input-terminal w-36">
+            <option value="">
+              {defaultTerminal
+                ? `Global (${getTerminalOptions().find((t) => t.value === defaultTerminal)?.label || defaultTerminal})`
+                : 'Global Default'}
+            </option>
+            {getTerminalOptions().map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
           </select>
         </div>
         <WorkingDirsSuggestions

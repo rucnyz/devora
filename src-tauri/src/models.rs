@@ -13,6 +13,7 @@ pub enum ItemType {
     RemoteIde,
     Command,
     CodingAgent,
+    EdgeWorkspace,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
@@ -85,6 +86,14 @@ pub enum TerminalType {
 pub enum CommandMode {
     Background,
     Output,
+    Terminal,
+}
+
+// Cross-platform path mapping
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PathMapping {
+    pub windows: String,
+    pub linux: String,
 }
 
 // Working directory
@@ -143,6 +152,10 @@ pub struct Item {
     pub command_cwd: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_shell: Option<TerminalType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edge_profile: Option<String>,
     pub order: i32,
     pub created_at: String,
     pub updated_at: String,
@@ -292,6 +305,23 @@ pub struct ValidateDatabasePathResult {
 pub struct ValidateDataPathResult {
     pub is_valid: bool,
     pub data_exists: bool,
+}
+
+// Edge workspace types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EdgeProfile {
+    pub dir: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EdgeWorkspaceInfo {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    pub tab_count: usize,
+    pub active: bool,
 }
 
 // Legacy Todo item (for migration only)

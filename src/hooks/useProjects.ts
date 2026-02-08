@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Project, Item, ItemType, CodingAgentType, CommandMode, ProjectMetadata } from '../types'
+import type { Project, Item, ItemType, CodingAgentType, CommandMode, TerminalType, ProjectMetadata } from '../types'
 import * as api from '../api/tauri'
 
 export function useProjects() {
@@ -88,7 +88,9 @@ export function useProject(id: string) {
     codingAgentEnv?: string,
     commandMode?: CommandMode,
     commandCwd?: string,
-    commandHost?: string
+    commandHost?: string,
+    commandShell?: TerminalType,
+    edgeProfile?: string
   ) => {
     const item = await api.createItem(
       id,
@@ -102,7 +104,9 @@ export function useProject(id: string) {
       codingAgentEnv,
       commandMode,
       commandCwd,
-      commandHost
+      commandHost,
+      commandShell,
+      edgeProfile
     )
     await fetchProject(false)
     return item
@@ -123,6 +127,8 @@ export function useProject(id: string) {
         | 'command_mode'
         | 'command_cwd'
         | 'command_host'
+        | 'command_shell'
+        | 'edge_profile'
       >
     >
   ) => {
@@ -173,6 +179,9 @@ export const openRemoteIde = api.openRemoteIde
 export const openCustomRemoteIde = api.openCustomRemoteIde
 export const openCodingAgent = api.openCodingAgent
 export const fetchSSHHosts = api.getSSHHosts
+export const getEdgeProfiles = api.getEdgeProfiles
+export const getEdgeWorkspaces = api.getEdgeWorkspaces
+export const openEdgeWorkspace = api.openEdgeWorkspace
 export const fetchUrlMetadata = api.fetchUrlMetadata
 export const reorderItems = api.reorderItems
 
@@ -207,9 +216,10 @@ export async function runCommand(
   command: string,
   mode: CommandMode,
   cwd?: string,
-  host?: string
+  host?: string,
+  shell?: TerminalType
 ): Promise<CommandResult> {
-  const result = await api.runCommand(command, mode, cwd, host)
+  const result = await api.runCommand(command, mode, cwd, host, shell)
   return {
     success: result.exit_code === 0,
     output: result.stdout,

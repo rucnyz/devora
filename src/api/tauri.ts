@@ -1,12 +1,12 @@
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { openPath } from '@tauri-apps/plugin-opener'
 import type {
   CodingAgentType,
   CommandMode,
   IdeType,
   Item,
   ItemType,
+  PathMapping,
   Project,
   ProjectMetadata,
   RemoteIdeType,
@@ -155,7 +155,9 @@ export async function createItem(
   codingAgentEnv?: string,
   commandMode?: CommandMode,
   commandCwd?: string,
-  commandHost?: string
+  commandHost?: string,
+  commandShell?: TerminalType,
+  edgeProfile?: string
 ): Promise<Item> {
   return invoke<Item>('create_item', {
     projectId,
@@ -170,6 +172,8 @@ export async function createItem(
     commandMode,
     commandCwd,
     commandHost,
+    commandShell,
+    edgeProfile,
   })
 }
 
@@ -188,6 +192,8 @@ export async function updateItem(
       | 'command_mode'
       | 'command_cwd'
       | 'command_host'
+      | 'command_shell'
+      | 'edge_profile'
       | 'order'
     >
   >
@@ -204,6 +210,8 @@ export async function updateItem(
     commandMode: updates.command_mode !== undefined ? updates.command_mode : undefined,
     commandCwd: updates.command_cwd !== undefined ? updates.command_cwd : undefined,
     commandHost: updates.command_host !== undefined ? updates.command_host : undefined,
+    commandShell: updates.command_shell !== undefined ? updates.command_shell : undefined,
+    edgeProfile: updates.edge_profile !== undefined ? updates.edge_profile : undefined,
     order: updates.order,
   })
 }
@@ -322,7 +330,7 @@ export async function openCodingAgent(
 }
 
 export async function openFile(path: string): Promise<void> {
-  await openPath(path)
+  return invoke('open_file', { path })
 }
 
 export async function selectFolder(): Promise<string | null> {
@@ -353,9 +361,10 @@ export async function runCommand(
   command: string,
   mode: CommandMode,
   cwd?: string,
-  host?: string
+  host?: string,
+  shell?: TerminalType
 ): Promise<CommandResult> {
-  return invoke<CommandResult>('run_command', { command, mode, cwd, host })
+  return invoke<CommandResult>('run_command', { command, mode, cwd, host, shell })
 }
 
 export async function fetchUrlMetadata(url: string): Promise<string> {
@@ -472,6 +481,16 @@ export const checkDatabaseExists = checkDataExists
 export type ValidateDatabasePathResult = ValidateDataPathResult
 export const validateDatabasePath = validateDataPath
 
+// ============ Path Mapping API ============
+
+export async function getPathMappings(): Promise<PathMapping[]> {
+  return invoke<PathMapping[]>('get_path_mappings')
+}
+
+export async function setPathMappings(mappings: PathMapping[]): Promise<void> {
+  return invoke('set_path_mappings', { mappings })
+}
+
 // ============ Window Management API ============
 
 export async function openProjectWindow(projectId: string, projectName: string): Promise<void> {
@@ -486,4 +505,31 @@ export async function getProjectTodos(projectId: string): Promise<string> {
 
 export async function setProjectTodos(projectId: string, content: string): Promise<void> {
   return invoke('set_project_todos', { projectId, content })
+}
+
+// ============ Edge Workspace API ============
+
+export interface EdgeProfile {
+  dir: string
+  name: string
+}
+
+export interface EdgeWorkspaceInfo {
+  id: string
+  name: string
+  color?: string
+  tab_count: number
+  active: boolean
+}
+
+export async function getEdgeProfiles(): Promise<EdgeProfile[]> {
+  return invoke<EdgeProfile[]>('get_edge_profiles')
+}
+
+export async function getEdgeWorkspaces(profileDir: string): Promise<EdgeWorkspaceInfo[]> {
+  return invoke<EdgeWorkspaceInfo[]>('get_edge_workspaces', { profileDir })
+}
+
+export async function openEdgeWorkspace(profileDir: string, workspaceId: string): Promise<void> {
+  return invoke('open_edge_workspace', { profileDir, workspaceId })
 }

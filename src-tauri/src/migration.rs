@@ -233,6 +233,8 @@ fn get_sqlite_items(conn: &Connection, project_id: &str) -> Result<Vec<Item>, St
                 command_mode: command_mode_str.and_then(|s| s.parse().ok()),
                 command_cwd: row.get(11)?,
                 command_host: row.get(12)?,
+                command_shell: None,
+                edge_profile: None,
             })
         })
         .map_err(|e| format!("Failed to query items: {}", e))?;

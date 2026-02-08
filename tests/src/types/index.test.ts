@@ -108,8 +108,8 @@ describe('Type Constants', () => {
   })
 
   describe('DEFAULT_SECTION_ORDER', () => {
-    test('contains all 8 section keys', () => {
-      expect(DEFAULT_SECTION_ORDER.length).toBe(8)
+    test('contains all 9 section keys', () => {
+      expect(DEFAULT_SECTION_ORDER.length).toBe(9)
     })
 
     test('contains expected section keys', () => {
@@ -118,6 +118,7 @@ describe('Type Constants', () => {
         'ide',
         'remoteIde',
         'codingAgent',
+        'edgeWorkspace',
         'file',
         'command',
         'links',

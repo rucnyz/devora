@@ -44,6 +44,8 @@
   --accent-remote-rgb: 232, 121, 249;
   --accent-agent: #818cf8; /* Coding Agent */
   --accent-agent-rgb: 129, 140, 248;
+  --accent-edge: #4a9eea; /* Edge Workspace */
+  --accent-edge-rgb: 74, 158, 234;
   --accent-danger: #ff4757;
 
   /* Glow effects */
@@ -52,6 +54,7 @@
   --glow-warning: 0 0 20px rgba(255, 170, 0, 0.3);
   --glow-remote: 0 0 20px rgba(232, 121, 249, 0.3);
   --glow-agent: 0 0 20px rgba(129, 140, 248, 0.3);
+  --glow-edge: 0 0 20px rgba(74, 158, 234, 0.3);
   --glow-soft: 0 0 40px rgba(0, 255, 136, 0.1);
   --glow-warning-soft: 0 0 40px rgba(255, 170, 0, 0.15);
   --glow-remote-soft: 0 0 40px rgba(232, 121, 249, 0.15);
@@ -98,6 +101,8 @@
   --accent-remote-rgb: 192, 38, 211;
   --accent-agent: #6366f1; /* Coding Agent */
   --accent-agent-rgb: 99, 102, 241;
+  --accent-edge: #0078d4; /* Edge Workspace */
+  --accent-edge-rgb: 0, 120, 212;
   --accent-danger: #dc2626;
 
   /* Shadow effects instead of glow */
@@ -106,6 +111,7 @@
   --glow-warning: 0 4px 14px rgba(217, 119, 6, 0.2);
   --glow-remote: 0 4px 14px rgba(192, 38, 211, 0.2);
   --glow-agent: 0 4px 14px rgba(99, 102, 241, 0.2);
+  --glow-edge: 0 4px 14px rgba(0, 120, 212, 0.2);
   --glow-soft: 0 8px 30px rgba(5, 150, 105, 0.08);
   --glow-warning-soft: 0 8px 30px rgba(217, 119, 6, 0.12);
   --glow-remote-soft: 0 8px 30px rgba(192, 38, 211, 0.12);
@@ -436,6 +442,20 @@ h6 {
 .tag-coding-agent:hover {
   background: rgba(var(--accent-agent-rgb), 0.2);
   box-shadow: var(--glow-agent);
+}
+
+/* ===========================================
+   EDGE WORKSPACE TAG - Uses edge color (blue)
+   =========================================== */
+.tag-edge-workspace {
+  color: var(--accent-edge);
+  background: rgba(var(--accent-edge-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-edge-rgb), 0.3);
+}
+
+.tag-edge-workspace:hover {
+  background: rgba(var(--accent-edge-rgb), 0.2);
+  box-shadow: var(--glow-edge);
 }
 
 /* ===========================================

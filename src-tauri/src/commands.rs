@@ -2,12 +2,14 @@
 
 use crate::json_store::JsonStore;
 use crate::models::*;
+use crate::path_mapper::PathMapper;
 use crate::settings::SettingsFile;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_opener::OpenerExt;
 
 // Reload store from disk (for Ctrl+R refresh)
 #[tauri::command]
@@ -77,6 +79,8 @@ pub fn create_item(
     commandMode: Option<CommandMode>,
     commandCwd: Option<String>,
     commandHost: Option<String>,
+    commandShell: Option<TerminalType>,
+    edgeProfile: Option<String>,
     store: State<JsonStore>,
 ) -> Result<Item, String> {
     store.create_item(
@@ -92,6 +96,8 @@ pub fn create_item(
         commandMode,
         commandCwd.as_deref(),
         commandHost.as_deref(),
+        commandShell,
+        edgeProfile.as_deref(),
     )
 }
 
@@ -108,6 +114,8 @@ pub fn update_item(
     commandMode: Option<Option<CommandMode>>,
     commandCwd: Option<Option<String>>,
     commandHost: Option<Option<String>>,
+    commandShell: Option<Option<TerminalType>>,
+    edgeProfile: Option<Option<String>>,
     order: Option<i32>,
     store: State<JsonStore>,
 ) -> Result<Option<Item>, String> {
@@ -123,6 +131,8 @@ pub fn update_item(
         commandMode,
         commandCwd.as_ref().map(|o| o.as_deref()),
         commandHost.as_ref().map(|o| o.as_deref()),
+        commandShell,
+        edgeProfile.as_ref().map(|o| o.as_deref()),
         order,
     )
 }
@@ -249,7 +259,8 @@ pub fn import_data(
 
 // System operations
 #[tauri::command]
-pub fn open_ide(ideType: IdeType, path: String) -> Result<(), String> {
+pub fn open_ide(ideType: IdeType, path: String, mapper: State<PathMapper>) -> Result<(), String> {
+    let path = mapper.translate(&path);
     let cmd = match ideType {
         // JetBrains IDEs
         IdeType::Idea => "idea",
@@ -296,7 +307,8 @@ pub fn open_ide(ideType: IdeType, path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_custom_ide(command: String, path: String) -> Result<(), String> {
+pub fn open_custom_ide(command: String, path: String, mapper: State<PathMapper>) -> Result<(), String> {
+    let path = mapper.translate(&path);
     // Replace {path} placeholder - no auto-quoting, user controls quoting in template
     let full_command = command.replace("{path}", &path);
 
@@ -456,7 +468,9 @@ pub fn open_coding_agent(
     args: Option<String>,
     globalEnv: Option<String>,
     agentEnv: Option<String>,
+    mapper: State<PathMapper>,
 ) -> Result<(), String> {
+    let path = mapper.translate(&path);
     let base_cmd = match codingAgentType {
         CodingAgentType::ClaudeCode => "claude",
         CodingAgentType::Opencode => "opencode",
@@ -891,7 +905,15 @@ pub async fn run_command(
     mode: CommandMode,
     cwd: Option<String>,
     host: Option<String>,
+    shell: Option<TerminalType>,
+    mapper: State<'_, PathMapper>,
 ) -> Result<CommandResult, String> {
+    // Translate cwd for local commands only
+    let cwd = if host.is_none() {
+        cwd.map(|c| mapper.translate(&c))
+    } else {
+        cwd
+    };
     let is_background = matches!(mode, CommandMode::Background);
 
     if let Some(remote_host) = host {
@@ -932,22 +954,210 @@ pub async fn run_command(
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
             exit_code: output.status.code().unwrap_or(-1),
         })
-    } else {
-        // Local command (keep sync for simplicity, local commands are fast)
-        if is_background {
-            if cfg!(windows) {
-                Command::new("cmd")
-                    .args(["/C", "start", "/B", &command])
-                    .current_dir(cwd.unwrap_or_else(|| ".".to_string()))
-                    .spawn()
-                    .map_err(|e| format!("Failed to spawn background command: {}", e))?;
-            } else {
-                Command::new("sh")
-                    .args(["-c", &format!("nohup {} > /dev/null 2>&1 &", command)])
-                    .current_dir(cwd.unwrap_or_else(|| ".".to_string()))
-                    .spawn()
-                    .map_err(|e| format!("Failed to spawn background command: {}", e))?;
+    } else if matches!(mode, CommandMode::Terminal) {
+        // Terminal mode - open a visible terminal window with the command
+        let dir = cwd.as_deref().unwrap_or(".");
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+
+            let terminal = shell.clone().unwrap_or(TerminalType::Cmd);
+            match terminal {
+                TerminalType::PowerShell => {
+                    Command::new("powershell")
+                        .raw_arg(format!("-NoExit -Command {}", command))
+                        .current_dir(dir)
+                        .creation_flags(CREATE_NEW_CONSOLE)
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::PwshCore => {
+                    Command::new("pwsh")
+                        .raw_arg(format!("-NoExit -Command {}", command))
+                        .current_dir(dir)
+                        .creation_flags(CREATE_NEW_CONSOLE)
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::WindowsTerminal => {
+                    Command::new("cmd")
+                        .raw_arg(format!("/c wt -d \"{}\" cmd /k {}", dir, command))
+                        .creation_flags(CREATE_NO_WINDOW)
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::GitBash => {
+                    Command::new("C:\\Program Files\\Git\\bin\\bash.exe")
+                        .args(["-c", &format!("{}; exec bash", command)])
+                        .current_dir(dir)
+                        .creation_flags(CREATE_NEW_CONSOLE)
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::Nushell => {
+                    Command::new("nu")
+                        .args(["-e", &command])
+                        .current_dir(dir)
+                        .creation_flags(CREATE_NEW_CONSOLE)
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                // Cmd and others
+                _ => {
+                    Command::new("cmd")
+                        .raw_arg(format!("/k {}", command))
+                        .current_dir(dir)
+                        .creation_flags(CREATE_NEW_CONSOLE)
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
             }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let full_cmd = format!("cd '{}' && {}", dir, command);
+            let terminal = shell.clone().unwrap_or(TerminalType::MacTerminal);
+            match terminal {
+                TerminalType::ITerm2 => {
+                    Command::new("osascript")
+                        .args(["-e", &format!(
+                            "tell application \"iTerm\" to create window with default profile command \"{}\"",
+                            full_cmd
+                        )])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::Kitty => {
+                    Command::new("kitty")
+                        .args(["--directory", dir, "sh", "-c", &format!("{}; exec $SHELL", command)])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::Alacritty => {
+                    Command::new("alacritty")
+                        .args(["--working-directory", dir, "-e", "sh", "-c", &format!("{}; exec $SHELL", command)])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                _ => {
+                    Command::new("osascript")
+                        .args(["-e", &format!(
+                            "tell application \"Terminal\" to do script \"{}\"",
+                            full_cmd
+                        )])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+            }
+        }
+
+        #[cfg(all(not(windows), not(target_os = "macos")))]
+        {
+            let shell_cmd = format!("{}; exec $SHELL", command);
+            let terminal = shell.clone().unwrap_or(TerminalType::GnomeTerminal);
+            match terminal {
+                TerminalType::Konsole => {
+                    Command::new("konsole")
+                        .args(["--workdir", dir, "-e", "sh", "-c", &shell_cmd])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::Xterm => {
+                    Command::new("xterm")
+                        .args(["-e", &format!("cd '{}' && {}", dir, shell_cmd)])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::Kitty => {
+                    Command::new("kitty")
+                        .args(["--directory", dir, "sh", "-c", &shell_cmd])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                TerminalType::Alacritty => {
+                    Command::new("alacritty")
+                        .args(["--working-directory", dir, "-e", "sh", "-c", &shell_cmd])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+                _ => {
+                    // gnome-terminal and fallback
+                    Command::new("gnome-terminal")
+                        .args(["--working-directory", dir, "--", "sh", "-c", &shell_cmd])
+                        .spawn()
+                        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                }
+            }
+        }
+
+        Ok(CommandResult {
+            stdout: String::new(),
+            stderr: String::new(),
+            exit_code: 0,
+        })
+    } else {
+        // Background and Output modes - headless execution
+        #[cfg(windows)]
+        let build_command = |cmd_str: &str| -> Command {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+            let terminal = shell.clone().unwrap_or(TerminalType::Cmd);
+            let mut proc = match terminal {
+                TerminalType::PowerShell => {
+                    let mut c = Command::new("powershell");
+                    c.raw_arg(format!("-NoProfile -Command {}", cmd_str));
+                    c
+                }
+                TerminalType::PwshCore => {
+                    let mut c = Command::new("pwsh");
+                    c.raw_arg(format!("-NoProfile -Command {}", cmd_str));
+                    c
+                }
+                TerminalType::GitBash => {
+                    let mut c = Command::new("C:\\Program Files\\Git\\bin\\bash.exe");
+                    c.args(["-c", cmd_str]);
+                    c
+                }
+                TerminalType::Nushell => {
+                    let mut c = Command::new("nu");
+                    c.args(["-c", cmd_str]);
+                    c
+                }
+                // Cmd, WindowsTerminal, and others default to cmd.exe
+                _ => {
+                    let mut c = Command::new("cmd");
+                    c.raw_arg(format!("/C {}", cmd_str));
+                    c
+                }
+            };
+            proc.creation_flags(CREATE_NO_WINDOW);
+            proc
+        };
+
+        #[cfg(not(windows))]
+        let build_command = |cmd_str: &str| -> Command {
+            let mut proc = Command::new("sh");
+            proc.args(["-c", cmd_str]);
+            proc
+        };
+
+        let is_background = matches!(mode, CommandMode::Background);
+
+        if is_background {
+            #[cfg(not(windows))]
+            let command = format!("nohup {} > /dev/null 2>&1 &", command);
+
+            let mut proc = build_command(&command);
+            if let Some(dir) = &cwd {
+                proc.current_dir(dir);
+            }
+            proc.spawn()
+                .map_err(|e| format!("Failed to spawn background command: {}", e))?;
 
             Ok(CommandResult {
                 stdout: String::new(),
@@ -955,19 +1165,12 @@ pub async fn run_command(
                 exit_code: 0,
             })
         } else {
-            let output = if cfg!(windows) {
-                Command::new("cmd")
-                    .args(["/C", &command])
-                    .current_dir(cwd.unwrap_or_else(|| ".".to_string()))
-                    .output()
-                    .map_err(|e| format!("Failed to execute command: {}", e))?
-            } else {
-                Command::new("sh")
-                    .args(["-c", &command])
-                    .current_dir(cwd.unwrap_or_else(|| ".".to_string()))
-                    .output()
-                    .map_err(|e| format!("Failed to execute command: {}", e))?
-            };
+            let mut proc = build_command(&command);
+            if let Some(dir) = &cwd {
+                proc.current_dir(dir);
+            }
+            let output = proc.output()
+                .map_err(|e| format!("Failed to execute command: {}", e))?;
 
             Ok(CommandResult {
                 stdout: String::from_utf8_lossy(&output.stdout).to_string(),
@@ -985,7 +1188,9 @@ pub async fn read_file_content(
     max_size: Option<u64>,
     offset: Option<u64>,
     length: Option<u64>,
+    mapper: State<'_, PathMapper>,
 ) -> Result<ReadFileResult, String> {
+    let path = mapper.translate(&path);
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
     let metadata = tokio::fs::metadata(&path)
@@ -1067,7 +1272,8 @@ pub async fn read_file_content(
 
 // Get file info for virtual scrolling
 #[tauri::command]
-pub async fn get_file_info(path: String) -> Result<FileInfo, String> {
+pub async fn get_file_info(path: String, mapper: State<'_, PathMapper>) -> Result<FileInfo, String> {
+    let path = mapper.translate(&path);
     let metadata = tokio::fs::metadata(&path)
         .await
         .map_err(|e| format!("Failed to read file metadata: {}", e))?;
@@ -1112,7 +1318,9 @@ pub async fn read_file_lines(
     path: String,
     start_line: usize,
     count: usize,
+    mapper: State<'_, PathMapper>,
 ) -> Result<FileLinesResult, String> {
+    let path = mapper.translate(&path);
     let content = tokio::fs::read_to_string(&path)
         .await
         .map_err(|e| format!("Failed to read file: {}", e))?;
@@ -1209,6 +1417,191 @@ pub fn set_project_todos(
     store: State<JsonStore>,
 ) -> Result<(), String> {
     store.set_project_todos(&projectId, &content)
+}
+
+// Path Mapping
+#[tauri::command]
+pub fn get_path_mappings(mapper: State<PathMapper>) -> Vec<PathMapping> {
+    mapper.get_mappings()
+}
+
+#[tauri::command]
+pub fn set_path_mappings(
+    mappings: Vec<PathMapping>,
+    mapper: State<PathMapper>,
+    store: State<JsonStore>,
+) -> Result<(), String> {
+    mapper.set_mappings(mappings.clone());
+    let json = serde_json::to_string(&mappings)
+        .map_err(|e| format!("Failed to serialize path mappings: {}", e))?;
+    store.set_setting("pathMappings", &json)
+}
+
+#[tauri::command]
+pub async fn open_file(
+    path: String,
+    mapper: State<'_, PathMapper>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let path = mapper.translate(&path);
+    app.opener()
+        .open_path(&path, None::<&str>)
+        .map_err(|e| format!("Failed to open file: {}", e))
+}
+
+// Edge Workspace
+#[tauri::command]
+pub fn get_edge_profiles() -> Result<Vec<EdgeProfile>, String> {
+    #[cfg(windows)]
+    {
+        let local_app_data =
+            std::env::var("LOCALAPPDATA").map_err(|_| "LOCALAPPDATA not set".to_string())?;
+        let local_state_path = std::path::Path::new(&local_app_data)
+            .join("Microsoft")
+            .join("Edge")
+            .join("User Data")
+            .join("Local State");
+
+        if !local_state_path.exists() {
+            return Ok(vec![]);
+        }
+
+        let content = fs::read_to_string(&local_state_path)
+            .map_err(|e| format!("Failed to read Local State: {}", e))?;
+
+        let parsed: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse Local State: {}", e))?;
+
+        let Some(info_cache) = parsed
+            .get("profile")
+            .and_then(|p| p.get("info_cache"))
+            .and_then(|c| c.as_object())
+        else {
+            return Ok(vec![]);
+        };
+
+        let mut profiles = Vec::new();
+        for (dir, info) in info_cache {
+            let name = info
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or(dir)
+                .to_string();
+            profiles.push(EdgeProfile {
+                dir: dir.clone(),
+                name,
+            });
+        }
+
+        profiles.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(profiles)
+    }
+
+    #[cfg(not(windows))]
+    {
+        Ok(vec![])
+    }
+}
+
+#[tauri::command]
+pub fn get_edge_workspaces(profileDir: String) -> Result<Vec<EdgeWorkspaceInfo>, String> {
+    #[cfg(windows)]
+    {
+        let local_app_data =
+            std::env::var("LOCALAPPDATA").map_err(|_| "LOCALAPPDATA not set".to_string())?;
+        let cache_path = std::path::Path::new(&local_app_data)
+            .join("Microsoft")
+            .join("Edge")
+            .join("User Data")
+            .join(&profileDir)
+            .join("Workspaces")
+            .join("WorkspacesCache");
+
+        if !cache_path.exists() {
+            return Ok(vec![]);
+        }
+
+        let content = fs::read_to_string(&cache_path)
+            .map_err(|e| format!("Failed to read WorkspacesCache: {}", e))?;
+
+        let parsed: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse WorkspacesCache: {}", e))?;
+
+        let Some(workspaces) = parsed.get("workspaces").and_then(|w| w.as_array()) else {
+            return Ok(vec![]);
+        };
+
+        let mut result = Vec::new();
+        for ws in workspaces {
+            let id = ws
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let name = ws
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unnamed")
+                .to_string();
+            let color = ws
+                .get("color")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let tab_count = ws
+                .get("tab_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as usize;
+            let active = ws
+                .get("is_active")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            if !id.is_empty() {
+                result.push(EdgeWorkspaceInfo {
+                    id,
+                    name,
+                    color,
+                    tab_count,
+                    active,
+                });
+            }
+        }
+
+        Ok(result)
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = profileDir;
+        Ok(vec![])
+    }
+}
+
+#[tauri::command]
+pub fn open_edge_workspace(profileDir: String, workspaceId: String) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+
+        Command::new("cmd")
+            .raw_arg(format!(
+                "/c start \"\" msedge.exe --profile-directory=\"{}\" --launch-workspace={} --no-startup-window",
+                profileDir, workspaceId
+            ))
+            .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
+            .spawn()
+            .map_err(|e| format!("Failed to open Edge workspace: {}", e))?;
+
+        Ok(())
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = (profileDir, workspaceId);
+        Err("Edge workspaces are only supported on Windows".to_string())
+    }
 }
 
 // Window management

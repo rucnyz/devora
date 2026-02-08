@@ -12,6 +12,7 @@ import WorkingDirsSection from './WorkingDirsSection'
 import IDESection from './IDESection'
 import RemoteIDESection from './RemoteIDESection'
 import CodingAgentSection from './CodingAgentSection'
+import EdgeWorkspaceSection from './EdgeWorkspaceSection'
 import FileSection from './FileSection'
 import CommandSection from './CommandSection'
 import LinksSection from './LinksSection'
@@ -25,6 +26,7 @@ import {
   DEFAULT_SECTION_ORDER,
   type CodingAgentType,
   type CommandMode,
+  type TerminalType,
   type WorkingDir,
   type SectionKey,
 } from '../../types'
@@ -56,6 +58,7 @@ export default function ProjectDetail() {
   const [isCreatingIde, setIsCreatingIde] = useState(false)
   const [isCreatingRemoteIde, setIsCreatingRemoteIde] = useState(false)
   const [isCreatingCodingAgent, setIsCreatingCodingAgent] = useState(false)
+  const [isCreatingEdgeWorkspace, setIsCreatingEdgeWorkspace] = useState(false)
   const [isCreatingFile, setIsCreatingFile] = useState(false)
   const [isCreatingCommand, setIsCreatingCommand] = useState(false)
 
@@ -249,6 +252,7 @@ export default function ProjectDetail() {
   const ideItems = project.items?.filter((i) => i.type === 'ide') || []
   const remoteIdeItems = project.items?.filter((i) => i.type === 'remote-ide') || []
   const codingAgentItems = project.items?.filter((i) => i.type === 'coding-agent') || []
+  const edgeWorkspaceItems = project.items?.filter((i) => i.type === 'edge-workspace') || []
   const fileItems = project.items?.filter((i) => i.type === 'file') || []
   const urlItems = project.items?.filter((i) => i.type === 'url') || []
   const commandItems = project.items?.filter((i) => i.type === 'command') || []
@@ -279,6 +283,12 @@ export default function ProjectDetail() {
       label: 'Agent',
       show: codingAgentItems.length > 0 || isCreatingCodingAgent,
       color: 'var(--accent-agent)',
+    },
+    edgeWorkspace: {
+      id: 'section-edge-workspace',
+      label: 'Edge',
+      show: edgeWorkspaceItems.length > 0 || isCreatingEdgeWorkspace,
+      color: 'var(--accent-edge)',
     },
     file: {
       id: 'section-files',
@@ -322,6 +332,10 @@ export default function ProjectDetail() {
     await addItem('coding-agent', title, path, undefined, undefined, agentType, args || undefined, env || undefined)
   }
 
+  const handleAddEdgeWorkspace = async (title: string, workspaceId: string, edgeProfile: string) => {
+    await addItem('edge-workspace', title, workspaceId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, edgeProfile)
+  }
+
   const handleAddFile = async (title: string, path: string) => {
     await addItem('file', title, path)
   }
@@ -330,8 +344,8 @@ export default function ProjectDetail() {
     return await addItem('url', title, url)
   }
 
-  const handleAddCommand = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string) => {
-    await addItem('command', title, command, undefined, undefined, undefined, undefined, mode, cwd, host)
+  const handleAddCommand = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string, shell?: TerminalType) => {
+    await addItem('command', title, command, undefined, undefined, undefined, undefined, undefined, mode, cwd, host, shell)
   }
 
   const handleUpdateWorkingDirs = async (dirs: WorkingDir[]) => {
@@ -409,6 +423,18 @@ export default function ProjectDetail() {
         onUpdate={updateItem}
         onDelete={deleteItem}
         onCreatingChange={setIsCreatingCodingAgent}
+        onReorder={() => fetchProject(false)}
+      />
+    ),
+    edgeWorkspace: (
+      <EdgeWorkspaceSection
+        items={edgeWorkspaceItems}
+        projectId={project.id}
+        isCreating={isCreatingEdgeWorkspace}
+        onAdd={handleAddEdgeWorkspace}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onCreatingChange={setIsCreatingEdgeWorkspace}
         onReorder={() => fetchProject(false)}
       />
     ),
@@ -506,6 +532,7 @@ export default function ProjectDetail() {
           onCreateIde={() => setIsCreatingIde(true)}
           onCreateRemoteIde={() => setIsCreatingRemoteIde(true)}
           onCreateCodingAgent={() => setIsCreatingCodingAgent(true)}
+          onCreateEdgeWorkspace={() => setIsCreatingEdgeWorkspace(true)}
           onCreateFile={() => setIsCreatingFile(true)}
           onCreateCommand={() => setIsCreatingCommand(true)}
           onOpenNotes={() => handleNotesDrawerChange(true)}
