@@ -12,7 +12,16 @@ import { getPlatform } from '../../App'
 interface CommandCreatorProps {
   workingDirs: WorkingDir[]
   sshHosts: string[]
-  onAdd: (title: string, command: string, mode: CommandMode, cwd?: string, host?: string, shell?: TerminalType) => Promise<void>
+  onAdd: (
+    title: string,
+    command: string,
+    mode: CommandMode,
+    cwd?: string,
+    host?: string,
+    shell?: TerminalType,
+    commandLinux?: string,
+    commandWindows?: string
+  ) => Promise<void>
   onCancel: () => void
 }
 
@@ -34,7 +43,10 @@ export default function CommandCreator({ workingDirs, sshHosts, onAdd, onCancel 
   const [mode, setMode] = useState<CommandMode>('background')
   const [cwd, setCwd] = useState('')
   const [host, setHost] = useState('')
-  const [shell, setShell] = useState<string>('')  // empty = global default
+  const [shell, setShell] = useState<string>('') // empty = global default
+  const [commandLinux, setCommandLinux] = useState('')
+  const [commandWindows, setCommandWindows] = useState('')
+  const [showPlatformVariant, setShowPlatformVariant] = useState(false)
   const { value: defaultTerminal } = useSetting('defaultTerminal')
   const [showBrowser, setShowBrowser] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
@@ -42,11 +54,20 @@ export default function CommandCreator({ workingDirs, sshHosts, onAdd, onCancel 
   const save = useCallback(async () => {
     if (content.trim()) {
       const finalTitle = title.trim() || content.trim()
-      await onAdd(finalTitle, content.trim(), mode, cwd.trim() || undefined, host.trim() || undefined, (shell || undefined) as TerminalType | undefined)
+      await onAdd(
+        finalTitle,
+        content.trim(),
+        mode,
+        cwd.trim() || undefined,
+        host.trim() || undefined,
+        (shell || undefined) as TerminalType | undefined,
+        commandLinux.trim() || undefined,
+        commandWindows.trim() || undefined
+      )
     } else {
       onCancel()
     }
-  }, [title, content, mode, cwd, host, shell, onAdd, onCancel])
+  }, [title, content, mode, cwd, host, shell, commandLinux, commandWindows, onAdd, onCancel])
 
   useEditorHandlers({
     containerRef: formRef,
@@ -92,6 +113,48 @@ export default function CommandCreator({ workingDirs, sshHosts, onAdd, onCancel 
             className="input-terminal flex-1"
             autoFocus
           />
+        </div>
+        {/* Platform variant toggle */}
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={() => setShowPlatformVariant(!showPlatformVariant)}
+            className="text-xs font-mono text-(--text-muted) hover:text-(--text-secondary) transition-colors flex items-center gap-1"
+          >
+            <svg
+              className={`w-3 h-3 transition-transform ${showPlatformVariant ? 'rotate-90' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            Platform variants
+          </button>
+          {showPlatformVariant && (
+            <div className="mt-2 space-y-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono text-(--text-muted) w-20 text-right">Linux:</span>
+                <input
+                  type="text"
+                  value={commandLinux}
+                  onChange={(e) => setCommandLinux(e.target.value)}
+                  placeholder="Linux command (optional)..."
+                  className="input-terminal flex-1"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono text-(--text-muted) w-20 text-right">Windows:</span>
+                <input
+                  type="text"
+                  value={commandWindows}
+                  onChange={(e) => setCommandWindows(e.target.value)}
+                  placeholder="Windows command (optional)..."
+                  className="input-terminal flex-1"
+                />
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <HostInput

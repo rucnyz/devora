@@ -90,7 +90,9 @@ export function useProject(id: string) {
     commandCwd?: string,
     commandHost?: string,
     commandShell?: TerminalType,
-    edgeProfile?: string
+    edgeProfile?: string,
+    commandLinux?: string,
+    commandWindows?: string
   ) => {
     const item = await api.createItem(
       id,
@@ -106,7 +108,9 @@ export function useProject(id: string) {
       commandCwd,
       commandHost,
       commandShell,
-      edgeProfile
+      edgeProfile,
+      commandLinux,
+      commandWindows
     )
     await fetchProject(false)
     return item

@@ -81,6 +81,8 @@ pub fn create_item(
     commandHost: Option<String>,
     commandShell: Option<TerminalType>,
     edgeProfile: Option<String>,
+    commandLinux: Option<String>,
+    commandWindows: Option<String>,
     store: State<JsonStore>,
 ) -> Result<Item, String> {
     store.create_item(
@@ -98,6 +100,8 @@ pub fn create_item(
         commandHost.as_deref(),
         commandShell,
         edgeProfile.as_deref(),
+        commandLinux.as_deref(),
+        commandWindows.as_deref(),
     )
 }
 
@@ -116,6 +120,8 @@ pub fn update_item(
     commandHost: Option<Option<String>>,
     commandShell: Option<Option<TerminalType>>,
     edgeProfile: Option<Option<String>>,
+    commandLinux: Option<Option<String>>,
+    commandWindows: Option<Option<String>>,
     order: Option<i32>,
     store: State<JsonStore>,
 ) -> Result<Option<Item>, String> {
@@ -133,6 +139,8 @@ pub fn update_item(
         commandHost.as_ref().map(|o| o.as_deref()),
         commandShell,
         edgeProfile.as_ref().map(|o| o.as_deref()),
+        commandLinux.as_ref().map(|o| o.as_deref()),
+        commandWindows.as_ref().map(|o| o.as_deref()),
         order,
     )
 }
@@ -1499,7 +1507,43 @@ pub fn get_edge_profiles() -> Result<Vec<EdgeProfile>, String> {
 
     #[cfg(not(windows))]
     {
-        Ok(vec![])
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| "Could not determine config directory".to_string())?;
+        let local_state_path = config_dir.join("microsoft-edge").join("Local State");
+
+        if !local_state_path.exists() {
+            return Ok(vec![]);
+        }
+
+        let content = fs::read_to_string(&local_state_path)
+            .map_err(|e| format!("Failed to read Local State: {}", e))?;
+
+        let parsed: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse Local State: {}", e))?;
+
+        let Some(info_cache) = parsed
+            .get("profile")
+            .and_then(|p| p.get("info_cache"))
+            .and_then(|c| c.as_object())
+        else {
+            return Ok(vec![]);
+        };
+
+        let mut profiles = Vec::new();
+        for (dir, info) in info_cache {
+            let name = info
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or(dir)
+                .to_string();
+            profiles.push(EdgeProfile {
+                dir: dir.clone(),
+                name,
+            });
+        }
+
+        profiles.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(profiles)
     }
 }
 
@@ -1572,8 +1616,65 @@ pub fn get_edge_workspaces(profileDir: String) -> Result<Vec<EdgeWorkspaceInfo>,
 
     #[cfg(not(windows))]
     {
-        let _ = profileDir;
-        Ok(vec![])
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| "Could not determine config directory".to_string())?;
+        let cache_path = config_dir
+            .join("microsoft-edge")
+            .join(&profileDir)
+            .join("Workspaces")
+            .join("WorkspacesCache");
+
+        if !cache_path.exists() {
+            return Ok(vec![]);
+        }
+
+        let content = fs::read_to_string(&cache_path)
+            .map_err(|e| format!("Failed to read WorkspacesCache: {}", e))?;
+
+        let parsed: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse WorkspacesCache: {}", e))?;
+
+        let Some(workspaces) = parsed.get("workspaces").and_then(|w| w.as_array()) else {
+            return Ok(vec![]);
+        };
+
+        let mut result = Vec::new();
+        for ws in workspaces {
+            let id = ws
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let name = ws
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unnamed")
+                .to_string();
+            let color = ws
+                .get("color")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let tab_count = ws
+                .get("tab_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as usize;
+            let active = ws
+                .get("is_active")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            if !id.is_empty() {
+                result.push(EdgeWorkspaceInfo {
+                    id,
+                    name,
+                    color,
+                    tab_count,
+                    active,
+                });
+            }
+        }
+
+        Ok(result)
     }
 }
 
@@ -1599,8 +1700,13 @@ pub fn open_edge_workspace(profileDir: String, workspaceId: String) -> Result<()
 
     #[cfg(not(windows))]
     {
-        let _ = (profileDir, workspaceId);
-        Err("Edge workspaces are only supported on Windows".to_string())
+        Command::new("microsoft-edge-stable")
+            .arg(format!("--profile-directory={}", profileDir))
+            .arg(format!("--launch-workspace={}", workspaceId))
+            .spawn()
+            .map_err(|e| format!("Failed to open Edge workspace: {}", e))?;
+
+        Ok(())
     }
 }
 

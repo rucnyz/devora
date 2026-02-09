@@ -156,6 +156,10 @@ pub struct Item {
     pub command_shell: Option<TerminalType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub edge_profile: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_linux: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_windows: Option<String>,
     pub order: i32,
     pub created_at: String,
     pub updated_at: String,

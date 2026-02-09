@@ -22,7 +22,16 @@ interface CommandSectionProps {
   isCreating: boolean
   workingDirs: WorkingDir[]
   sshHosts: string[]
-  onAdd: (title: string, command: string, mode: CommandMode, cwd?: string, host?: string, shell?: TerminalType) => Promise<void>
+  onAdd: (
+    title: string,
+    command: string,
+    mode: CommandMode,
+    cwd?: string,
+    host?: string,
+    shell?: TerminalType,
+    commandLinux?: string,
+    commandWindows?: string
+  ) => Promise<void>
   onUpdate: (id: string, data: Partial<Item>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onCreatingChange: (creating: boolean) => void
@@ -49,6 +58,8 @@ export default function CommandSection({
   const [editCwd, setEditCwd] = useState('')
   const [editHost, setEditHost] = useState('')
   const [editShell, setEditShell] = useState<string>('')
+  const [editCommandLinux, setEditCommandLinux] = useState('')
+  const [editCommandWindows, setEditCommandWindows] = useState('')
   const editCommandRef = useRef<HTMLDivElement>(null)
   const { value: defaultTerminal } = useSetting('defaultTerminal')
 
@@ -79,6 +90,8 @@ export default function CommandSection({
     setEditCwd('')
     setEditHost('')
     setEditShell('')
+    setEditCommandLinux('')
+    setEditCommandWindows('')
   }, [])
 
   const saveEditing = useCallback(async () => {
@@ -91,10 +104,24 @@ export default function CommandSection({
         command_cwd: editCwd.trim() || undefined,
         command_host: editHost.trim() || undefined,
         command_shell: (editShell || undefined) as TerminalType | undefined,
+        command_linux: editCommandLinux.trim() || undefined,
+        command_windows: editCommandWindows.trim() || undefined,
       })
       resetEditState()
     }
-  }, [editingId, editTitle, editContent, editMode, editCwd, editHost, editShell, onUpdate, resetEditState])
+  }, [
+    editingId,
+    editTitle,
+    editContent,
+    editMode,
+    editCwd,
+    editHost,
+    editShell,
+    editCommandLinux,
+    editCommandWindows,
+    onUpdate,
+    resetEditState,
+  ])
 
   useEditorHandlers({
     containerRef: editCommandRef,
@@ -122,13 +149,23 @@ export default function CommandSection({
     setEditCwd(item.command_cwd || '')
     setEditHost(item.command_host || '')
     setEditShell(item.command_shell || '')
+    setEditCommandLinux(item.command_linux || '')
+    setEditCommandWindows(item.command_windows || '')
   }
 
   const handleRun = async (item: Item) => {
     if (item.content && item.command_mode) {
       try {
-        const effectiveShell = item.command_shell || (defaultTerminal as TerminalType | undefined)
-        const result = await runCommand(item.content, item.command_mode, item.command_cwd, item.command_host, effectiveShell)
+        // Select platform-specific command if available
+        const platform = getPlatform()
+        const platformCommand =
+          platform === 'linux' ? item.command_linux : platform === 'windows' ? item.command_windows : undefined
+        const command = platformCommand || item.content
+        // When using a platform variant, ignore per-item shell (may be from another platform)
+        const effectiveShell = platformCommand
+          ? (defaultTerminal as TerminalType | undefined)
+          : item.command_shell || (defaultTerminal as TerminalType | undefined)
+        const result = await runCommand(command, item.command_mode, item.command_cwd, item.command_host, effectiveShell)
         if (item.command_mode === 'output') {
           setCommandOutput({
             title: item.title,
@@ -142,8 +179,17 @@ export default function CommandSection({
     }
   }
 
-  const handleAdd = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string, shell?: TerminalType) => {
-    await onAdd(title, command, mode, cwd, host, shell)
+  const handleAdd = async (
+    title: string,
+    command: string,
+    mode: CommandMode,
+    cwd?: string,
+    host?: string,
+    shell?: TerminalType,
+    commandLinux?: string,
+    commandWindows?: string
+  ) => {
+    await onAdd(title, command, mode, cwd, host, shell, commandLinux, commandWindows)
     onCreatingChange(false)
   }
 
@@ -155,7 +201,9 @@ export default function CommandSection({
         item.command_mode || 'background',
         item.command_cwd,
         item.command_host,
-        item.command_shell
+        item.command_shell,
+        item.command_linux,
+        item.command_windows
       )
     } catch (err) {
       toast.error('Failed to duplicate', err instanceof Error ? err.message : String(err))
@@ -202,6 +250,27 @@ export default function CommandSection({
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                         placeholder="Command to run..."
+                        className="input-terminal flex-1"
+                      />
+                    </div>
+                    {/* Platform variant inputs */}
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <span className="text-xs font-mono text-(--text-muted) w-40 text-right">Linux:</span>
+                      <input
+                        type="text"
+                        value={editCommandLinux}
+                        onChange={(e) => setEditCommandLinux(e.target.value)}
+                        placeholder="Linux command (optional)..."
+                        className="input-terminal flex-1"
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <span className="text-xs font-mono text-(--text-muted) w-40 text-right">Windows:</span>
+                      <input
+                        type="text"
+                        value={editCommandWindows}
+                        onChange={(e) => setEditCommandWindows(e.target.value)}
+                        placeholder="Windows command (optional)..."
                         className="input-terminal flex-1"
                       />
                     </div>
@@ -339,6 +408,20 @@ export default function CommandSection({
                           <span>{item.title}</span>
                           {item.command_host && <span className="text-xs text-[#e879f9]">@{item.command_host}</span>}
                           {item.command_shell && <span className="text-xs opacity-50">[{item.command_shell}]</span>}
+                          {(item.command_linux || item.command_windows) && (
+                            <span
+                              className="text-xs opacity-50"
+                              title={`Linux: ${item.command_linux || '(default)'}\nWindows: ${item.command_windows || '(default)'}`}
+                            >
+                              [
+                              {getPlatform() === 'linux' && item.command_linux
+                                ? 'linux'
+                                : getPlatform() === 'windows' && item.command_windows
+                                  ? 'win'
+                                  : 'default'}
+                              ]
+                            </span>
+                          )}
                           {item.command_mode === 'output' && <span className="text-xs opacity-50">[out]</span>}
                           <button
                             onClick={(e) => {

@@ -333,7 +333,21 @@ export default function ProjectDetail() {
   }
 
   const handleAddEdgeWorkspace = async (title: string, workspaceId: string, edgeProfile: string) => {
-    await addItem('edge-workspace', title, workspaceId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, edgeProfile)
+    await addItem(
+      'edge-workspace',
+      title,
+      workspaceId,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      edgeProfile
+    )
   }
 
   const handleAddFile = async (title: string, path: string) => {
@@ -344,8 +358,33 @@ export default function ProjectDetail() {
     return await addItem('url', title, url)
   }
 
-  const handleAddCommand = async (title: string, command: string, mode: CommandMode, cwd?: string, host?: string, shell?: TerminalType) => {
-    await addItem('command', title, command, undefined, undefined, undefined, undefined, undefined, mode, cwd, host, shell)
+  const handleAddCommand = async (
+    title: string,
+    command: string,
+    mode: CommandMode,
+    cwd?: string,
+    host?: string,
+    shell?: TerminalType,
+    commandLinux?: string,
+    commandWindows?: string
+  ) => {
+    await addItem(
+      'command',
+      title,
+      command,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      mode,
+      cwd,
+      host,
+      shell,
+      undefined,
+      commandLinux,
+      commandWindows
+    )
   }
 
   const handleUpdateWorkingDirs = async (dirs: WorkingDir[]) => {

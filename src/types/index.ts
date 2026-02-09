@@ -86,7 +86,16 @@ export interface CustomRemoteIde {
 }
 
 // Section keys for drag-and-drop reordering
-export type SectionKey = 'workingDirs' | 'ide' | 'remoteIde' | 'codingAgent' | 'edgeWorkspace' | 'file' | 'command' | 'links' | 'notes'
+export type SectionKey =
+  | 'workingDirs'
+  | 'ide'
+  | 'remoteIde'
+  | 'codingAgent'
+  | 'edgeWorkspace'
+  | 'file'
+  | 'command'
+  | 'links'
+  | 'notes'
 
 export const DEFAULT_SECTION_ORDER: SectionKey[] = [
   'workingDirs',
@@ -116,6 +125,8 @@ export interface Item {
   command_host?: string // for remote commands via SSH
   command_shell?: TerminalType // per-command shell override (empty = global default)
   edge_profile?: string // Edge profile directory for edge-workspace items
+  command_linux?: string // platform-specific command variant for Linux
+  command_windows?: string // platform-specific command variant for Windows
   order: number
   created_at: string
   updated_at: string

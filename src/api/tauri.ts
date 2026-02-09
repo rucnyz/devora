@@ -157,7 +157,9 @@ export async function createItem(
   commandCwd?: string,
   commandHost?: string,
   commandShell?: TerminalType,
-  edgeProfile?: string
+  edgeProfile?: string,
+  commandLinux?: string,
+  commandWindows?: string
 ): Promise<Item> {
   return invoke<Item>('create_item', {
     projectId,
@@ -174,6 +176,8 @@ export async function createItem(
     commandHost,
     commandShell,
     edgeProfile,
+    commandLinux,
+    commandWindows,
   })
 }
 
@@ -194,6 +198,8 @@ export async function updateItem(
       | 'command_host'
       | 'command_shell'
       | 'edge_profile'
+      | 'command_linux'
+      | 'command_windows'
       | 'order'
     >
   >
@@ -212,6 +218,8 @@ export async function updateItem(
     commandHost: updates.command_host !== undefined ? updates.command_host : undefined,
     commandShell: updates.command_shell !== undefined ? updates.command_shell : undefined,
     edgeProfile: updates.edge_profile !== undefined ? updates.edge_profile : undefined,
+    commandLinux: updates.command_linux !== undefined ? updates.command_linux : undefined,
+    commandWindows: updates.command_windows !== undefined ? updates.command_windows : undefined,
     order: updates.order,
   })
 }

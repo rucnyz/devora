@@ -615,7 +615,9 @@ function SettingsButton() {
       setGlobalEnvEntries([])
     }
     // Load path mappings
-    getPathMappings().then(setPathMappingEntries).catch(() => setPathMappingEntries([]))
+    getPathMappings()
+      .then(setPathMappingEntries)
+      .catch(() => setPathMappingEntries([]))
   }
 
   // Load database paths when modal opens
@@ -1428,9 +1430,7 @@ function SettingsButton() {
                 {/* Cross-Platform Path Mappings */}
                 <div className="border-t border-(--border-subtle) pt-4">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm text-(--text-primary)">
-                      Cross-platform path mappings
-                    </label>
+                    <label className="block text-sm text-(--text-primary)">Cross-platform path mappings</label>
                     <button onClick={addPathMapping} className="text-xs text-(--accent-primary) hover:underline">
                       + Add
                     </button>
@@ -1479,7 +1479,8 @@ function SettingsButton() {
                     </p>
                   )}
                   <p className="text-xs text-(--text-muted)">
-                    Map path prefixes between Windows and Linux for cross-platform use with cloud sync (OneDrive/Dropbox).
+                    Map path prefixes between Windows and Linux for cross-platform use with cloud sync
+                    (OneDrive/Dropbox).
                   </p>
                 </div>
               </div>
